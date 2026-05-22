@@ -62,6 +62,12 @@ const KEY_NEXT_TIME_POST_WHEN_SPAMMED = "next_time_post_when_spammed";
 
 const KEY_COUNT_POST = "count_post";
 
+const KEY_IS_RANDOM_BATCH_POST = "is_random_batch_post";
+
+const KEY_IS_PREMIUM = "is_premium";
+
+const KEY_IS_RANDOM_TIME_POST = "is_random_time_post";
+
 const KEY_MY_SIGNATURE = "my_signature";
 
 const APP_NAME = "FB Tools Helper";
@@ -92,26 +98,11 @@ const SCHEDULER_TYPE = {
   DAILY_HOURS: "daily-hours",
 };
 
-const URL_DASHBOARD = "https://www.facebook.com/groups/joins/?nav_source=tab";
-const URL_TAB_TASK = "https://www.facebook.com/groups/{id}";
-
 const URL_LIST_GROUPS = "https://www.facebook.com/groups/joins/?nav_source=tab";
 
 const MAX_Z_INDEX = 999999999;
 
 const prefix = "tm_";
-
-function getHref() {
-  return location.href;
-}
-
-const isDashboardTab = getHref() === URL_DASHBOARD;
-const isPostTab =
-  !isDashboardTab &&
-  !getHref().includes("/groups/join") &&
-  !getHref().includes("/groups/feed") &&
-  !getHref().includes("/groups/discover") &&
-  getHref().includes("/groups/");
 
 const initialTimeDelay = {
   clickToPost: 4,
@@ -191,10 +182,6 @@ export {
   KEY_MAX_GROUP_PER_TIME,
   KEY_SCHEDULER,
   MAX_GROUP_PER_TIME_INITIAL,
-  URL_DASHBOARD,
-  URL_TAB_TASK,
-  isDashboardTab,
-  isPostTab,
   MAX_Z_INDEX,
   KEY_DATA_POST_SAVED,
   KEY_INDEXS_GROUP_CHECKED,
@@ -228,4 +215,7 @@ export {
   APP_NAME,
   KEY_HISTORY_LOGS,
   KEY_IS_SHUFFLE_GROUPS_NEED_POST,
+  KEY_IS_RANDOM_BATCH_POST,
+  KEY_IS_PREMIUM,
+  KEY_IS_RANDOM_TIME_POST,
 };

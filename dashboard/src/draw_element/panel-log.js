@@ -70,11 +70,11 @@ async function initHistoryLogs() {
     let histories = await getHistoryLogsInStorage();
     const historyLogs = document.querySelector(".history-logs");
 
-    if (!histories.length) {
-      await addLog({ vi: "Bắt đầu sử dụng", en: "Start using" });
-      histories = await getHistoryLogsInStorage();
-      return;
-    }
+    // if (!histories.length) {
+    //   await addLog({ vi: "Bắt đầu sử dụng", en: "Start using" });
+    //   histories = await getHistoryLogsInStorage();
+    //   return;
+    // }
 
     histories.forEach((msgObject) => {
       const div = drawHistoryLogItem(msgObject);

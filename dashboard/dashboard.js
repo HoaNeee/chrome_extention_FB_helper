@@ -1,10 +1,13 @@
-import { KEY_CURRENT_WINDOW_ID } from "../contants/constant-extention.js";
 import {
-  getTextWithLanguage,
-  initLanguage,
-  logActions,
-  logError,
-} from "../utils/utils.js";
+  KEY_CURRENT_WINDOW_ID,
+  KEY_FIRST_TIME_USE,
+} from "../contants/constant-extention.js";
+import {
+  KEY_IS_FIX_STEAL_FOCUS,
+  KEY_IS_PREMIUM,
+  KEY_IS_SHUFFLE_GROUPS_NEED_POST,
+} from "../contants/contants.js";
+import { getTextWithLanguage, initLanguage, logError } from "../utils/utils.js";
 import { dialogContainer } from "./src/draw_element/dialog.js";
 import {
   addLog,
@@ -20,21 +23,16 @@ import {
 import { initialData } from "./src/helpers/initial.js";
 import addValueChangeListener from "./src/listener/addValueChangeListener.js";
 import {
-  getDataGroupsSavedNeedPost,
   getDataSavedInStorage,
   setDataSavedInStorage,
 } from "./src/services/dataSavedService.js";
-import { DB_setValue } from "./src/utils/api-helper.js";
+import { DB_getValue, DB_setValue } from "./src/utils/api-helper.js";
 
 async function main() {
   try {
     await initLanguage();
 
-    const currentWindow = await chrome.windows.getCurrent();
-
-    // logActions(currentWindow);
-
-    DB_setValue(KEY_CURRENT_WINDOW_ID, currentWindow.id);
+    await initialGlobalData();
 
     const mainElement = document.querySelector("main");
 
@@ -180,6 +178,31 @@ async function migrateDataSaved() {
     setDataSavedInStorage(dataSaved);
   } catch (error) {
     logError("Error at migrate DataSaved", error);
+  }
+}
+
+async function initialGlobalData() {
+  try {
+    const currentWindow = await chrome.windows.getCurrent();
+
+    DB_setValue(KEY_CURRENT_WINDOW_ID, currentWindow.id);
+
+    const isFirstTimeUse = await DB_getValue(KEY_FIRST_TIME_USE);
+
+    if (isFirstTimeUse === undefined || isFirstTimeUse === null) {
+      DB_setValue(KEY_FIRST_TIME_USE, true);
+      addLog({
+        vi: "Bắt đầu sử dụng tiện ích",
+        en: "Start using the extension",
+      });
+      DB_setValue(KEY_IS_SHUFFLE_GROUPS_NEED_POST, true);
+      DB_setValue(KEY_IS_FIX_STEAL_FOCUS, true);
+      DB_setValue(KEY_IS_PREMIUM, false);
+    } else {
+      DB_setValue(KEY_FIRST_TIME_USE, false);
+    }
+  } catch (error) {
+    logError("Error at initialGlobalData: ", error);
   }
 }
 

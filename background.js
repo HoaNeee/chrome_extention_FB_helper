@@ -2,6 +2,7 @@ import {
   KEY_ADD_LOG,
   KEY_CLEAR_NOTIFICATION,
   KEY_CLOSE_THIS_TAB,
+  KEY_FIRST_TIME_USE,
   KEY_GET_CURRENT_DATA_GROUP_SAVED_NEED_POST,
   KEY_GET_LIST_GROUPS,
   KEY_NEXT_POST_GROUP,
@@ -17,6 +18,8 @@ import {
 } from "./contants/constant-extention.js";
 import {
   KEY_CAN_POST_THIS_TAB,
+  KEY_IS_PREMIUM,
+  KEY_IS_RANDOM_BATCH_POST,
   KEY_IS_SCROLL_DETECT_LIST_GROUP,
   KEY_IS_SHUFFLE_SCHEDULER_TIME,
   KEY_IS_SPAMMED,
@@ -53,6 +56,7 @@ import {
 import {
   clearAndCreateSchedulerAlarm,
   clearSchedulerAuto,
+  getIsScheduler,
   getSchedulerService,
 } from "./dashboard/src/services/scheduler-service.js";
 import { DB_openInTab } from "./dashboard/src/utils/api-helper.js";
@@ -143,7 +147,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       //CLOSE THIS TAB
       case KEY_CLOSE_THIS_TAB:
-        handleCloseThisTab(sender);
+        handleCloseThisTab(sender.tab.id);
         break;
 
       case KEY_GET_LIST_GROUPS:
@@ -450,6 +454,16 @@ async function handleWelcomeBack() {
       vi: "Chào mừng bạn quay trở lại",
       en: "Welcome back",
     });
+
+    const isPremium = (await BG_getValue(KEY_IS_PREMIUM)) || false;
+
+    if (isPremium) {
+      addLog({
+        vi: "Chế độ Premium đã được kích hoạt",
+        en: "Premium mode is activated",
+      });
+    }
+
     const isProgress = await getProgressTool();
     if (!isProgress) {
       const scheduler = await getSchedulerService();
@@ -476,10 +490,10 @@ async function handleWelcomeBack() {
   }
 }
 
-async function handleCloseThisTab(sender) {
+async function handleCloseThisTab(tabId) {
   try {
     chrome.tabs.query({}, function (tabs) {
-      const id = sender.tab.id;
+      const id = tabId;
       if (tabs && Array.isArray(tabs) && tabs.find((t) => t.id === id)) {
         chrome.tabs.remove(id);
       }
@@ -528,7 +542,14 @@ async function handleOnCommited(details) {
 
         //when user open dashboard tab -> set tab id, not exist dashboard tab and reload it
         if (getIsDashboardTab(url)) {
-          handleWelcomeBack();
+          const isFirstTimeUse = await BG_getValue(KEY_FIRST_TIME_USE);
+          if (
+            isFirstTimeUse !== undefined &&
+            isFirstTimeUse !== null &&
+            !isFirstTimeUse
+          ) {
+            handleWelcomeBack();
+          }
           BG_setValue(KEY_TAB.TAB_DASHBOARD_ID, currentId);
         }
       }
@@ -539,6 +560,27 @@ async function handleOnCommited(details) {
 }
 
 async function handleOnRemove(tabId) {
+  async function handleScheduler() {
+    try {
+      const scheduler = await getSchedulerService();
+      if (scheduler.isScheduler) {
+        const nextTime = await getCorrectNextTime();
+        const date = new Date(nextTime);
+        addLog({
+          vi:
+            "Lên lịch đang được bật, thời gian đăng bài tiếp theo: " +
+            date.toLocaleString(),
+          en:
+            "Auto schedule is enabled, the next execution time: " +
+            date.toLocaleString(),
+        });
+        clearAndCreateSchedulerAlarm();
+      }
+    } catch (error) {
+      logError("Error handle scheduler: ", error);
+    }
+  }
+
   try {
     const tabIdGetListGroup = await BG_getValue(KEY_TAB.TAB_GET_LIST_GROUP_ID);
     if (tabId === tabIdGetListGroup) {
@@ -561,9 +603,10 @@ async function handleOnRemove(tabId) {
         setProgressTool(false);
         BG_deleteValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
         addLog({
-          vi: "Đã dừng đăng bài đợt này do tab bị đóng thủ công",
-          en: "Stopped posting this batch because tab was closed manually",
+          vi: "Đã dừng đăng bài đợt này do tab đăng bài bị đóng thủ công",
+          en: "Stopped posting this batch because tab posting was closed manually",
         });
+        handleScheduler();
       }
     }
 
@@ -590,59 +633,99 @@ async function handleOnAlarm(alarm) {
           break;
         }
       }
-      const isProgress = await getProgressTool();
-      if (!isOpenningDashboardTab || isProgress) {
-        if (isProgress) {
-          setProgressTool(false);
-        }
+      if (!isOpenningDashboardTab) {
         clearSchedulerAuto();
+        return;
+      }
+      const isProgress = await getProgressTool();
+      if (isProgress) {
+        setProgressTool(false);
+        addLog({
+          vi: "Tiện ích đang bị treo do lỗi đăng bài trước đó, đang đặt lại trạng thái và chuyển sang đợt đăng bài tiếp theo",
+          en: "Tool is stuck due to previous posting error, resetting status and switching to next batch",
+        });
+        const lastTabPostOpenId = await BG_getValue(
+          KEY_TAB.LAST_POST_TAB_OPEN_ID,
+        );
+        if (lastTabPostOpenId !== undefined && lastTabPostOpenId !== null) {
+          handleCloseThisTab(lastTabPostOpenId);
+          BG_deleteValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
+        }
         return;
       }
       logActions("Its time to post, random post this time or not");
 
-      addLog({
-        vi: "Đã đến giờ đăng bài trong lịch trình, đang tính toán có nên đăng bài đợt này không",
-        en: "It's time to post in the schedule, calculating whether to post this batch or not",
-      });
-
-      function sleepThisTime() {
+      const isRandomBatchPost =
+        (await BG_getValue(KEY_IS_RANDOM_BATCH_POST)) || false;
+      if (isRandomBatchPost) {
         addLog({
-          vi: "Đã quyết định nghỉ đợt đăng bài lần này, chuyển sang đợt tiếp theo",
-          en: "Decided to skip this batch, will start next batch",
+          vi: "Đã đến giờ đăng bài trong lịch trình, chế độ nghỉ ngẫu nhiên đang bật, đang tính toán có nên đăng bài đợt này không",
+          en: "It's time to post in the schedule, random rest mode is enabled, calculating whether to post this batch or not",
         });
-        setProgressTool(false);
-        setCountPost(0);
-        clearAndCreateSchedulerAlarm();
-      }
 
-      const countPost = await getCountPost();
-      if (countPost > 7) {
-        sleepThisTime();
-        return;
-      }
-      if (countPost >= 5 && countPost <= 7) {
-        //increase percent to sleep this time
-        const rd = random(0, 10);
-        if (rd >= 3) {
+        async function sleepThisTime() {
+          const nextTime = await getCorrectNextTime();
+          const date = new Date(nextTime);
+          addLog({
+            vi:
+              "Đã quyết định nghỉ đợt đăng bài lần này, chuyển sang đợt tiếp theo lúc: " +
+              date.toLocaleString(),
+            en:
+              "Decided to skip this batch, will start next batch at: " +
+              date.toLocaleString(),
+          });
+          setProgressTool(false);
+          setCountPost(0);
+          clearAndCreateSchedulerAlarm();
+        }
+
+        const countPost = await getCountPost();
+        if (countPost > 8) {
           sleepThisTime();
           return;
         }
-      }
-      //random this time to post or not with 10% chance
-      const rand = random(0, 10);
-      if (rand >= 10 && countPost >= 2) {
-        sleepThisTime();
+        if (countPost >= 5 && countPost <= 8) {
+          //increase percent to sleep this time
+          const rd = random(0, 10);
+          if (rd >= 3) {
+            sleepThisTime();
+            return;
+          }
+        }
+        //random this time to post or not with 10% chance
+        const rand = random(0, 10);
+        if (rand >= 10 && countPost >= 2) {
+          sleepThisTime();
+          return;
+        }
+
+        addLog({
+          vi: "Quyết định bắt đầu đợt đăng bài",
+          en: "Decided to start this batch",
+        });
+
+        await automationContinue();
+
         return;
       }
+
       addLog({
-        vi: "Quyết định bắt đầu đợt đăng bài",
-        en: "Decided to start this batch",
+        vi: "Đã đến giờ đăng bài trong lịch trình, chế độ nghỉ ngẫu nhiên đang tắt, sẽ bắt đầu đợt đăng bài",
+        en: "It's time to post in the schedule, random rest mode is off, will start this batch",
       });
+
       await automationContinue();
+
       const isShuffle =
         (await BG_getValue(KEY_IS_SHUFFLE_SCHEDULER_TIME)) || false;
       if (isShuffle) {
         shuffleTimes();
+      }
+
+      //force create schduler when tab post was be frozen
+      const isScheduler = await getIsScheduler();
+      if (isScheduler) {
+        clearAndCreateSchedulerAlarm();
       }
     }
   } catch (error) {

@@ -21,7 +21,7 @@ html {
 body {
   margin: 0;
   padding: 0;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Inter', "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   height: 100%;
   overflow: hidden;
   display: flex;
@@ -351,9 +351,7 @@ body select#tm_select-language {
 
 #tm_root .tm_div-dashboard::-webkit-scrollbar-thumb:hover,
 #tm_root .tm_advanced-setting::-webkit-scrollbar-thumb:hover,
-#tm_root
-  #tm_div-panel-group
-  #tm_list-groups-container::-webkit-scrollbar-thumb:hover,
+#tm_root #tm_div-panel-group #tm_list-groups-container::-webkit-scrollbar-thumb:hover,
 #tm_root .custom-scrollbar::-webkit-scrollbar-thumb:hover,
 #tm_root .custom-scrollbar *::-webkit-scrollbar-thumb:hover {
   background: #ccc !important;

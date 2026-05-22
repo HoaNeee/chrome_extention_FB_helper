@@ -10,6 +10,12 @@ function getAllFieldsSetting(root = document) {
   const checkboxIsShuffleGroupsNeedPost = root.querySelector(
     `#tm_checkbox-is-shuffle-groups-need-post`,
   );
+  const checkboxIsRandomBatchPost = root.querySelector(
+    `#tm_checkbox-is-random-batch-post`,
+  );
+  const checkboxIsRandomTimePost = root.querySelector(
+    `#tm_checkbox-is-random-time-post`,
+  );
 
   const checkboxIsFixStealFocus = root.querySelector(
     `#tm_checkbox-is-fix-steal-focus`,
@@ -90,6 +96,18 @@ function getAllFieldsSetting(root = document) {
     }
   }
 
+  function setIsRandomBatchPost(val) {
+    if (checkboxIsRandomBatchPost) {
+      checkboxIsRandomBatchPost.checked = val;
+    }
+  }
+
+  function setIsRandomTimePost(val) {
+    if (checkboxIsRandomTimePost) {
+      checkboxIsRandomTimePost.checked = val;
+    }
+  }
+
   return {
     getMaxGroupPerTime: () => Number(inputMaxGroup.value),
     getIsProcessing: () => checkboxIsProcessing.checked,
@@ -113,6 +131,10 @@ function getAllFieldsSetting(root = document) {
     setIsFixStealAllFocus: setIsFixStealAllFocus,
     getIsShuffleGroupsNeedPost: () => checkboxIsShuffleGroupsNeedPost.checked,
     setIsShuffleGroupsNeedPost: setIsShuffleGroupsNeedPost,
+    getIsRandomBatchPost: () => checkboxIsRandomBatchPost.checked,
+    setIsRandomBatchPost: setIsRandomBatchPost,
+    getIsRandomTimePost: () => checkboxIsRandomTimePost.checked,
+    setIsRandomTimePost: setIsRandomTimePost,
   };
 }
 

@@ -4,8 +4,6 @@ import {
   getTimeDelayInStorage,
 } from "./storage.js";
 import {
-  disabledElement,
-  enabledElement,
   getAllFieldsSetting,
   hideElement,
   hideField,
@@ -24,31 +22,30 @@ import {
   KEY_IS_FIX_STEAL_FOCUS,
   KEY_IS_DARK_THEME,
   KEY_IS_DEVELOPER_MODE,
-  SCHEDULER_TYPE,
   KEY_IS_SHUFFLE_SCHEDULER_TIME,
   KEY_IS_SPAMMED,
-  KEY_NEXT_TIME_POST_WHEN_SPAMMED,
   KEY_IS_FIX_STEAL_ALL_FOCUS,
   KEY_IS_SHUFFLE_GROUPS_NEED_POST,
+  KEY_IS_RANDOM_BATCH_POST,
+  KEY_IS_PREMIUM,
+  KEY_IS_RANDOM_TIME_POST,
 } from "../../../contants/contants.js";
 import { updateDataSavedInfo } from "../draw_element/dataSavedInfo.js";
 import {
   getIsDashboardTab,
   logActions,
   logError,
-  random,
 } from "../../../utils/utils.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import { getDataSavedInStorage } from "../services/dataSavedService.js";
 import {
   clearAndCreateSchedulerAlarm,
   clearSchedulerAuto,
-  createSchedulerAuto,
   getSchedulerService,
-  setSchedulerService,
 } from "../services/scheduler-service.js";
-import { getNextTimePostWhenSpammed, shuffleTimes } from "./scheduler.js";
+import { shuffleTimes } from "./scheduler.js";
 import { initHistoryLogs } from "../draw_element/panel-log.js";
+import { handleShowOrHideElementPremium } from "./premium.js";
 
 async function initialData({ anchorElement = document.body }) {
   try {
@@ -64,6 +61,8 @@ async function initialData({ anchorElement = document.body }) {
         setIsSpammed,
         setIsFixStealAllFocus,
         setIsShuffleGroupsNeedPost,
+        setIsRandomBatchPost,
+        setIsRandomTimePost,
       } = getAllFieldsSetting();
 
       //get max group
@@ -100,6 +99,10 @@ async function initialData({ anchorElement = document.body }) {
         (await DB_getValue(KEY_IS_SHUFFLE_GROUPS_NEED_POST)) || false;
       setIsShuffleGroupsNeedPost(isShuffleGroupsNeedPost);
 
+      const isRandomTimePost =
+        (await DB_getValue(KEY_IS_RANDOM_TIME_POST)) || false;
+      setIsRandomTimePost(isRandomTimePost);
+
       const scheduler = await getSchedulerService();
 
       if (scheduler) {
@@ -122,6 +125,10 @@ async function initialData({ anchorElement = document.body }) {
       if (strictlyMatchTitleGroup) {
         setStrictlyMatchTitleGroup(strictlyMatchTitleGroup);
       }
+
+      const isRandomBatchPost =
+        (await DB_getValue(KEY_IS_RANDOM_BATCH_POST)) || false;
+      setIsRandomBatchPost(isRandomBatchPost);
     }
 
     await initialSettings();
@@ -243,6 +250,10 @@ async function initialData({ anchorElement = document.body }) {
         fieldSelector: ".tm_field-container",
       });
     }
+
+    const isPremium = (await DB_getValue(KEY_IS_PREMIUM)) || false;
+    handleShowOrHideElementPremium(isPremium);
+
     await updateDataSavedInfo();
     await initHistoryLogs();
   } catch (error) {

@@ -42,6 +42,8 @@ const KEY_UPDATE_IS_SPAMMED = "update_is_spammed";
 
 const KEY_ADD_LOG = "add_log";
 
+const KEY_FIRST_TIME_USE = "first_time_use";
+
 export {
   KEY_NOTIFICATION,
   KEY_OPEN_IN_TAB,
@@ -67,4 +69,5 @@ export {
   KEY_CURRENT_WINDOW_ID,
   KEY_UPDATE_IS_SPAMMED,
   KEY_ADD_LOG,
+  KEY_FIRST_TIME_USE,
 };

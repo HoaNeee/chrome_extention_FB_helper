@@ -8,7 +8,6 @@ import {
   KEY_POST,
   KEY_RETRY_CALL,
   KEY_STOP_TASK,
-  URL_DASHBOARD,
   KEY_POST_LENGTH,
   KEY_INDEXS_GROUP_CHECKED,
   KEY_IS_SCROLL_DETECT_LIST_GROUP,
@@ -23,12 +22,17 @@ import {
   KEY_IS_SPAMMED,
   KEY_IS_FIX_STEAL_ALL_FOCUS,
   KEY_IS_SHUFFLE_GROUPS_NEED_POST,
+  KEY_IS_RANDOM_BATCH_POST,
+  KEY_IS_PREMIUM,
+  KEY_TAB,
+  KEY_IS_RANDOM_TIME_POST,
 } from "../../../contants/contants.js";
 import { getGroupsMatch, resetPostedGroupAndSave } from "../helpers/group.js";
 import {
   createSchedulerDailyHours,
   createSchedulerHours,
   createSchedulerMinutes,
+  getCorrectNextTime,
   getListFrameHours,
   getSchedulerWithType,
 } from "../helpers/scheduler.js";
@@ -38,7 +42,6 @@ import {
   setTimeDelayInStorage,
   setStrictlyMatchTitleGroupInStorage,
   getProgress,
-  getRandomIndexGroupChecked,
   getStrictlyMatchTitleGroupInStorage,
 } from "../helpers/storage.js";
 import {
@@ -82,6 +85,7 @@ import {
   setSchedulerService,
 } from "../services/scheduler-service.js";
 import { addLog } from "./panel-log.js";
+import { KEY_SCHEDULER_ALARMS } from "../../../contants/constant-extention.js";
 
 function drawInnerRoot() {
   const innerRoot = document.createElement("div");
@@ -163,6 +167,14 @@ function drawInnerRoot() {
             <label for="${prefix}checkbox-is-shuffle-groups-need-post" style="user-select: none;">${getTextWithLanguage({ vi: "Tự động trộn nhóm cần đăng", en: "Shuffle groups need post" })}</label>
           </div>
           <div class="${prefix}field-container field-checkbox">
+            <input type="checkbox" id="${prefix}checkbox-is-random-batch-post">
+            <label for="${prefix}checkbox-is-random-batch-post" style="user-select: none;">${getTextWithLanguage({ vi: "Tự động nghỉ giữa các đợt", en: "Random break between batches" })}</label>
+          </div>
+          <div class="${prefix}field-container field-checkbox">
+            <input type="checkbox" id="${prefix}checkbox-is-random-time-post">
+            <label for="${prefix}checkbox-is-random-time-post" style="user-select: none;">${getTextWithLanguage({ vi: "Ngẫu nhiên thời gian đăng bài", en: "Random time post" })}</label>
+          </div>
+          <div class="${prefix}field-container field-checkbox">
             <input type="checkbox" id="${prefix}checkbox-is-fix-steal-all-focus">
             <label for="${prefix}checkbox-is-fix-steal-all-focus" style="user-select: none;">${getTextWithLanguage({ vi: "Tránh nhảy tab hoàn toàn (Thử nghiệm)", en: "Fix steal all focus (Beta)" })}</label>
           </div>
@@ -220,6 +232,12 @@ function drawInnerRoot() {
                   <button class="not-style" style="padding: 4px; font-size: 10px; " id="${prefix}btn-reset-frame-hours">${getTextWithLanguage({ vi: "Đặt lại khung giờ", en: "Reset frame hours" })}</button>
                 </div>
               </div>
+            </div>
+          </div>
+          <div class="special-frame-hours-container">
+            <div class="${prefix}field-container field-checkbox">
+              <input type="checkbox" id="${prefix}checkbox-is-special-frame-hours">
+              <label for="${prefix}checkbox-is-special-frame-hours" style="user-select: none;">${getTextWithLanguage({ vi: "Khung giờ đặc biệt", en: "Special frame hours" })}</label>
             </div>
           </div>
           <div style="margin-top: 8px;">
@@ -631,8 +649,16 @@ async function createPanel(doc = document.body) {
               message: "Save custom every hours successfully",
               type: "success",
             });
+            addLog({
+              vi: `Đã cập nhật khoảng thời gian mới: ${val} giờ`,
+              en: `Updated new interval: ${val} hours`,
+            });
             if (scheduler.isScheduler) {
               clearAndCreateSchedulerAlarm();
+              addLog({
+                vi: "Chức năng lên lịch đang được bật, hãy chú ý thời gian đăng bài tiếp theo",
+                en: "Scheduler is enabled, please pay attention to the next post time",
+              });
             }
           }
         } catch (error) {
@@ -671,8 +697,17 @@ async function createPanel(doc = document.body) {
               message: "Save custom every minutes successfully",
               type: "success",
             });
+
+            addLog({
+              vi: `Đã cập nhật khoảng thời gian mới: ${val} phút`,
+              en: `Updated new interval: ${val} minutes`,
+            });
             if (scheduler.isScheduler) {
               clearAndCreateSchedulerAlarm();
+              addLog({
+                vi: "Chức năng lên lịch đang được bật, hãy chú ý thời gian đăng bài tiếp theo",
+                en: "Scheduler is enabled, please pay attention to the next post time",
+              });
             }
           }
         } catch (error) {
@@ -1000,6 +1035,7 @@ async function createPanel(doc = document.body) {
       if (btnContinue) {
         btnContinue.addEventListener("click", async () => {
           try {
+            clearSchedulerAuto();
             await automationContinue();
           } catch (error) {
             logError("Error at btnContinue click event: ", error);
@@ -1012,6 +1048,7 @@ async function createPanel(doc = document.body) {
         btnTest.addEventListener("click", async () => {
           //auto test
           try {
+            clearSchedulerAuto();
             await automationTest();
           } catch (error) {
             setProgress(false);
@@ -1046,6 +1083,7 @@ async function createPanel(doc = document.body) {
         btnAuto.addEventListener("click", async () => {
           //auto
           try {
+            clearSchedulerAuto();
             await automation();
             addLog({
               vi: "Bắt đầu đăng tự động",
@@ -1075,7 +1113,10 @@ async function createPanel(doc = document.body) {
             //     vi: "test log 1 tieng viet",
             //   });
             // }, 1000);
-            console.log(await getRandomIndexGroupChecked());
+            // console.log(await getRandomIndexGroupChecked());
+            // console.log(await chrome.alarms.get(KEY_SCHEDULER_ALARMS));
+            // console.log(await DB_getValue(KEY_IS_PREMIUM));
+            console.log(await DB_getValue(KEY_TAB.LAST_POST_TAB_OPEN_ID));
           } catch (error) {
             logError("Error at btnClick click event: ", error);
           }
@@ -1169,15 +1210,6 @@ async function createPanel(doc = document.body) {
             updateDataSavedInfo();
           } catch (error) {
             logError("Error at btnResetIsSpammed click event: ", error);
-          }
-        });
-      }
-
-      const btnGotoDashboard = document.querySelector(`#tm_btn-goto-dashboard`);
-      if (btnGotoDashboard) {
-        btnGotoDashboard.addEventListener("click", async () => {
-          if (location.href !== URL_DASHBOARD) {
-            location.href = URL_DASHBOARD;
           }
         });
       }
@@ -1423,15 +1455,7 @@ async function createPanel(doc = document.body) {
         const inputPerTime = root.querySelector(`#tm_input-max-group-per-time`);
         if (inputPerTime) {
           //ctrl + shift + D/d to toggle developer mode
-          inputPerTime.addEventListener("keydown", async (e) => {
-            if (e.ctrlKey && e.shiftKey && (e.key === "D" || e.key === "d")) {
-              e.preventDefault();
-              const devMode =
-                (await DB_getValue(KEY_IS_DEVELOPER_MODE)) || false;
-              DB_setValue(KEY_IS_DEVELOPER_MODE, !devMode);
-              updateDataSavedInfo();
-            }
-          });
+          inputPerTime.addEventListener("keydown", async (e) => {});
         }
 
         const inputStrictlyMatchGroup = root.querySelector(
@@ -1543,6 +1567,28 @@ async function createPanel(doc = document.body) {
           });
         }
 
+        const checkboxIsRandomBatchPost = root.querySelector(
+          `#${prefix}checkbox-is-random-batch-post`,
+        );
+        if (checkboxIsRandomBatchPost) {
+          checkboxIsRandomBatchPost.addEventListener("change", (e) => {
+            const val = e.target.checked;
+            DB_setValue(KEY_IS_RANDOM_BATCH_POST, val);
+            updateDataSavedInfo();
+          });
+        }
+
+        const checkboxIsRandomTimePost = root.querySelector(
+          `#${prefix}checkbox-is-random-time-post`,
+        );
+        if (checkboxIsRandomTimePost) {
+          checkboxIsRandomTimePost.addEventListener("change", (e) => {
+            const val = e.target.checked;
+            DB_setValue(KEY_IS_RANDOM_TIME_POST, val);
+            updateDataSavedInfo();
+          });
+        }
+
         const checkboxIsScheduler = root.querySelector(
           `#tm_checkbox-is-scheduler`,
         );
@@ -1555,13 +1601,15 @@ async function createPanel(doc = document.body) {
               if (!val) {
                 clearSchedulerAuto();
                 addLog({
-                  vi: "Tắt lên lịch đăng tự động",
-                  en: "Turn off scheduler",
+                  vi: "Chức năng lên lịch tự động đã được tắt",
+                  en: "Turn off scheduler auto",
                 });
               } else {
+                const nextTime = await getCorrectNextTime();
+                const date = new Date(nextTime).toLocaleString();
                 addLog({
-                  vi: `Tạo bộ lập lịch tự động thành công`,
-                  en: `Create scheduler auto success`,
+                  vi: `Chức năng lên lịch tự động đã được bật, thời gian đăng tiếp theo ${date}`,
+                  en: `Turn on scheduler auto, next time ${date}`,
                 });
                 clearAndCreateSchedulerAlarm();
               }
@@ -1661,6 +1709,38 @@ async function createPanel(doc = document.body) {
     }
 
     await addFieldsEvent();
+
+    async function shortCutEvent() {
+      document.addEventListener("keydown", async (e) => {
+        if (e.ctrlKey && e.shiftKey) {
+          if (e.key === "D" || e.key === "d") {
+            e.preventDefault();
+            const devMode = (await DB_getValue(KEY_IS_DEVELOPER_MODE)) || false;
+            DB_setValue(KEY_IS_DEVELOPER_MODE, !devMode);
+            updateDataSavedInfo();
+          }
+          if (e.key === "P" || e.key === "p") {
+            e.preventDefault();
+            const isPremium = (await DB_getValue(KEY_IS_PREMIUM)) || false;
+            DB_setValue(KEY_IS_PREMIUM, !isPremium);
+
+            addLog({
+              vi: isPremium
+                ? "Chế độ Premium đã bị vô hiệu hóa"
+                : "Chế độ Premium đã được kích hoạt",
+              en: !isPremium
+                ? "Premium mode has been disabled"
+                : "Premium mode has been activated",
+            });
+
+            updateDataSavedInfo();
+          }
+        }
+      });
+    }
+
+    await shortCutEvent();
+
     //end add event for fields
   } catch (error) {
     logError("Error at createPanel: ", error);

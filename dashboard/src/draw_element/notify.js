@@ -25,8 +25,8 @@ function showNotify({ message, type = "info", duration = 3000 }) {
     text: message,
     duration: duration,
     close: true,
-    gravity: "top",
-    position: "left",
+    gravity: "bottom",
+    position: "right",
     stopOnFocus: true,
     offset: {
       y: 50,

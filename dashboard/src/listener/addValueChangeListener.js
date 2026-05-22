@@ -4,6 +4,7 @@ import {
   KEY_HISTORY_LOGS,
   KEY_IS_DEVELOPER_MODE,
   KEY_IS_IN_PROGRESS,
+  KEY_IS_PREMIUM,
   KEY_IS_SPAMMED,
   KEY_IS_TEST,
   KEY_POST,
@@ -19,6 +20,7 @@ import {
   showElement,
   showField,
 } from "../helpers/elementDom.js";
+import { handleShowOrHideElementPremium } from "../helpers/premium.js";
 import {
   clearAndCreateSchedulerAlarm,
   getSchedulerService,
@@ -38,6 +40,7 @@ export default function addValueChangeListener(cb) {
     KEY_IS_DEVELOPER_MODE,
     KEY_IS_SPAMMED,
     KEY_HISTORY_LOGS,
+    KEY_IS_PREMIUM,
   ];
   const { setIsTest } = getAllFieldsSetting();
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -89,6 +92,9 @@ export default function addValueChangeListener(cb) {
             }
             if (key === KEY_HISTORY_LOGS) {
               handleHisoryLog(newVal);
+            }
+            if (key === KEY_IS_PREMIUM) {
+              handleShowOrHideElementPremium(newVal);
             }
 
             updateDataSavedInfo();

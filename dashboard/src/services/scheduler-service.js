@@ -1,5 +1,9 @@
 import { KEY_SCHEDULER_ALARMS } from "../../../contants/constant-extention.js";
-import { KEY_IS_SPAMMED, KEY_SCHEDULER } from "../../../contants/contants.js";
+import {
+  KEY_IS_RANDOM_TIME_POST,
+  KEY_IS_SPAMMED,
+  KEY_SCHEDULER,
+} from "../../../contants/contants.js";
 import { now, logActions, logError, random } from "../../../utils/utils.js";
 import { addLog } from "../draw_element/panel-log.js";
 import {
@@ -7,14 +11,15 @@ import {
   getNextTimePost,
   getNextTimePostWhenSpammed,
 } from "../helpers/scheduler.js";
-import { getProgress } from "../helpers/storage.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 
 async function createSchedulerAuto(forceTime = 0) {
   try {
     const scheduler = await getSchedulerService();
     const isScheduler = scheduler?.isScheduler || false;
-    const randomMinutes = random(-2, 2) * 1000 * 60;
+    const isRandomTimePost =
+      (await DB_getValue(KEY_IS_RANDOM_TIME_POST)) || false;
+    const randomMinutes = isRandomTimePost ? random(-2, 2) * 1000 * 60 : 0;
     if (isScheduler) {
       let nextTime = 0;
       if (forceTime) {
@@ -137,15 +142,15 @@ async function clearAndCreateSchedulerAlarm() {
       clearTimeout(timeoutId);
     }
 
-    const isProgress = (await getProgress()) || false;
-    if (isProgress) {
-      logActions("is progress, skip create scheduler auto");
-      addLog({
-        vi: "Tiện ích đang trong quá trình xử lý, bỏ qua tạo bộ lập lịch tự động",
-        en: "Tool is processing, skip create scheduler auto",
-      });
-      return;
-    }
+    // const isProgress = (await getProgress()) || false;
+    // if (isProgress) {
+    //   logActions("is progress, skip create scheduler auto");
+    //   addLog({
+    //     vi: "Tiện ích đang trong quá trình xử lý, bỏ qua tạo bộ lập lịch tự động",
+    //     en: "Tool is processing, skip create scheduler auto",
+    //   });
+    //   return;
+    // }
 
     clearSchedulerAuto();
     const isSpammed = await DB_getValue(KEY_IS_SPAMMED);
@@ -160,6 +165,15 @@ async function clearAndCreateSchedulerAlarm() {
   }
 }
 
+/**
+ * Get is scheduler
+ * @returns {Promise<boolean>}
+ */
+async function getIsScheduler() {
+  const scheduler = await getSchedulerService();
+  return scheduler.isScheduler || false;
+}
+
 export {
   createSchedulerAuto,
   clearSchedulerAuto,
@@ -167,4 +181,5 @@ export {
   getSchedulerService,
   getAlarmScheduler,
   clearAndCreateSchedulerAlarm,
+  getIsScheduler,
 };
