@@ -106,7 +106,7 @@ async function setCurrentPostLength(length) {
 
 /**
  *
- * @returns {Promise<number>} Count post
+ * @returns {Promise<number>} Count batch post
  */
 async function getCountPost() {
   return (await BG_getValue(KEY_COUNT_POST)) || 0;
@@ -114,7 +114,7 @@ async function getCountPost() {
 
 /**
  * Set count post
- * @param {number} count - Count post
+ * @param {number} count - Count batch post
  */
 async function setCountPost(count) {
   await BG_setValue(KEY_COUNT_POST, count);

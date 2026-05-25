@@ -2,6 +2,7 @@ import {
   KEY_ADD_LOG,
   KEY_CLEAR_NOTIFICATION,
   KEY_CLOSE_THIS_TAB,
+  KEY_CURRENT_WINDOW_ID,
   KEY_FIRST_TIME_USE,
   KEY_GET_CURRENT_DATA_GROUP_SAVED_NEED_POST,
   KEY_GET_LIST_GROUPS,
@@ -18,9 +19,11 @@ import {
 } from "./contants/constant-extention.js";
 import {
   KEY_CAN_POST_THIS_TAB,
+  KEY_IS_FIX_STEAL_FOCUS,
   KEY_IS_PREMIUM,
   KEY_IS_RANDOM_BATCH_POST,
   KEY_IS_SCROLL_DETECT_LIST_GROUP,
+  KEY_IS_SHUFFLE_GROUPS_NEED_POST,
   KEY_IS_SHUFFLE_SCHEDULER_TIME,
   KEY_IS_SPAMMED,
   KEY_NEXT_TIME_POST_WHEN_SPAMMED,
@@ -45,6 +48,7 @@ import {
   getIsFixStealAllFocusInStorage,
   getIsStealFocusInStorage,
   getIsStopTaskInStorage,
+  getPremium,
   getRandomIndexGroupChecked,
   setCurrentIndexGroupPost,
 } from "./dashboard/src/helpers/storage.js";
@@ -57,6 +61,8 @@ import {
   clearAndCreateSchedulerAlarm,
   clearSchedulerAuto,
   getIsScheduler,
+  getIsSpecialFrameHoursInStore,
+  getObjectIsInSpecialFrameHours,
   getSchedulerService,
 } from "./dashboard/src/services/scheduler-service.js";
 import { DB_openInTab } from "./dashboard/src/utils/api-helper.js";
@@ -216,17 +222,20 @@ async function nextGroupPost() {
         });
         await resetPostedGroupAndSave();
       } else {
-        const countPost = await getCountPost();
-        setCountPost(countPost + 1);
+        const isRandomBatchPost = await BG_getValue(KEY_IS_RANDOM_BATCH_POST);
+        if (isRandomBatchPost) {
+          const countPost = await getCountPost();
+          setCountPost(countPost + 1);
+        }
         logActions("[Background] Max group per time have been posted");
         addLog({
-          vi: "Số lượng nhóm đã đăng đạt giới hạn, chuyển sang đợt tiếp theo",
-          en: "Max group per time have been posted, switch to next batch",
+          vi: "Số lượng nhóm đã đăng đạt giới hạn, chuyển sang đợt tiếp theo (nếu lên lịch đang được bật)",
+          en: "Max group per time have been posted, switch to next batch (if scheduler is enabled)",
         });
       }
 
-      const scheduler = await getSchedulerService();
-      if (scheduler.isScheduler) {
+      const isScheduler = await getIsScheduler();
+      if (isScheduler) {
         clearAndCreateSchedulerAlarm();
         const nextTime = await getNextTimePost();
         const date = new Date(nextTime);
@@ -542,14 +551,7 @@ async function handleOnCommited(details) {
 
         //when user open dashboard tab -> set tab id, not exist dashboard tab and reload it
         if (getIsDashboardTab(url)) {
-          const isFirstTimeUse = await BG_getValue(KEY_FIRST_TIME_USE);
-          if (
-            isFirstTimeUse !== undefined &&
-            isFirstTimeUse !== null &&
-            !isFirstTimeUse
-          ) {
-            handleWelcomeBack();
-          }
+          await initialGlobalData();
           BG_setValue(KEY_TAB.TAB_DASHBOARD_ID, currentId);
         }
       }
@@ -709,10 +711,18 @@ async function handleOnAlarm(alarm) {
         return;
       }
 
-      addLog({
-        vi: "Đã đến giờ đăng bài trong lịch trình, chế độ nghỉ ngẫu nhiên đang tắt, sẽ bắt đầu đợt đăng bài",
-        en: "It's time to post in the schedule, random rest mode is off, will start this batch",
-      });
+      const isPremium = await getPremium();
+      if (isPremium) {
+        addLog({
+          vi: "Đã đến giờ đăng bài trong lịch trình, chế độ nghỉ ngẫu nhiên đang tắt, sẽ bắt đầu đợt đăng bài",
+          en: "It's time to post in the schedule, random rest mode is off, will start this batch",
+        });
+      } else {
+        addLog({
+          vi: "Đã đến giờ đăng bài trong lịch trình, sẽ bắt đầu đợt đăng bài",
+          en: "It's time to post in the schedule, will start this batch",
+        });
+      }
 
       await automationContinue();
 
@@ -730,6 +740,33 @@ async function handleOnAlarm(alarm) {
     }
   } catch (error) {
     logError("Error at alarm: ", error);
+  }
+}
+
+async function initialGlobalData() {
+  try {
+    logActions("Initial data global run");
+    const currentWindow = await chrome.windows.getCurrent();
+
+    BG_setValue(KEY_CURRENT_WINDOW_ID, currentWindow.id);
+
+    const isFirstTimeUse = await BG_getValue(KEY_FIRST_TIME_USE);
+
+    if (isFirstTimeUse === undefined || isFirstTimeUse === null) {
+      BG_setValue(KEY_FIRST_TIME_USE, true);
+      addLog({
+        vi: "Bắt đầu sử dụng tiện ích",
+        en: "Start using the extension",
+      });
+      BG_setValue(KEY_IS_SHUFFLE_GROUPS_NEED_POST, true);
+      BG_setValue(KEY_IS_FIX_STEAL_FOCUS, true);
+      BG_setValue(KEY_IS_PREMIUM, false);
+    } else {
+      handleWelcomeBack();
+      BG_setValue(KEY_FIRST_TIME_USE, false);
+    }
+  } catch (error) {
+    logError("Error at initialGlobalData: ", error);
   }
 }
 

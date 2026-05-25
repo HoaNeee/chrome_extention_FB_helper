@@ -30,6 +30,10 @@ function getAllFieldsSetting(root = document) {
     `#tm_input-strictly-match-title-group`,
   );
 
+  const checkboxIsSpecialFrameHours = root.querySelector(
+    `#tm_checkbox-is-special-frame-hours`,
+  );
+
   function setIsProcessing(val) {
     if (checkboxIsProcessing) {
       checkboxIsProcessing.checked = val;
@@ -108,6 +112,12 @@ function getAllFieldsSetting(root = document) {
     }
   }
 
+  function setIsSpecialFrameHours(val) {
+    if (checkboxIsSpecialFrameHours) {
+      checkboxIsSpecialFrameHours.checked = val;
+    }
+  }
+
   return {
     getMaxGroupPerTime: () => Number(inputMaxGroup.value),
     getIsProcessing: () => checkboxIsProcessing.checked,
@@ -135,6 +145,8 @@ function getAllFieldsSetting(root = document) {
     setIsRandomBatchPost: setIsRandomBatchPost,
     getIsRandomTimePost: () => checkboxIsRandomTimePost.checked,
     setIsRandomTimePost: setIsRandomTimePost,
+    getIsSpecialFrameHours: () => checkboxIsSpecialFrameHours.checked,
+    setIsSpecialFrameHours: setIsSpecialFrameHours,
   };
 }
 

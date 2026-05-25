@@ -1,5 +1,5 @@
 import { APP_NAME, prefix } from "../../../contants/contants.js";
-import { getTextWithLanguage, logError, sleep } from "../../../utils/utils.js";
+import { getTextWithLanguage, logError } from "../../../utils/utils.js";
 import {
   addHistoryLog,
   clearHistoryLogs,
@@ -13,9 +13,9 @@ function createPanelLog(anchorElem = document.body) {
 
   div.innerHTML = `
     <div style="display: flex; gap: 16px; height: 100%;">
-        <div style="height: 100%;">
+        <div style="height: 100%; display: flex; flex-direction: column;">
             <h2 style="margin-bottom: 8px;">${getTextWithLanguage({ vi: "Nhật ký hành động", en: "Logs" })}</h2>
-            <div id="${prefix}data-saved-info" style="margin-bottom: 8px;"></div>
+            <div id="${prefix}data-saved-info" style="margin-bottom: 8px; flex: 1; overflow-y: auto; padding-right: 8px" class="custom-scrollbar"></div>
         </div>
         <div style="border-left: 1px solid var(--tm-border-color); padding-left: 10px;  display: flex; flex-direction: column; flex: 1;">
             <h2 style="margin-bottom: 8px;">${getTextWithLanguage({ vi: "Lịch sử", en: "History" })}</h2>
@@ -69,6 +69,9 @@ async function initHistoryLogs() {
   try {
     let histories = await getHistoryLogsInStorage();
     const historyLogs = document.querySelector(".history-logs");
+    const historyLogsAtDashboard = document.querySelector(
+      ".history-logs-at-dashboard",
+    );
 
     // if (!histories.length) {
     //   await addLog({ vi: "Bắt đầu sử dụng", en: "Start using" });
@@ -76,10 +79,26 @@ async function initHistoryLogs() {
     //   return;
     // }
 
+    let html = "";
+
     histories.forEach((msgObject) => {
       const div = drawHistoryLogItem(msgObject);
-      historyLogs.appendChild(div);
+      // historyLogsAtDashboard.appendChild(div);
+      // historyLogs.appendChild(div);
+      html += div.outerHTML;
     });
+
+    if (historyLogs) {
+      historyLogs.innerHTML = html;
+    }
+
+    if (historyLogsAtDashboard) {
+      historyLogsAtDashboard.innerHTML = html;
+    }
+
+    setTimeout(() => {
+      scrollHistoryLogs();
+    }, 0);
 
     const btnClearHistory = document.querySelector("#tm_btn-clear-history");
     if (btnClearHistory) {
@@ -92,6 +111,7 @@ async function initHistoryLogs() {
             isConfirmClearHistory = false;
             await clearHistoryLogs();
             historyLogs.innerHTML = "";
+            historyLogsAtDashboard.innerHTML = "";
             btnClearHistory.innerText = getTextWithLanguage({
               vi: "Xóa lịch sử",
               en: "Clear History",
@@ -130,9 +150,17 @@ async function initHistoryLogs() {
 
 function scrollHistoryLogs() {
   const historyLogs = document.querySelector(".history-logs");
+  const historyLogsAtDashboard = document.querySelector(
+    ".history-logs-at-dashboard",
+  );
   if (historyLogs) {
     historyLogs.scrollTo({
       top: historyLogs.scrollHeight,
+    });
+  }
+  if (historyLogsAtDashboard) {
+    historyLogsAtDashboard.scrollTo({
+      top: historyLogsAtDashboard.scrollHeight,
     });
   }
 }

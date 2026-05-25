@@ -64,7 +64,7 @@ function drawPanelGroup({
     divContainer.style.gap = "8px";
     divContainer.style.padding = "8px";
     divContainer.style.paddingTop = "12px";
-    divContainer.style.maxHeight = "70vh";
+    divContainer.style.height = "100%";
     divContainer.style.overflow = "hidden";
 
     const divInner = document.createElement("div");

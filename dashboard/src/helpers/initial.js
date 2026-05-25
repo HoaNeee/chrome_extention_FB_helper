@@ -29,6 +29,7 @@ import {
   KEY_IS_RANDOM_BATCH_POST,
   KEY_IS_PREMIUM,
   KEY_IS_RANDOM_TIME_POST,
+  KEY_IS_SPECIAL_FRAME_HOURS,
 } from "../../../contants/contants.js";
 import { updateDataSavedInfo } from "../draw_element/dataSavedInfo.js";
 import {
@@ -63,6 +64,7 @@ async function initialData({ anchorElement = document.body }) {
         setIsShuffleGroupsNeedPost,
         setIsRandomBatchPost,
         setIsRandomTimePost,
+        setIsSpecialFrameHours,
       } = getAllFieldsSetting();
 
       //get max group
@@ -102,6 +104,10 @@ async function initialData({ anchorElement = document.body }) {
       const isRandomTimePost =
         (await DB_getValue(KEY_IS_RANDOM_TIME_POST)) || false;
       setIsRandomTimePost(isRandomTimePost);
+
+      const isSpecialFrameHours =
+        (await DB_getValue(KEY_IS_SPECIAL_FRAME_HOURS)) || false;
+      setIsSpecialFrameHours(isSpecialFrameHours);
 
       const scheduler = await getSchedulerService();
 
@@ -200,20 +206,6 @@ async function initialData({ anchorElement = document.body }) {
 
     await initialInputTimeDelay();
 
-    const isDarkTheme = (await DB_getValue(KEY_IS_DARK_THEME)) || false;
-    const body = document.querySelector(`body`);
-    if (isDarkTheme) {
-      body?.classList?.add("dark");
-      body?.classList?.remove("light");
-    } else {
-      body?.classList?.remove("dark");
-      body?.classList?.add("light");
-    }
-    const svgs = body.querySelectorAll(".tm_svg");
-    svgs.forEach((svg) => {
-      svg.setAttribute("fill", isDarkTheme ? "white" : "black");
-    });
-
     const selectLanguage = document.querySelector(`#tm_select-language`);
     const lang = await getLanguageInStorage();
     if (selectLanguage) {
@@ -261,4 +253,24 @@ async function initialData({ anchorElement = document.body }) {
   }
 }
 
-export { initialData };
+async function initialFastAndFirst() {
+  try {
+    const isDarkTheme = (await DB_getValue(KEY_IS_DARK_THEME)) || false;
+    const body = document.querySelector(`body`);
+    if (isDarkTheme) {
+      body?.classList?.add("dark");
+      body?.classList?.remove("light");
+    } else {
+      body?.classList?.remove("dark");
+      body?.classList?.add("light");
+    }
+    const svgs = body.querySelectorAll(".tm_svg");
+    svgs.forEach((svg) => {
+      svg.setAttribute("fill", isDarkTheme ? "white" : "black");
+    });
+  } catch (error) {
+    logError("Error initialFastAndFirst: " + error);
+  }
+}
+
+export { initialData, initialFastAndFirst };

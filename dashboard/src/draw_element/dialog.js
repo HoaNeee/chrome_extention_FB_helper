@@ -22,6 +22,7 @@ function dialogContainer({ anchorElem = document.body }) {
   dialogContainerElement.style.top = "50%";
   dialogContainerElement.style.left = "50%";
   dialogContainerElement.style.transform = "translate(-50%, -50%)";
+  dialogContainerElement.style.color = "var(--tm-text-primary)";
 
   dialogContainerElement.style.display = "none";
   dialogContainerElement.style.pointerEvents = "none";
@@ -33,7 +34,7 @@ function dialogContainer({ anchorElem = document.body }) {
   return dialogContainerElement;
 }
 
-function createDialog({ html = "", onClose, title = "" }) {
+function createDialog({ html = "", onClose, title = "", isConfirm = false }) {
   try {
     if (!anchorElemDialog) {
       anchorElemDialog = document.querySelector("#tm_root") || document.body;
@@ -42,17 +43,23 @@ function createDialog({ html = "", onClose, title = "" }) {
     const id = randomID();
 
     const innerDiv = document.createElement("div");
-    innerDiv.style.padding = "24px 16px 12px 16px";
     innerDiv.style.position = "relative";
     innerDiv.style.minHeight = "50px";
-    innerDiv.style.minWidth = "200px";
+    if (!isConfirm) {
+      innerDiv.style.height = "85vh";
+      innerDiv.style.minWidth = "540px";
+      innerDiv.style.padding = "32px 16px 12px 16px";
+    } else {
+      innerDiv.style.padding = "24px 16px 12px 16px";
+      innerDiv.style.minWidth = "200px";
+    }
 
     innerDiv.style.display = "none";
     innerDiv.style.pointerEvents = "none";
 
     innerDiv.setAttribute("open", false);
 
-    innerDiv.setAttribute("id", "tm_dialog_inner-" + id);
+    innerDiv.setAttribute("id", "dialog_inner-" + id);
 
     const overlay = document.createElement("div");
     overlay.style.position = "absolute";
@@ -88,6 +95,10 @@ function createDialog({ html = "", onClose, title = "" }) {
       setIsShow(false);
     }
 
+    /**
+     *
+     * @param {HTMLElement|string} newHtml
+     */
     function changeContent(newHtml) {
       innerDiv.innerHTML = "";
       if (newHtml instanceof HTMLElement) {

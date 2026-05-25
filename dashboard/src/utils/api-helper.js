@@ -386,35 +386,6 @@ const DB_info = (() => {
   }
 })();
 
-/**
- * DB_log(message) -> void
- * Logs a message to the browser console with a prefix.
- *
- * Example:
- *   DB_log('Script initialized');
- */
-function DB_log(message) {
-  console.log("%c[DB]", "color: #2ecc71; font-weight: bold;", message);
-}
-
-// ============================================================
-// STYLE INJECTION: DB_addStyle
-// ============================================================
-
-/**
- * DB_addStyle(css) -> HTMLStyleElement
- * Injects a CSS string into the page. Returns the <style> element.
- *
- * Example:
- *   DB_addStyle('.my-class { color: red; font-size: 16px; }');
- */
-function DB_addStyle(css) {
-  const style = document.createElement("style");
-  style.textContent = css;
-  (document.head || document.documentElement).appendChild(style);
-  return style;
-}
-
 // ============================================================
 // HTTP REQUESTS: DB_xmlhttpRequest
 // Backed by background service worker fetch (bypasses CORS)
@@ -505,8 +476,6 @@ export {
   DB_setClipboard,
   DB_getResourceURL,
   DB_info,
-  DB_log,
-  DB_addStyle,
   DB_xmlhttpRequest,
   DB_getValue,
   DB_setValue,

@@ -1,7 +1,6 @@
 import {
   KEY_IS_IN_PROGRESS,
   KEY_INDEX_GROUP_POST,
-  KEY_INDEXS_GROUP_CHECKED,
   KEY_STOP_TASK,
   initialTimeDelay,
   KEY_TIME_DELAY,
@@ -12,8 +11,8 @@ import {
   KEY_IS_FIX_STEAL_ALL_FOCUS,
   KEY_IS_DEVELOPER_MODE,
   KEY_HISTORY_LOGS,
-  APP_NAME,
   KEY_IS_SHUFFLE_GROUPS_NEED_POST,
+  KEY_IS_PREMIUM,
 } from "../../../contants/contants.js";
 import {
   getAllGroupPostedsInStorage,
@@ -259,6 +258,19 @@ async function clearHistoryLogs() {
   }
 }
 
+/**
+ * @returns {Promise<boolean>} The setting for whether the extension is in premium mode, defaulting to false if not set
+ */
+async function getPremium() {
+  try {
+    const isPremium = await DB_getValue(KEY_IS_PREMIUM);
+    return isPremium;
+  } catch (error) {
+    logError(`Error getPremium`, error);
+    return false;
+  }
+}
+
 export {
   setProgress,
   getProgress,
@@ -280,4 +292,5 @@ export {
   getHistoryLogsInStorage,
   clearHistoryLogs,
   getIsShuffleGroupNeedPost,
+  getPremium,
 };

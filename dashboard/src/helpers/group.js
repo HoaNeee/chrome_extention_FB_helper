@@ -8,6 +8,7 @@ import {
   KEY_MAX_GROUP_PER_TIME,
   STATUS_TASK,
   KEY_COUNT_POST,
+  KEY_IS_SPECIAL_FRAME_HOURS,
 } from "../../../contants/contants.js";
 import { getDataSavedInStorage } from "../services/dataSavedService.js";
 import {
@@ -28,6 +29,7 @@ import {
   getRandomIndexGroupChecked,
   getTimeDelayInStorage,
 } from "./storage.js";
+import { getObjectIsInSpecialFrameHours } from "../services/scheduler-service.js";
 
 /**
  * Check if all group need post have been posted.
@@ -188,8 +190,18 @@ async function checkPostedAllGroupOrMaxGroupPerTime() {
   let isPostedAll = false;
   try {
     const currentLengthPost = (await DB_getValue(KEY_POST_LENGTH)) || 0;
-    const maxGroupPerTime =
-      (await DB_getValue(KEY_MAX_GROUP_PER_TIME)) || MAX_GROUP_PER_TIME_INITIAL;
+    let maxGroupPerTime = await DB_getValue(KEY_MAX_GROUP_PER_TIME);
+
+    const isSpecialFrameHour = DB_getValue(KEY_IS_SPECIAL_FRAME_HOURS);
+    if (isSpecialFrameHour) {
+      const frame = await getObjectIsInSpecialFrameHours();
+      maxGroupPerTime = frame?.maxGroup;
+    }
+
+    if (maxGroupPerTime === undefined || maxGroupPerTime === null) {
+      maxGroupPerTime = MAX_GROUP_PER_TIME_INITIAL;
+    }
+
     const per = random(0, 10);
     const diff = per >= 7 ? -1 : 0;
     const maxGroupPerTimeDiff = maxGroupPerTime + diff;

@@ -9,30 +9,35 @@ import {
 } from "../contants/contants.js";
 import { getTextWithLanguage, initLanguage, logError } from "../utils/utils.js";
 import { dialogContainer } from "./src/draw_element/dialog.js";
+import { createPanelTabGroup } from "./src/draw_element/panel-group-tab.js";
 import {
   addLog,
   createPanelLog,
   scrollHistoryLogs,
 } from "./src/draw_element/panel-log.js";
+import { createPanelSetting } from "./src/draw_element/panel-setting-tab.js";
 import { createPanel } from "./src/draw_element/panel.js";
 import {
   disabledElement,
   enabledElement,
   getAllFieldsSetting,
 } from "./src/helpers/elementDom.js";
-import { initialData } from "./src/helpers/initial.js";
+import { initialData, initialFastAndFirst } from "./src/helpers/initial.js";
 import addValueChangeListener from "./src/listener/addValueChangeListener.js";
 import {
   getDataSavedInStorage,
   setDataSavedInStorage,
 } from "./src/services/dataSavedService.js";
-import { DB_getValue, DB_setValue } from "./src/utils/api-helper.js";
+import {
+  DB_getValue,
+  DB_sendMessage,
+  DB_setValue,
+} from "./src/utils/api-helper.js";
 
 async function main() {
   try {
     await initLanguage();
-
-    await initialGlobalData();
+    await initialFastAndFirst();
 
     const mainElement = document.querySelector("main");
 
@@ -47,9 +52,10 @@ async function main() {
       root.style.display = "none";
       root.style.pointerEvents = "none";
     }
-    migrateDataSaved();
     createPanel(mainElement);
     createPanelLog(mainElement);
+    createPanelSetting(mainElement);
+    createPanelTabGroup(mainElement);
     await initialData(mainElement);
 
     const { setIsProcessing } = getAllFieldsSetting();
@@ -78,10 +84,10 @@ async function main() {
     if (tabValue) {
       changeTab({
         tabValue,
-        displayValue: tabValue === "dashboard" ? "grid" : "block",
+        displayValue: tabValue === "dashboard" ? "flex" : "block",
       });
     } else {
-      changeTab({ tabValue: "dashboard", displayValue: "grid" });
+      changeTab({ tabValue: "dashboard", displayValue: "flex" });
     }
 
     root.style.display = "block";
@@ -98,7 +104,7 @@ async function main() {
 
           changeTab({
             tabValue,
-            displayValue: tabValue === "dashboard" ? "grid" : "block",
+            displayValue: tabValue === "dashboard" ? "flex" : "block",
           });
         });
       });
@@ -122,10 +128,30 @@ async function main() {
   }
 }
 
+function getTitleByTabValue(tabValue) {
+  switch (tabValue) {
+    case "dashboard":
+      return getTextWithLanguage({ vi: "Bảng điểu khiển", en: "Dashboard" });
+    case "logs":
+      return getTextWithLanguage({ vi: "Nhật ký", en: "Logs" });
+    case "settings":
+      return getTextWithLanguage({ vi: "Cài đặt", en: "Settings" });
+    case "groups":
+      return getTextWithLanguage({ vi: "Danh sách nhóm", en: "Groups" });
+    default:
+      return "";
+  }
+}
+
 function changeTab({ tabValue = "dashboard", displayValue = "block" } = {}) {
   const root = document.querySelector("#tm_root");
   const allTabs = root.querySelectorAll("[data-tab-value]");
   const allTabItems = document.querySelectorAll(".tab-item");
+
+  const titleElement = document.querySelector("title");
+  if (titleElement) {
+    titleElement.textContent = getTitleByTabValue(tabValue);
+  }
 
   allTabItems.forEach((tabItem) => {
     if (tabItem.getAttribute("data-tab-value") === tabValue) {
@@ -134,12 +160,6 @@ function changeTab({ tabValue = "dashboard", displayValue = "block" } = {}) {
       tabItem.classList.remove("tab-item-active");
     }
   });
-
-  if (tabValue === "logs") {
-    setTimeout(() => {
-      scrollHistoryLogs();
-    }, 0);
-  }
 
   allTabs.forEach((tab) => {
     const tabValueCurrent = tab.getAttribute("data-tab-value");
@@ -160,6 +180,8 @@ function drawTab() {
     <ul class="tabs-list">
       <li class="tab-item tab-item-active" data-tab-value="dashboard">${getTextWithLanguage({ vi: "Bảng điểu khiển", en: "Dashboard" })}</li>
       <li class="tab-item" data-tab-value="logs">${getTextWithLanguage({ vi: "Nhật ký", en: "Logs" })}</li>
+      <li class="tab-item" data-tab-value="settings">${getTextWithLanguage({ vi: "Cài đặt", en: "Settings" })}</li>
+      <li class="tab-item" data-tab-value="groups">${getTextWithLanguage({ vi: "Danh sách nhóm", en: "Groups" })}</li>
     </ul>
   `;
   return div;
@@ -178,31 +200,6 @@ async function migrateDataSaved() {
     setDataSavedInStorage(dataSaved);
   } catch (error) {
     logError("Error at migrate DataSaved", error);
-  }
-}
-
-async function initialGlobalData() {
-  try {
-    const currentWindow = await chrome.windows.getCurrent();
-
-    DB_setValue(KEY_CURRENT_WINDOW_ID, currentWindow.id);
-
-    const isFirstTimeUse = await DB_getValue(KEY_FIRST_TIME_USE);
-
-    if (isFirstTimeUse === undefined || isFirstTimeUse === null) {
-      DB_setValue(KEY_FIRST_TIME_USE, true);
-      addLog({
-        vi: "Bắt đầu sử dụng tiện ích",
-        en: "Start using the extension",
-      });
-      DB_setValue(KEY_IS_SHUFFLE_GROUPS_NEED_POST, true);
-      DB_setValue(KEY_IS_FIX_STEAL_FOCUS, true);
-      DB_setValue(KEY_IS_PREMIUM, false);
-    } else {
-      DB_setValue(KEY_FIRST_TIME_USE, false);
-    }
-  } catch (error) {
-    logError("Error at initialGlobalData: ", error);
   }
 }
 

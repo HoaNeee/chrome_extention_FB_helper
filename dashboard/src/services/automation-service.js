@@ -30,6 +30,41 @@ import {
 import { getDataGroupsSavedNeedPost } from "./dataSavedService.js";
 import { setCurrentPostLength } from "../../../utils/bgr-storage.js";
 import { addLog } from "../draw_element/panel-log.js";
+import {
+  getIsSpecialFrameHoursInStore,
+  getObjectIsInSpecialFrameHours,
+} from "./scheduler-service.js";
+
+async function checkAndLogSpecialFrameHour() {
+  try {
+    const isSpecialFrameHour = await getIsSpecialFrameHoursInStore();
+    if (isSpecialFrameHour) {
+      addLog({
+        vi: "Chức năng khung giờ đặc biệt đang được bật, đang kiểm tra có thuộc khung giờ đặc biệt không",
+        en: "Special frame hours function is enabled, checking if it belongs to special frame hours",
+      });
+
+      const object = await getObjectIsInSpecialFrameHours();
+      if (object) {
+        addLog({
+          vi:
+            "Đang trong khung giờ đặc biệt, số nhóm tối đa trong lần này sẽ là: " +
+            object.maxGroup,
+          en:
+            "Currently in special frame hours, max groups this time will be: " +
+            object.maxGroup,
+        });
+      } else {
+        addLog({
+          vi: "Không đang trong khung giờ đặc biệt, tiếp tục đăng bài bình thường",
+          en: "Not currently in special frame hours, continue normal posting",
+        });
+      }
+    }
+  } catch (error) {
+    logError("Error checking special frame hour: ", error);
+  }
+}
 
 async function autoWithFirstTask() {
   //run new task
@@ -77,6 +112,8 @@ async function autoWithFirstTask() {
         vi: `Dữ liệu nhóm cần đăng đợt này: ${need.name} - số lượng nhóm: ${groups.length}`,
         en: `Data of groups need to post this batch: ${need.name} - number of groups: ${groups.length}`,
       });
+
+      await checkAndLogSpecialFrameHour();
 
       //first task
       const task = groups.find(

@@ -162,7 +162,7 @@ function getIsCorrectPostURL(href) {
   return pattern.test(href);
 }
 
-let language = "en";
+let language = "vi";
 
 async function initLanguage() {
   language = await getLanguageInStorage();

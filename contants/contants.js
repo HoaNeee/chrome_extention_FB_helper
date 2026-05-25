@@ -68,6 +68,10 @@ const KEY_IS_PREMIUM = "is_premium";
 
 const KEY_IS_RANDOM_TIME_POST = "is_random_time_post";
 
+const KEY_IS_SPECIAL_FRAME_HOURS = "is_special_frame_hours";
+
+const KEY_SPECIAL_FRAME_HOURS = "special_frame_hours";
+
 const KEY_MY_SIGNATURE = "my_signature";
 
 const APP_NAME = "FB Tools Helper";
@@ -218,4 +222,6 @@ export {
   KEY_IS_RANDOM_BATCH_POST,
   KEY_IS_PREMIUM,
   KEY_IS_RANDOM_TIME_POST,
+  KEY_IS_SPECIAL_FRAME_HOURS,
+  KEY_SPECIAL_FRAME_HOURS,
 };

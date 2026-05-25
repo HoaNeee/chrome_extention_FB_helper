@@ -123,15 +123,28 @@ async function handleHisoryLog(histories) {
   try {
     if (histories && Array.isArray(histories) && histories.length) {
       const historyLogsElem = document.querySelector(".history-logs");
+      const historyAtDashboardElem = document.querySelector(
+        ".history-logs-at-dashboard",
+      );
 
       const lastHistories = histories[histories.length - 1];
 
       if (lastHistories) {
-        const div = drawHistoryLogItem(lastHistories);
-        historyLogsElem.appendChild(div);
-        historyLogsElem.scrollTo({
-          top: historyLogsElem.scrollHeight,
-        });
+        if (historyLogsElem) {
+          const div = drawHistoryLogItem(lastHistories);
+          historyLogsElem.appendChild(div);
+          historyLogsElem.scrollTo({
+            top: historyLogsElem.scrollHeight,
+          });
+        }
+
+        if (historyAtDashboardElem) {
+          const div2 = drawHistoryLogItem(lastHistories);
+          historyAtDashboardElem.appendChild(div2);
+          historyAtDashboardElem.scrollTo({
+            top: historyAtDashboardElem.scrollHeight,
+          });
+        }
       }
     }
   } catch (error) {
