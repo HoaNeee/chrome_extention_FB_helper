@@ -104,7 +104,7 @@ const SCHEDULER_TYPE = {
 
 const URL_LIST_GROUPS = "https://www.facebook.com/groups/joins/?nav_source=tab";
 
-const MAX_Z_INDEX = 999999999;
+const MAX_Z_INDEX = 99;
 
 const prefix = "tm_";
 

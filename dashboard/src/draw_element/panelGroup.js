@@ -10,6 +10,7 @@ import {
 } from "../../../utils/utils.js";
 import { drawEditor } from "./editor.js";
 import { addLog } from "./panel-log.js";
+import { findLabelSetedUpAndAddTippy } from "../helpers/elementDom.js";
 
 /**
  *
@@ -86,8 +87,16 @@ function drawPanelGroup({
     const labelTitle = document.createElement("label");
     labelTitle.setAttribute("for", `${prefix}input-title`);
     labelTitle.innerText = getTextWithLanguage({
-      vi: "Nhập tiêu đề trùng khớp (phân tách và ưu tiên theo dấu phẩy ',') :",
-      en: "Enter title match (Seperate and priority by comma ',') :",
+      vi: "Nhập tiêu đề trùng khớp (bắt buộc nhập) :",
+      en: "Enter title match (Required) :",
+    });
+
+    findLabelSetedUpAndAddTippy({
+      selector: labelTitle,
+      content: getTextWithLanguage({
+        vi: 'Tiêu đề dùng để lọc các nhóm trùng khớp với các từ mà bạn đã nhập, sẽ được phân tách thành nhiều từ bằng dấu phẩy (,), nếu nhiều nhóm trùng nhau thì sẽ ưu tiên từ được gõ trước. Ví dụ: "Bán nhà, Cho thuê nhà" sẽ ưu tiên nhóm có tiêu đề hoặc tên chứa "Bán nhà" trước',
+        en: 'Title is used to filter groups that match the words you have entered, will be split into multiple words by comma (,), if multiple groups match, the word typed first will be prioritized. Example: "Sell house, Rent house" will prioritize groups with titles or names containing "Sell house" first',
+      }),
     });
 
     const inputTitle = document.createElement("input");
@@ -108,8 +117,16 @@ function drawPanelGroup({
     const labelName = document.createElement("label");
     labelName.setAttribute("for", `${prefix}input-name`);
     labelName.innerText = getTextWithLanguage({
-      vi: "Nhập tên (để tham khảo, không liên quan đến nội dung bài viết) :",
-      en: "Enter name (for your reference, not related to post content) :",
+      vi: "Nhập tên (không bắt buộc) :",
+      en: "Enter name (Not required) :",
+    });
+
+    findLabelSetedUpAndAddTippy({
+      selector: labelName,
+      content: getTextWithLanguage({
+        vi: "Tên dùng để tham khảo, ghi nhớ, hiển thị trên giao diện, không liên quan đến nội dung bài viết, nếu để trống sẽ lấy trường tiêu đề để hiển thị thay thế.",
+        en: "Name is used for reference, not related to post content, if left empty, the title field will be used for display",
+      }),
     });
 
     const inputName = document.createElement("input");
@@ -128,8 +145,16 @@ function drawPanelGroup({
     divFieldPriority.classList.add(`${prefix}field-container`);
     const labelPriority = document.createElement("label");
     labelPriority.innerText = getTextWithLanguage({
-      vi: "Nhập độ ưu tiên (ưu tiên nhỏ hơn, post bài sẽ được ưu tiên hơn):",
-      en: "Enter priority (lower priority, higher post priority) :",
+      vi: "Nhập độ ưu tiên (Không bắt buộc):",
+      en: "Enter priority (Not required):",
+    });
+
+    findLabelSetedUpAndAddTippy({
+      selector: labelPriority,
+      content: getTextWithLanguage({
+        vi: "Độ ưu tiên dùng để đăng bài theo thứ tự khi chức năng trộn nhóm cần đăng được tắt, số càng nhỏ thì sẽ càng ưu tiên, tự động tăng, nếu để trống thì hệ thống sẽ tự tính toán số thứ tự hợp lý",
+        en: "Priority is used to sort the order of posts when the function of mixing groups to be posted is turned off. The smaller the number, the higher the priority. It will automatically increase. If left empty, the system will automatically calculate a reasonable sequence number",
+      }),
     });
 
     const inputPriority = document.createElement("input");
@@ -154,6 +179,14 @@ function drawPanelGroup({
     labelContent.innerText = getTextWithLanguage({
       vi: "Nhập nội dung :",
       en: "Enter content :",
+    });
+
+    findLabelSetedUpAndAddTippy({
+      selector: labelContent,
+      content: getTextWithLanguage({
+        vi: "Nội dung dùng để đăng bài, hãy cố gắng thêm nhiều nội dung khác nhau cùng chủ đề hoặc tương tự, tiện ích sẽ chọn ngẫu nhiên một trong các nội dung để tránh bị phát hiện",
+        en: "Content used to post, try to add many different contents on the same or similar topic, the tool will randomly select one of the contents to avoid detection",
+      }),
     });
 
     const divContentContainer = document.createElement("div");
@@ -191,6 +224,15 @@ function drawPanelGroup({
       vi: "Chọn file :",
       en: "Choose file :",
     });
+
+    findLabelSetedUpAndAddTippy({
+      selector: labelFile,
+      content: getTextWithLanguage({
+        vi: "File được chọn để đính kèm vào bài viết, có thể chọn nhiều file",
+        en: "File selected to attach to post, can select multiple files",
+      }),
+    });
+
     inputFile.setAttribute("type", "file");
     inputFile.setAttribute("multiple", "");
     inputFile.setAttribute("id", `${prefix}upload-multiple-image`);

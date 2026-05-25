@@ -1,3 +1,6 @@
+import { getTextWithLanguage, logError } from "../../../utils/utils.js";
+import { getTheme } from "./storage.js";
+
 function getAllFieldsSetting(root = document) {
   const inputMaxGroup = root.querySelector("#tm_input-max-group-per-time");
   const checkboxIsProcessing = root.querySelector(`#tm_checkbox-is-processing`);
@@ -300,6 +303,148 @@ function showField({
   }
 }
 
+function createInfoIcon() {
+  const span = document.createElement("span");
+  span.style.display = "inline-flex";
+  span.style.alignItems = "center";
+  span.style.justifyContent = "center";
+  span.style.marginLeft = "6px";
+
+  const theme = getTheme();
+
+  span.innerHTML = `<svg
+      style="cursor: help; width: 12px"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 512 512"
+      class="tm_svg"
+      fill="${theme === "dark" ? "white" : "black"}"
+    ><path d="M256 512a256 256 0 1 0 0-512 256 256 0 1 0 0 512zM224 160a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm-8 64l48 0c13.3 0 24 10.7 24 24l0 88 8 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-80 0c-13.3 0-24-10.7-24-24s10.7-24 24-24l24 0 0-64-24 0c-13.3 0-24-10.7-24-24s10.7-24 24-24z"/></svg>`;
+  return span;
+}
+
+function addAllEvtTooltipForElement() {
+  try {
+    const prefix = "tm_";
+
+    findLabelSetedUpAndAddTippy({
+      selector: prefix + "input-strictly-match-title-group",
+      content: getTextWithLanguage({
+        vi: `Các từ khóa mà bạn nghĩ sẽ luôn có trong tên hoặc tiêu đề của nhóm cần đăng, tránh trường hợp đăng bài vào các nhóm không mong muốn. Ví dụ tiêu đề bạn cài đặt: 'lang van loi' các nhóm có từ 'lang', 'van', 'loi' sẽ được chọn`,
+        en: `Strictly match title keywords group (separate by comma ','). For example setting title: 'lang van loi' will be matched with 'lang', 'van', 'loi' groups`,
+      }),
+    });
+
+    findLabelSetedUpAndAddTippy({
+      selector: "tm_checkbox-is-processing",
+      content: getTextWithLanguage({
+        vi: `Đánh dấu rằng tiện ích đang thực hiện công việc nào đó, hãy cố gắng đừng tắt nó khi công việc chưa hoàn thành (tắt nếu vừa mở tiện ích mà vẫn thấy được đánh dấu)`,
+        en: `Indicates that the utility is performing some work, try not to turn it off when the work is not completed (turn it off if you just open the utility and still see it checked)`,
+      }),
+    });
+
+    findLabelSetedUpAndAddTippy({
+      selector: "tm_checkbox-is-fix-steal-focus",
+      content: getTextWithLanguage({
+        vi: "Tùy chọn này sẽ giúp bạn có thể làm một việc khác mà không bị hệ thống của hệ điều hành làm cho nhảy cửa sổ, tránh được việc các cửa sổ đang bật bị nhảy loạn, nhưng vẫn cần focus vào tab đăng bài vừa mở để việc đăng bài không bị gián đoạn (tùy chọn này nên được bật)",
+        en: "This option will help you to do another thing without being interrupted by the operating system making the window jump, avoiding the case where the windows being opened are disordered, but still need to focus on the newly opened posting tab so that the posting process is not interrupted (this option should be enabled)",
+      }),
+    });
+
+    findLabelSetedUpAndAddTippy({
+      selector: "tm_checkbox-is-shuffle-groups-need-post",
+      content: getTextWithLanguage({
+        vi: "Khi bật tùy chọn này, nhóm cần đăng trong danh sách bạn đã thêm sẽ được xáo trộn ngẫu nhiên. Ngược lại, nếu không bật, bạn sẽ cần cài đặt thứ tự ưu tiên để tiện ích có thể chọn dữ liệu nào sẽ cần được ưu tiên chọn trước (mặc định sẽ là nhỏ hơn)",
+        en: "When this option is enabled, the group to be posted will be randomly shuffled. If not enabled, you will need to set the priority order for the utility to select data that needs to be prioritized (default is smaller)",
+      }),
+    });
+
+    findLabelSetedUpAndAddTippy({
+      selector: "tm_checkbox-is-scheduler",
+      content: getTextWithLanguage({
+        vi: "Tùy chọn này sẽ giúp bạn đăng bài tự động theo lịch mà bạn đã cài trước đó (nếu chưa cài đặt lịch thì bạn hãy cài đặt lịch trước khi bật). Gợi ý khi cài đặt nên chọn kiểu lịch là phút để tiện ích có thể hoạt động ổn định và bạn có thể đạt được kết quả tốt nhất",
+        en: "When this option is enabled, the utility will automatically post at the set times. If not enabled, you will need to set it manually. Hint: When setting up, it is recommended to choose the time interval in minutes for the utility to operate stably and you to achieve the best results",
+      }),
+    });
+
+    findLabelSetedUpAndAddTippy({
+      selector: "tm_input-delay-click-to-post",
+      content: getTextWithLanguage({
+        vi: "Chỉ hoạt động khi đăng bài, là độ trễ khi mà vừa mở tab mới và chuẩn bị nhấn vào nút để hiển thị hộp thoại nội dung và file/ảnh,...",
+        en: "Only active when posting, it is the delay time when a new tab is opened and about to click the button to display the content and file/image dialog, etc.",
+      }),
+    });
+    findLabelSetedUpAndAddTippy({
+      selector: "tm_input-delay-fill-content",
+      content: getTextWithLanguage({
+        vi: "Chỉ hoạt động khi đăng bài, là khoảng thời gian chờ khi mà hộp thoại điền nội dung đã được nhấn hoặc mở và khi chuẩn bị điền nội dung mà bạn đã cài đặt khi thêm nhóm",
+        en: "Only active when posting, it is the delay time when the content dialog has been clicked or opened and when preparing to fill in the content that you set when adding the group",
+      }),
+    });
+    findLabelSetedUpAndAddTippy({
+      selector: "tm_input-delay-fill-file",
+      content: getTextWithLanguage({
+        vi: "Chỉ hoạt động khi đăng bài, là khoảng thời gian chờ khi mà hộp thoại điền nội dung đã được nhấn hoặc mở và khi chuẩn bị chọn file/ảnh,...",
+        en: "Only active when posting, it is the delay time when the content dialog has been clicked or opened and when preparing to select files/images, etc.",
+      }),
+    });
+    findLabelSetedUpAndAddTippy({
+      selector: "tm_input-delay-post",
+      content: getTextWithLanguage({
+        vi: "Chỉ hoạt động khi đăng bài, là khoảng thời gian chờ sau khi mà nội dung và file/ảnh đã được điền đầy đủ và chuẩn bị nhấn vào nút để đăng bài,",
+        en: "Only active when posting, it is the delay time after the content and file/image have been filled completely and when preparing to click the button to post the article.",
+      }),
+    });
+    findLabelSetedUpAndAddTippy({
+      selector: "tm_input-delay-open-new-tab",
+      content: getTextWithLanguage({
+        vi: "Chỉ hoạt động khi đăng bài, là khoảng thời gian chờ sau khi đã đăng bài xong và chuẩn bị mở tab mới, trước khi chuẩn bị tương tác với tab đó (nếu cần)",
+        en: "Only active when posting, it is the delay time after posting the article and before preparing to open a new tab, before preparing to interact with that tab (if needed)",
+      }),
+    });
+  } catch (error) {
+    logError("Error at addAllTooltipForElement", error);
+  }
+}
+
+/**
+ * Find label seted up and add tippy to element
+ * @param {{selector: string|HTMLElement, content: string, appendTo: HTMLElement}} object
+ */
+function findLabelSetedUpAndAddTippy({
+  selector = "",
+  content = "",
+  appendTo = document.body,
+} = {}) {
+  let lbl = selector;
+  if (typeof selector === "string") {
+    lbl = document.querySelector(`label[for="${selector}"]`);
+  }
+
+  if (lbl) {
+    const svg = createInfoIcon();
+    lbl.appendChild(svg);
+    addTippy(svg, content, appendTo);
+  }
+}
+
+/**
+ * Add tippy to element
+ * @param {string|HTMLElement} selector
+ * @param {string} content
+ */
+function addTippy(selector, content, appendTo = document.body) {
+  const element =
+    typeof selector === "string" ? document.querySelector(selector) : selector;
+  if (element) {
+    tippy(element, {
+      content,
+      animation: "fade",
+      theme: "dark",
+      appendTo,
+    });
+  }
+}
+
 export {
   getAllFieldsSetting,
   disabledElement,
@@ -308,4 +453,7 @@ export {
   showElement,
   hideField,
   showField,
+  createInfoIcon,
+  addAllEvtTooltipForElement,
+  findLabelSetedUpAndAddTippy,
 };

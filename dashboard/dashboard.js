@@ -1,42 +1,27 @@
-import {
-  KEY_CURRENT_WINDOW_ID,
-  KEY_FIRST_TIME_USE,
-} from "../contants/constant-extention.js";
-import {
-  KEY_IS_FIX_STEAL_FOCUS,
-  KEY_IS_PREMIUM,
-  KEY_IS_SHUFFLE_GROUPS_NEED_POST,
-} from "../contants/contants.js";
 import { getTextWithLanguage, initLanguage, logError } from "../utils/utils.js";
 import { dialogContainer } from "./src/draw_element/dialog.js";
 import { createPanelTabGroup } from "./src/draw_element/panel-group-tab.js";
-import {
-  addLog,
-  createPanelLog,
-  scrollHistoryLogs,
-} from "./src/draw_element/panel-log.js";
+import { addLog, createPanelLog } from "./src/draw_element/panel-log.js";
 import { createPanelSetting } from "./src/draw_element/panel-setting-tab.js";
 import { createPanel } from "./src/draw_element/panel.js";
 import {
+  addAllEvtTooltipForElement,
   disabledElement,
   enabledElement,
   getAllFieldsSetting,
 } from "./src/helpers/elementDom.js";
 import { initialData, initialFastAndFirst } from "./src/helpers/initial.js";
+import { initialTheme } from "./src/helpers/storage.js";
 import addValueChangeListener from "./src/listener/addValueChangeListener.js";
 import {
   getDataSavedInStorage,
   setDataSavedInStorage,
 } from "./src/services/dataSavedService.js";
-import {
-  DB_getValue,
-  DB_sendMessage,
-  DB_setValue,
-} from "./src/utils/api-helper.js";
 
 async function main() {
   try {
     await initLanguage();
+    await initialTheme();
     await initialFastAndFirst();
 
     const mainElement = document.querySelector("main");
@@ -123,6 +108,8 @@ async function main() {
         en: "Disconnected from internet",
       });
     });
+
+    addAllEvtTooltipForElement();
   } catch (error) {
     logError("Error at dashboard main: ", error);
   }

@@ -26,6 +26,7 @@ import {
   setProgress,
   getProgress,
   getStrictlyMatchTitleGroupInStorage,
+  setTheme,
 } from "../helpers/storage.js";
 import {
   getAllDataGroupsInStorage,
@@ -532,7 +533,7 @@ async function createPanel(doc = document.body) {
         btnChangeTheme.addEventListener("click", async () => {
           const isDarkTheme = (await DB_getValue(KEY_IS_DARK_THEME)) || false;
           const newIsDarkTheme = !isDarkTheme;
-          DB_setValue(KEY_IS_DARK_THEME, newIsDarkTheme);
+          await setTheme(newIsDarkTheme);
           if (newIsDarkTheme) {
             document.body.classList.add("dark");
             document.body.classList.remove("light");

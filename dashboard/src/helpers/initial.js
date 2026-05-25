@@ -264,12 +264,20 @@ async function initialFastAndFirst() {
       body?.classList?.remove("dark");
       body?.classList?.add("light");
     }
-    const svgs = body.querySelectorAll(".tm_svg");
+    const svgs = document.querySelectorAll(".tm_svg");
     svgs.forEach((svg) => {
       svg.setAttribute("fill", isDarkTheme ? "white" : "black");
     });
   } catch (error) {
     logError("Error initialFastAndFirst: " + error);
+  }
+}
+
+async function initialLast() {
+  try {
+    const isDarkTheme = (await DB_getValue(KEY_IS_DARK_THEME)) || false;
+  } catch (error) {
+    logError("Error initialLast: " + error);
   }
 }
 

@@ -13,6 +13,7 @@ import {
   KEY_HISTORY_LOGS,
   KEY_IS_SHUFFLE_GROUPS_NEED_POST,
   KEY_IS_PREMIUM,
+  KEY_IS_DARK_THEME,
 } from "../../../contants/contants.js";
 import {
   getAllGroupPostedsInStorage,
@@ -271,6 +272,34 @@ async function getPremium() {
   }
 }
 
+let theme = "light";
+
+async function initialTheme() {
+  try {
+    const isDark = (await DB_getValue(KEY_IS_DARK_THEME)) || false;
+    if (isDark) {
+      theme = "dark";
+    } else {
+      theme = "light";
+    }
+  } catch (error) {
+    logError("Error initialTheme: " + error);
+  }
+}
+
+async function setTheme(isDark) {
+  try {
+    theme = isDark ? "dark" : "light";
+    await DB_setValue(KEY_IS_DARK_THEME, isDark);
+  } catch (error) {
+    logError("Error setTheme: " + error);
+  }
+}
+
+function getTheme() {
+  return theme;
+}
+
 export {
   setProgress,
   getProgress,
@@ -293,4 +322,7 @@ export {
   clearHistoryLogs,
   getIsShuffleGroupNeedPost,
   getPremium,
+  initialTheme,
+  getTheme,
+  setTheme,
 };
