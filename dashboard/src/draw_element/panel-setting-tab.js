@@ -3,6 +3,7 @@ import {
   KEY_IS_DEVELOPER_MODE,
   KEY_IS_FIX_STEAL_ALL_FOCUS,
   KEY_IS_FIX_STEAL_FOCUS,
+  KEY_IS_IN_PROGRESS,
   KEY_IS_RANDOM_BATCH_POST,
   KEY_IS_RANDOM_TIME_POST,
   KEY_IS_SHUFFLE_GROUPS_NEED_POST,
@@ -37,6 +38,7 @@ import {
   clearAndCreateSchedulerAlarm,
   clearSchedulerAuto,
   deleteSpecialFrameHoursService,
+  getIsScheduler,
   getSchedulerService,
   getSpecialFrameHoursService,
   setSchedulerService,
@@ -55,8 +57,7 @@ async function createPanelSetting(anchorElem = document.body) {
     rootSetting.className = "tm_tab-setting";
     rootSetting.setAttribute("data-tab-value", "settings");
 
-    const advancedSettingHTML = `
-    <div class="${prefix}advanced-setting">
+    const groupsHTML = `
       <div class="${prefix}section">
         <h2>${getTextWithLanguage({ vi: "Cài đặt nâng cao", en: "Advanced Setting" })}</h2>
         <div class="${prefix}field-container">
@@ -80,50 +81,55 @@ async function createPanelSetting(anchorElem = document.body) {
             </div>
           </div>
       </div>
+    `;
+
+    const optionalHTML = `
       <div class="${prefix}section">
         <h2>${getTextWithLanguage({ vi: "Tùy chọn thêm", en: "Optionals" })}</h2>
         <div class="${prefix}field-container field-checkbox">
-          <input type="checkbox" id="${prefix}checkbox-is-processing">
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-processing">
           <label for="${prefix}checkbox-is-processing" style="user-select: none;">${getTextWithLanguage({ vi: "Đang chạy", en: "Auto is processing" })}</label>
         </div>
         <div class="${prefix}field-container field-checkbox">
-          <input type="checkbox" id="${prefix}checkbox-is-test">
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-test">
           <label for="${prefix}checkbox-is-test" style="user-select: none;">${getTextWithLanguage({ vi: "Đang kiểm thử", en: "Auto is testing" })}</label>
         </div>
         <div class="${prefix}field-container field-checkbox">
-          <input type="checkbox" id="${prefix}checkbox-is-spammed">
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-spammed">
           <label for="${prefix}checkbox-is-spammed" style="user-select: none;">${getTextWithLanguage({ vi: "Bị spam", en: "Is spammed" })}</label>
         </div>
         <div class="${prefix}field-container field-checkbox">
-          <input type="checkbox" id="${prefix}checkbox-is-fix-steal-focus">
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-fix-steal-focus">
           <label for="${prefix}checkbox-is-fix-steal-focus" style="user-select: none;">${getTextWithLanguage({ vi: "Tránh nhảy tab", en: "Fix steal focus" })}</label>
         </div>
         <div class="${prefix}field-container field-checkbox">
-          <input type="checkbox" id="${prefix}checkbox-is-shuffle-groups-need-post">
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-shuffle-groups-need-post">
           <label for="${prefix}checkbox-is-shuffle-groups-need-post" style="user-select: none;">${getTextWithLanguage({ vi: "Tự động trộn nhóm cần đăng", en: "Shuffle groups need post" })}</label>
         </div>
         <div class="${prefix}field-container field-checkbox">
-          <input type="checkbox" id="${prefix}checkbox-is-random-batch-post">
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-random-batch-post">
           <label for="${prefix}checkbox-is-random-batch-post" style="user-select: none;">${getTextWithLanguage({ vi: "Tự động nghỉ giữa các đợt", en: "Random break between batches" })}</label>
         </div>
         <div class="${prefix}field-container field-checkbox">
-          <input type="checkbox" id="${prefix}checkbox-is-random-time-post">
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-random-time-post">
           <label for="${prefix}checkbox-is-random-time-post" style="user-select: none;">${getTextWithLanguage({ vi: "Ngẫu nhiên thời gian đăng bài", en: "Random time post" })}</label>
         </div>
         <div class="${prefix}field-container field-checkbox">
-          <input type="checkbox" id="${prefix}checkbox-is-fix-steal-all-focus">
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-fix-steal-all-focus">
           <label for="${prefix}checkbox-is-fix-steal-all-focus" style="user-select: none;">${getTextWithLanguage({ vi: "Tránh nhảy tab hoàn toàn (Thử nghiệm)", en: "Fix steal all focus (Beta)" })}</label>
         </div>
         <div class="${prefix}field-container field-checkbox">
-          <input type="checkbox" id="${prefix}checkbox-is-shuffle-scheduler-time">
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-shuffle-scheduler-time">
           <label for="${prefix}checkbox-is-shuffle-scheduler-time" style="user-select: none;">${getTextWithLanguage({ vi: "Tự động trộn lịch (Thử nghiệm)", en: "Shuffle scheduler time (Beta)" })}</label>
         </div>
       </div>
+    `;
 
+    const schedulerHTML = `
       <div class="${prefix}section">
         <h2>${getTextWithLanguage({ vi: "Cài đặt lịch", en: "Scheduler" })}</h2>
         <div class="${prefix}field-container field-checkbox">
-          <input type="checkbox" id="${prefix}checkbox-is-scheduler">
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-scheduler">
           <label for="${prefix}checkbox-is-scheduler" style="user-select: none;">${getTextWithLanguage({ vi: "Chế độ lên lịch", en: "Scheduler Mode" })}</label>
         </div>
         <div id="${prefix}div-scheduler-options" style="padding-left: 16px; max-width: 250px; min-width: 200px;">
@@ -132,7 +138,7 @@ async function createPanelSetting(anchorElem = document.body) {
           </div>
           <div id="${prefix}div-scheduler-setting" style="margin-top: 8px;">
             <label for="${prefix}select-scheduler-type" style="margin-bottom: 4px; display: inline-block;">${getTextWithLanguage({ vi: "Chọn loại lịch", en: "Select scheduler type" })}:</label>
-            <select id="${prefix}select-scheduler-type" style="padding: 4px 0; width: 100%;">
+            <select id="${prefix}select-scheduler-type" class="custom-select" style="padding: 4px 0; width: 100%;">
               <option value="daily-hours">${getTextWithLanguage({ vi: "Hàng giờ (1:00,2:00,...)", en: "Daily hours (1:00,2:00,...)" })}</option>
               <option value="custom-every-minutes">${getTextWithLanguage({ vi: "Mỗi phút", en: "Every minutes" })} (1,5,10,...)</option>
               <option value="custom-every-hours">${getTextWithLanguage({ vi: "Mỗi giờ", en: "Every hours" })} (1,2,3,...)</option>
@@ -176,7 +182,7 @@ async function createPanelSetting(anchorElem = document.body) {
         </div>
         <div class="special-frame-hours-container">
           <div class="${prefix}field-container field-checkbox">
-            <input type="checkbox" id="${prefix}checkbox-is-special-frame-hours">
+            <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-special-frame-hours">
             <label for="${prefix}checkbox-is-special-frame-hours" style="user-select: none;">${getTextWithLanguage({ vi: "Khung giờ đặc biệt", en: "Special frame hours" })}</label>
           </div>
           <div style="display: flex; gap: 4px; flex-wrap: wrap; padding-left: 18px; margin-top: 6px" class="inner-special-frame-hours">
@@ -186,33 +192,43 @@ async function createPanelSetting(anchorElem = document.body) {
           </div>
         </div>
       </div>
-       
+    `;
+
+    const timeDelayHTML = `
       <div class="${prefix}section">
         <h2>${getTextWithLanguage({ vi: "Cài đặt thời gian chờ (sẽ cộng trừ một vài đơn vị)", en: "Delay Settings (will add or subtract a few units)" })}</h2>
         <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px">
           <div class="${prefix}field-container">
-            <label for="${prefix}input-delay-click-to-post" style="font-size: 12px">${getTextWithLanguage({ vi: "Chọn thời gian chờ nhấn nút hiển thị hộp thoại đăng", en: "Enter delay click to post" })} (${getTextWithLanguage({ vi: "Giây", en: "Seconds" })}): </label>
+            <label for="${prefix}input-delay-click-to-post" style="font-size: 13px">${getTextWithLanguage({ vi: "Chọn thời gian chờ nhấn nút hiển thị hộp thoại đăng", en: "Enter delay click to post" })} (${getTextWithLanguage({ vi: "Giây", en: "Seconds" })}): </label>
             <input min="1"  type="number" id="${prefix}input-delay-click-to-post" class="${prefix}input-outline" placeholder="Ex: 1,5,10,...">
           </div>
           <div class="${prefix}field-container">
-            <label for="${prefix}input-delay-fill-content" style="font-size: 12px">${getTextWithLanguage({ vi: "Chọn thời gian chờ điền nội dung", en: "Enter delay fill content" })} (${getTextWithLanguage({ vi: "Giây", en: "Seconds" })}): </label>
+            <label for="${prefix}input-delay-fill-content" style="font-size: 13px">${getTextWithLanguage({ vi: "Chọn thời gian chờ điền nội dung", en: "Enter delay fill content" })} (${getTextWithLanguage({ vi: "Giây", en: "Seconds" })}): </label>
             <input min="1"  type="number" id="${prefix}input-delay-fill-content" class="${prefix}input-outline" placeholder="Ex: 1,5,10,...">
           </div>
           <div class="${prefix}field-container">
-            <label for="${prefix}input-delay-fill-file" style="font-size: 12px">${getTextWithLanguage({ vi: "Chọn thời gian chờ điền tệp/file", en: "Enter delay fill file" })} (${getTextWithLanguage({ vi: "Giây", en: "Seconds" })}): </label>
+            <label for="${prefix}input-delay-fill-file" style="font-size: 13px">${getTextWithLanguage({ vi: "Chọn thời gian chờ điền tệp/file", en: "Enter delay fill file" })} (${getTextWithLanguage({ vi: "Giây", en: "Seconds" })}): </label>
             <input min="1"  type="number" id="${prefix}input-delay-fill-file" class="${prefix}input-outline" placeholder="Ex: 1,5,10,...">
           </div>
           <div class="${prefix}field-container">
-            <label for="${prefix}input-delay-post" style="font-size: 12px">${getTextWithLanguage({ vi: "Chọn thời gian chờ nhấn nút đăng bài", en: "Enter delay post" })} (${getTextWithLanguage({ vi: "Giây", en: "Seconds" })}): </label>
+            <label for="${prefix}input-delay-post" style="font-size: 13px">${getTextWithLanguage({ vi: "Chọn thời gian chờ nhấn nút đăng bài", en: "Enter delay post" })} (${getTextWithLanguage({ vi: "Giây", en: "Seconds" })}): </label>
             <input min="1"  type="number" id="${prefix}input-delay-post" class="${prefix}input-outline" placeholder="Ex: 1,5,10,...">
           </div>
           <div class="${prefix}field-container">
-            <label for="${prefix}input-delay-open-new-tab" style="font-size: 12px">${getTextWithLanguage({ vi: "Chọn thời gian chờ mở tab mới", en: "Enter delay open new tab" })} (${getTextWithLanguage({ vi: "Giây", en: "Seconds" })}): </label>
+            <label for="${prefix}input-delay-open-new-tab" style="font-size: 13px">${getTextWithLanguage({ vi: "Chọn thời gian chờ mở tab mới", en: "Enter delay open new tab" })} (${getTextWithLanguage({ vi: "Giây", en: "Seconds" })}): </label>
             <input min="1" type="number" id="${prefix}input-delay-open-new-tab" class="${prefix}input-outline" placeholder="Ex: 1,5,10,...">
           </div>
         </div>
       </div>
-    </div>
+    `;
+
+    const advancedSettingHTML = `
+      <div class="${prefix}advanced-setting">
+        ${groupsHTML}
+        ${optionalHTML}
+        ${schedulerHTML}
+        ${timeDelayHTML}
+      </div>
   `;
 
     rootSetting.innerHTML = advancedSettingHTML;
@@ -244,7 +260,10 @@ async function createPanelSetting(anchorElem = document.body) {
       changeContent: changeContentDialogViewSpecialHours,
     } = createDialog({
       html: "",
-      title: "Khung giờ đặc biệt",
+      title: getTextWithLanguage({
+        vi: "Khung giờ đặc biệt",
+        en: "Special frame hours",
+      }),
     });
 
     let scheduler = await getSchedulerService();
@@ -788,9 +807,8 @@ async function createPanelSetting(anchorElem = document.body) {
               const val = e.target.checked;
               DB_setValue(KEY_IS_IN_PROGRESS, val);
               if (!val) {
-                const scheduler = await getSchedulerService();
-                const isSpammed = (await DB_getValue(KEY_IS_SPAMMED)) || false;
-                if (scheduler.isScheduler && !isSpammed) {
+                const isScheduler = await getIsScheduler();
+                if (isScheduler) {
                   clearAndCreateSchedulerAlarm();
                 }
               }
@@ -1483,8 +1501,18 @@ function createDialogViewSpecialFrameHours(framesHours = []) {
           customClass: {
             container: "swal-container-custom",
           },
-          showCloseButton: true,
           width: 260,
+          showCloseButton: true,
+          showCancelButton: true,
+          cancelButtonText: getTextWithLanguage({
+            vi: "Hủy",
+            en: "Cancel",
+          }),
+          showConfirmButton: true,
+          confirmButtonText: getTextWithLanguage({
+            vi: "Lưu",
+            en: "Save",
+          }),
           preConfirm: () => {
             try {
               listDates = getCheckboxDateSpecial();
@@ -1713,7 +1741,7 @@ function getListDateElement(list = []) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = list.includes(item);
-    checkbox.className = "checkbox-special-date";
+    checkbox.className = "checkbox-special-date custom-checkbox";
     checkbox.setAttribute("data-value", item);
 
     const id = `${prefix}checkbox-special-date-${item}`;
