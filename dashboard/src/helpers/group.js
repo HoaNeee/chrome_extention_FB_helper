@@ -190,16 +190,18 @@ async function checkPostedAllGroupOrMaxGroupPerTime() {
   let isPostedAll = false;
   try {
     const currentLengthPost = (await DB_getValue(KEY_POST_LENGTH)) || 0;
-    let maxGroupPerTime = await DB_getValue(KEY_MAX_GROUP_PER_TIME);
+    let maxGroupPerTime = MAX_GROUP_PER_TIME_INITIAL;
 
     const isSpecialFrameHour = DB_getValue(KEY_IS_SPECIAL_FRAME_HOURS);
     if (isSpecialFrameHour) {
       const frame = await getObjectIsInSpecialFrameHours();
-      maxGroupPerTime = frame?.maxGroup;
-    }
-
-    if (maxGroupPerTime === undefined || maxGroupPerTime === null) {
-      maxGroupPerTime = MAX_GROUP_PER_TIME_INITIAL;
+      if (frame) {
+        maxGroupPerTime = frame?.maxGroup;
+      } else {
+        maxGroupPerTime = await DB_getValue(KEY_MAX_GROUP_PER_TIME);
+      }
+    } else {
+      maxGroupPerTime = await DB_getValue(KEY_MAX_GROUP_PER_TIME);
     }
 
     const per = random(0, 10);
