@@ -39,12 +39,15 @@ async function checkAndLogSpecialFrameHour() {
   try {
     const isSpecialFrameHour = await getIsSpecialFrameHoursInStore();
     if (isSpecialFrameHour) {
+      await sleep(500);
       addLog({
         vi: "Chức năng khung giờ đặc biệt đang được bật, đang kiểm tra có thuộc khung giờ đặc biệt không",
         en: "Special frame hours function is enabled, checking if it belongs to special frame hours",
       });
 
       const object = await getObjectIsInSpecialFrameHours();
+
+      await sleep(500);
       if (object) {
         addLog({
           vi:

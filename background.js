@@ -61,8 +61,6 @@ import {
   clearAndCreateSchedulerAlarm,
   clearSchedulerAuto,
   getIsScheduler,
-  getIsSpecialFrameHoursInStore,
-  getObjectIsInSpecialFrameHours,
   getSchedulerService,
 } from "./dashboard/src/services/scheduler-service.js";
 import { DB_openInTab } from "./dashboard/src/utils/api-helper.js";
