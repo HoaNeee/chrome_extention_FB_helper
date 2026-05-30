@@ -1102,7 +1102,8 @@ function createDialogAddSpecialHours() {
         en: "Select day",
       }),
       html: divListDate,
-      // target: divContainer,
+      background: "var(--tm-bg-dialog)",
+      color: "var(--tm-text-primary)",
       heightAuto: false,
       showCancelButton: true,
       showCloseButton: true,
@@ -1497,6 +1498,7 @@ function createDialogViewSpecialFrameHours(framesHours = []) {
             vi: "Sửa ngày",
             en: "Edit dates",
           }),
+          color: "var(--tm-text-primary)",
           html: elements,
           heightAuto: false,
           customClass: {
@@ -1514,6 +1516,7 @@ function createDialogViewSpecialFrameHours(framesHours = []) {
             vi: "Lưu",
             en: "Save",
           }),
+          background: "var(--tm-bg-dialog)",
           preConfirm: () => {
             try {
               listDates = getCheckboxDateSpecial();

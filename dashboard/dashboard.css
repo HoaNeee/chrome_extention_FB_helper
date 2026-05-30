@@ -33,11 +33,12 @@ body.light {
   --tm-input-text: #111827;
   --tm-text-danger: #ef4444;
   --tm-text-success: #10b981;
-  --tm-bg-btn-primary: #0d6efd;
+  --tm-bg-btn-primary: #5fa4f4;
   --tm-text-btn-primary: #ffffff;
   --tm-bg-tabs-item: #e5e7eb;
   --tm-bg-tabs-active: #ffffff;
   --tm-bg-scrollbar: #d1d5db;
+  --tm-bg-dialog: #ffffff;
 }
 
 /*
@@ -55,11 +56,12 @@ body.dark {
   --tm-input-text: #f4f4f5;
   --tm-text-danger: #f87171;
   --tm-text-success: #34d399;
-  --tm-bg-btn-primary: #3b82f6;
+  --tm-bg-btn-primary: #70a8e9;
   --tm-text-btn-primary: #ffffff;
   --tm-bg-tabs-item: #27272a;
   --tm-bg-tabs-active: #3f3f46;
   --tm-bg-scrollbar: #52525b;
+  --tm-bg-dialog: #2a2a2a;
 }
 
 body {
@@ -78,7 +80,7 @@ body * {
   scrollbar-color: var(--tm-bg-scrollbar) transparent;
 }
 
-body[apply-animation="true"] *:not(.tippy-box) {
+body[apply-animation="true"] *:not(.tippy-box, .toastify) {
   transition:
     background-color 0.2s ease,
     color 0.2s ease,
@@ -470,4 +472,14 @@ footer {
 .custom-checkbox {
   width: 16px !important;
   height: 16px !important;
+}
+
+.tippy-tooltip.light-theme {
+  background-color: #ffffff;
+  color: #18181b;
+}
+
+.tippy-tooltip.dark-theme {
+  background-color: #2a2a2a;
+  color: #ffffff;
 }

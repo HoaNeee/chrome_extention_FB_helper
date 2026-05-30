@@ -17,12 +17,14 @@ function dialogContainer({ anchorElem = document.body }) {
   dialogContainerElement = document.createElement("div");
   dialogContainerElement.style.position = "absolute";
   dialogContainerElement.style.zIndex = MAX_Z_INDEX;
-  dialogContainerElement.style.background = "var(--tm-bg-primary)";
   dialogContainerElement.style.boxShadow = "0 2px 10px rgba(0,0,0,0.2)";
   dialogContainerElement.style.top = "50%";
   dialogContainerElement.style.left = "50%";
   dialogContainerElement.style.transform = "translate(-50%, -50%)";
+  dialogContainerElement.style.background = "var(--tm-bg-dialog)";
   dialogContainerElement.style.color = "var(--tm-text-primary)";
+  dialogContainerElement.style.borderRadius = "4px";
+  dialogContainerElement.setAttribute("data-role", "tm-dialog");
 
   dialogContainerElement.style.display = "none";
   dialogContainerElement.style.pointerEvents = "none";
@@ -194,6 +196,10 @@ function dialogViewScheduler(schedulers) {
     btnDel.textContent = "✖";
     btnDel.style.cursor = "pointer";
     btnDel.style.userSelect = "none";
+    btnDel.title = getTextWithLanguage({
+      vi: "Xóa khoảng thời gian này",
+      en: "Delete this time",
+    });
 
     btnDel.addEventListener("click", async () => {
       try {

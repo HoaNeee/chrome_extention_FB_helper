@@ -361,8 +361,8 @@ function addAllEvtTooltipForElement() {
     findLabelSetedUpAndAddTippy({
       selector: "tm_checkbox-is-scheduler",
       content: getTextWithLanguage({
-        vi: "Tùy chọn này sẽ giúp bạn đăng bài tự động theo lịch mà bạn đã cài trước đó (nếu chưa cài đặt lịch thì bạn hãy cài đặt lịch trước khi bật). Gợi ý khi cài đặt nên chọn kiểu lịch là phút để tiện ích có thể hoạt động ổn định và bạn có thể đạt được kết quả tốt nhất",
-        en: "When this option is enabled, the utility will automatically post at the set times. If not enabled, you will need to set it manually. Hint: When setting up, it is recommended to choose the time interval in minutes for the utility to operate stably and you to achieve the best results",
+        vi: `Tùy chọn này sẽ giúp bạn đăng bài tự động theo lịch mà bạn đã cài trước đó (nếu chưa cài đặt lịch thì bạn hãy cài đặt lịch trước khi bật). Gợi ý khi cài đặt nên chọn kiểu lịch là phút để tiện ích có thể hoạt động ổn định và bạn có thể đạt được kết quả tốt nhất. Hãy xóa các khung thời gian mà bạn không muốn đăng trong danh sách (click vào "Xem lịch" và bấm vào biểu tượng x)`,
+        en: `When this option is enabled, the utility will automatically post at the set times. If not enabled, you will need to set it manually. Hint: When setting up, it is recommended to choose the time interval in minutes for the utility to operate stably and you to achieve the best results. Please remove the time frames that you do not want to post in the list (click on "View schedule" and click on the x icon)`,
       }),
     });
 
@@ -439,7 +439,6 @@ function addTippy(selector, content, appendTo = document.body) {
     tippy(element, {
       content,
       animation: "fade",
-      theme: "dark",
       appendTo,
     });
   }
