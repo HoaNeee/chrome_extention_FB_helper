@@ -165,7 +165,7 @@ async function clearAndCreateSchedulerAlarm() {
 
 		const nowMs = Date.now();
 
-		if (timeSpammed < nowMs) {
+		if (isSpammed && timeSpammed < nowMs) {
 			setIsSpammedInStorage(false);
 			isSpammed = false;
 		}
