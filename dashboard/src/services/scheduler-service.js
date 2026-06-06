@@ -6,13 +6,7 @@ import {
 	KEY_SCHEDULER,
 	KEY_SPECIAL_FRAME_HOURS,
 } from "../../../contants/contants.js";
-import {
-	now,
-	logActions,
-	logError,
-	random,
-	now,
-} from "../../../utils/utils.js";
+import { now, logActions, logError, random } from "../../../utils/utils.js";
 import { addLog } from "../draw_element/panel-log.js";
 import {
 	createSchedulerDailyHours,
@@ -169,7 +163,7 @@ async function clearAndCreateSchedulerAlarm() {
 		const timeSpammed = await getNextTimePostWhenSpammed();
 		const time = await getNextTimePost();
 
-		const nowMs = now();
+		const nowMs = Date.now();
 
 		if (timeSpammed < nowMs) {
 			setIsSpammedInStorage(false);
