@@ -144,6 +144,7 @@ function drawPanelGroup({
     const divFieldPriority = document.createElement("div");
     divFieldPriority.classList.add(`${prefix}field-container`);
     const labelPriority = document.createElement("label");
+    labelPriority.setAttribute("for", `${prefix}input-priority`);
     labelPriority.innerText = getTextWithLanguage({
       vi: "Nhập độ ưu tiên (Không bắt buộc):",
       en: "Enter priority (Not required):",

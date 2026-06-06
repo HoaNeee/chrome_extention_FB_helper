@@ -110,6 +110,30 @@ async function main() {
     });
 
     addAllEvtTooltipForElement();
+
+    //test api
+    //at spring u need config cors for web
+
+    //at @RestController
+    // @CrossOrigin(origins = "*")
+    // or at @SpringBootApplication
+    // @CrossOrigin(origins = "*")
+    // fetch("http://localhost:8080/api/products", {
+    //   headers: {
+    //     "Content-Type": "application/json",
+    //     Authorization:
+    //       "Bearer " +
+    //       "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4MDQxNzk3NX0.VxCK3PwOtB1x0zbz6iLPxHpFhzT77LoTcnJd84Dem-c",
+    //   },
+    //   // credentials: "include",
+    // })
+    //   .then((res) => res.json())
+    //   .then((data) => {
+    //     console.log(data);
+    //   })
+    //   .catch((err) => {
+    //     console.log(err);
+    //   });
   } catch (error) {
     logError("Error at dashboard main: ", error);
   }

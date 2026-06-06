@@ -24,6 +24,7 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "host_permissions": ["http://localhost:8080/*"],
   "content_scripts": [
     {
       "matches": ["https://www.facebook.com/*"],
