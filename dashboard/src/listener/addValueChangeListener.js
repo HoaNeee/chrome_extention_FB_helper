@@ -14,6 +14,8 @@ import { logError } from "../../../utils/utils.js";
 import { updateDataSavedInfo } from "../draw_element/dataSavedInfo.js";
 import { drawHistoryLogItem } from "../draw_element/panel-log.js";
 import {
+  disabledElement,
+  enabledElement,
   getAllFieldsSetting,
   hideElement,
   hideField,
@@ -29,7 +31,7 @@ import { DB_setValue } from "../utils/api-helper.js";
 
 let timeOutClearAndCreateSchedulerAlarm = null;
 
-export default function addValueChangeListener(cb) {
+export default function addValueChangeListener() {
   const keys = [
     KEY_IS_TEST,
     KEY_SCHEDULER,
@@ -50,7 +52,7 @@ export default function addValueChangeListener(cb) {
           if (changes[key]) {
             const newVal = changes[key]?.newValue;
             if (key === KEY_IS_IN_PROGRESS) {
-              cb?.(newVal);
+              handleIsProgress(newVal);
             }
             if (key === KEY_IS_DEVELOPER_MODE) {
               if (newVal) {
@@ -149,5 +151,49 @@ async function handleHisoryLog(histories) {
     }
   } catch (error) {
     logError("Error at addLog method: ", error);
+  }
+}
+
+async function handleIsProgress(val) {
+  const { setIsProcessing } = getAllFieldsSetting();
+  try {
+    setIsProcessing(val);
+    if (val) {
+      disabledElement({ selector: "#tm_btn-auto" });
+      disabledElement({ selector: "#tm_btn-continue-post" });
+      disabledElement({ selector: "#tm_btn-get-list-groups-of-user" });
+      disabledElement({ selector: "#tm_btn-reset-groups" });
+      disabledElement({ selector: "#tm_btn-reset-groups-posted" });
+      disabledElement({ selector: "#tm_btn-reset" });
+      disabledElement({ selector: "#tm_btn-update-groups-need-post" });
+      disabledElement({ selector: "#tm_btn-reset-is-spammed" });
+      disabledElement({ selector: "#tm_btn-save-max-group-per-time" });
+
+      enabledElement({
+        selector: "#tm_checkbox-is-processing",
+        isField: true,
+        fieldSelector: ".tm_field-container",
+      });
+    }
+    if (!val) {
+      enabledElement({ selector: "#tm_btn-auto" });
+      enabledElement({ selector: "#tm_btn-continue-post" });
+      enabledElement({ selector: "#tm_btn-get-list-groups-of-user" });
+      enabledElement({ selector: "#tm_btn-reset-groups" });
+      enabledElement({ selector: "#tm_btn-reset-groups-posted" });
+      enabledElement({ selector: "#tm_btn-reset" });
+      enabledElement({ selector: "#tm_btn-update-groups-need-post" });
+      enabledElement({ selector: "#tm_btn-reset-is-spammed" });
+      enabledElement({ selector: "#tm_btn-save-max-group-per-time" });
+
+      disabledElement({
+        selector: "#tm_checkbox-is-processing",
+        fieldSelector: ".tm_field-container",
+        isCheckbox: true,
+        isField: true,
+      });
+    }
+  } catch (error) {
+    logError("Error at handleIsProgress: ", error);
   }
 }

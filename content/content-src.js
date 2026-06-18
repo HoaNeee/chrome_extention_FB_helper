@@ -11,16 +11,25 @@ import {
   KEY_IS_SCROLL_DETECT_LIST_GROUP,
   KEY_IS_TEST,
 } from "../contants/contants.js";
-import { logError, random, sleep } from "../utils/utils.js";
+import {
+  getIsCorrectPostURL,
+  logError,
+  random,
+  sleep,
+} from "../utils/utils.js";
 import { notificationContainer } from "./elements/notify.js";
 import {
   checkIsSpammed,
   clickOutSideHideDialog,
   getIsExistDialog,
 } from "./helpers/dom.js";
-import { getListGroups } from "./helpers/groups.js";
-import { postHelper } from "./helpers/post.js";
-import { sendMessage, sendMessageWithResponse } from "./utils/request.js";
+import { getListGroups, interactBeforePost } from "./helpers/groups.js";
+import { commentToJustPostedHelper, postHelper } from "./helpers/post.js";
+import {
+  CL_addLogRequest,
+  sendMessage,
+  sendMessageWithResponse,
+} from "./utils/request.js";
 import {
   CL_getProgressTool,
   CL_getTimeDelayInStorage,
@@ -31,6 +40,10 @@ async function main() {
   try {
     console.log("content script is running...");
     notificationContainer({});
+
+    //test
+
+    // return;
 
     //GET LIST GROUPS
     if (getIsMatchUrl(URL_LIST_GROUPS)) {
@@ -43,6 +56,7 @@ async function main() {
         await sleep(4000);
         const allGroups = await getListGroups();
         CL_setValue(KEY_ALL_GROUPS, allGroups);
+        CL_setValue(KEY_IS_SCROLL_DETECT_LIST_GROUP, false);
         await sleep(2000);
         sendMessage(KEY_CLOSE_THIS_TAB, {});
       }
@@ -64,11 +78,17 @@ async function main() {
       const task = responeCanPost.data.task;
 
       if (canPost) {
-        sendMessage(KEY_ADD_LOG, {
+        await interactBeforePost();
+
+        CL_addLogRequest({
           vi: `Bắt đầu đăng bài trong nhóm ${task?.id_href}`,
           en: `Start posting in group ${task?.id_href}`,
         });
-        await postHelper(task);
+        const isSuccess = await postHelper(task);
+
+        if (isSuccess) {
+          await commentToJustPostedHelper();
+        }
 
         const timeDelay = await CL_getTimeDelayInStorage();
         const timeDelayNext =
@@ -76,8 +96,10 @@ async function main() {
             ? timeDelay.openNewTab / 2
             : (timeDelay.openNewTab + 1) / 2;
 
-        await sleep(timeDelayNext * 1000);
+        await sleep(timeDelayNext * 1000 + random(500, 2000));
         sendMessage(KEY_NEXT_POST_GROUP, {});
+
+        //close this tab
         const isTest = await CL_getValue(KEY_IS_TEST, false);
         if (isTest) {
           setTimeout(() => {
@@ -91,6 +113,7 @@ async function main() {
             random(35, 55) * 1000,
           );
 
+          //check spam
           setTimeout(
             async () => {
               if (getIsExistDialog()) {

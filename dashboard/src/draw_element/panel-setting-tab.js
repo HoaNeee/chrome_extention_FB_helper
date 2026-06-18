@@ -32,7 +32,7 @@ import {
   getTimeDelayInStorage,
   setStrictlyMatchTitleGroupInStorage,
   setTimeDelayInStorage,
-} from "../helpers/storage.js";
+} from "../services/storage-service.js";
 import {
   addSpecialFrameHoursService,
   clearAndCreateSchedulerAlarm,
@@ -59,7 +59,7 @@ async function createPanelSetting(anchorElem = document.body) {
 
     const groupsHTML = `
       <div class="${prefix}section">
-        <h2>${getTextWithLanguage({ vi: "Cài đặt nâng cao", en: "Advanced Setting" })}</h2>
+        <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt cơ bản", en: "Basic Setting" })}</h2>
         <div class="${prefix}field-container">
             <label for="${prefix}input-max-group-per-time">${getTextWithLanguage({ vi: "Số lượng nhóm tối đa mỗi lần", en: "Max group per time" })}</label>
             <div style="display: flex; gap: 4px;">
@@ -86,7 +86,7 @@ async function createPanelSetting(anchorElem = document.body) {
 
     const optionalHTML = `
       <div class="${prefix}section">
-        <h2>${getTextWithLanguage({ vi: "Tùy chọn thêm", en: "Optionals" })}</h2>
+        <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Tùy chọn cơ bản", en: "Basic Setting" })}</h2>
         <div class="${prefix}field-container field-checkbox">
           <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-processing">
           <label for="${prefix}checkbox-is-processing" style="user-select: none;">${getTextWithLanguage({ vi: "Đang chạy", en: "Auto is processing" })}</label>
@@ -197,7 +197,7 @@ async function createPanelSetting(anchorElem = document.body) {
 
     const timeDelayHTML = `
       <div class="${prefix}section">
-        <h2>${getTextWithLanguage({ vi: "Cài đặt thời gian chờ (sẽ cộng trừ một vài đơn vị)", en: "Delay Settings (will add or subtract a few units)" })}</h2>
+        <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt thời gian chờ (sẽ cộng trừ một vài đơn vị)", en: "Delay Settings (will add or subtract a few units)" })}</h2>
         <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px">
           <div class="${prefix}field-container">
             <label for="${prefix}input-delay-click-to-post" style="font-size: 13px">${getTextWithLanguage({ vi: "Chọn thời gian chờ nhấn nút hiển thị hộp thoại đăng", en: "Enter delay click to post" })} (${getTextWithLanguage({ vi: "Giây", en: "Seconds" })}): </label>
@@ -223,8 +223,8 @@ async function createPanelSetting(anchorElem = document.body) {
       </div>
     `;
 
-    const advancedSettingHTML = `
-      <div class="${prefix}advanced-setting">
+    const basicSettingHTML = `
+      <div class="${prefix}basic-setting">
         ${groupsHTML}
         ${optionalHTML}
         ${schedulerHTML}
@@ -232,7 +232,7 @@ async function createPanelSetting(anchorElem = document.body) {
       </div>
   `;
 
-    rootSetting.innerHTML = advancedSettingHTML;
+    rootSetting.innerHTML = basicSettingHTML;
 
     const root = anchorElem.querySelector("#tm_root");
     if (root) {

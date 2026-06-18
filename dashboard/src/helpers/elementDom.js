@@ -1,5 +1,6 @@
+import { prefix } from "../../../contants/contants.js";
 import { getTextWithLanguage, logError } from "../../../utils/utils.js";
-import { getTheme } from "./storage.js";
+import { getTheme } from "../services/storage-service.js";
 
 function getAllFieldsSetting(root = document) {
   const inputMaxGroup = root.querySelector("#tm_input-max-group-per-time");
@@ -150,6 +151,51 @@ function getAllFieldsSetting(root = document) {
     setIsRandomTimePost: setIsRandomTimePost,
     getIsSpecialFrameHours: () => checkboxIsSpecialFrameHours.checked,
     setIsSpecialFrameHours: setIsSpecialFrameHours,
+  };
+}
+
+function getAllFieldsAdvancedSetting(root = document) {
+  const checkboxIsCommentWhenPostSuccess = root.querySelector(
+    `#${prefix}checkbox-is-comment-when-post-success`,
+  );
+  const inputListCommentWhenPostSuccess = root.querySelector(
+    `#${prefix}input-keyword-comment-when-post-success`,
+  );
+  const checkboxIsInteractBeforePost = root.querySelector(
+    `#${prefix}checkbox-is-interact-before-post`,
+  );
+
+  function getIsCommentWhenPostSuccess() {
+    return checkboxIsCommentWhenPostSuccess.checked;
+  }
+
+  function getKeyWordsComment() {
+    return inputListCommentWhenPostSuccess.value;
+  }
+
+  function setIsCommentWhenPostSuccess(val) {
+    checkboxIsCommentWhenPostSuccess.checked = val;
+  }
+
+  function setKeyWordsComment(val) {
+    inputListCommentWhenPostSuccess.value = val;
+  }
+
+  function getIsInteractBeforePost() {
+    return checkboxIsInteractBeforePost.checked;
+  }
+
+  function setIsInteractBeforePost(val) {
+    checkboxIsInteractBeforePost.checked = val;
+  }
+
+  return {
+    getIsCommentWhenPostSuccess: getIsCommentWhenPostSuccess,
+    getKeyWordsComment: getKeyWordsComment,
+    setIsCommentWhenPostSuccess: setIsCommentWhenPostSuccess,
+    setKeyWordsComment: setKeyWordsComment,
+    getIsInteractBeforePost: getIsInteractBeforePost,
+    setIsInteractBeforePost: setIsInteractBeforePost,
   };
 }
 
@@ -455,4 +501,5 @@ export {
   createInfoIcon,
   addAllEvtTooltipForElement,
   findLabelSetedUpAndAddTippy,
+  getAllFieldsAdvancedSetting,
 };

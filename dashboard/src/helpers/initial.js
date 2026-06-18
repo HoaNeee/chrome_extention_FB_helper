@@ -1,9 +1,27 @@
 import {
+  getIndexsGroupChecked,
+  getIsDeveloperModeInStorage,
+  getIsFixStealAllFocusInStorage,
+  getIsInteractBeforePostInStorage,
+  getIsRandomBatchPost,
+  getIsRandomTimePost,
+  getIsShuffleGroupNeedPost,
+  getIsShuffleSchedulerTimeInStorage,
+  getIsSpammedInStorage,
+  getIsStealFocusInStorage,
+  getIsTestInStorage,
   getLanguageInStorage,
+  getMaxGroupPerTimeInStorage,
+  getPremiumInStorage,
+  getProgress,
   getStrictlyMatchTitleGroupInStorage,
   getTimeDelayInStorage,
-} from "./storage.js";
+  setMaxGroupPerTimeInStorage,
+} from "../services/storage-service.js";
 import {
+  disabledElement,
+  enabledElement,
+  getAllFieldsAdvancedSetting,
   getAllFieldsSetting,
   hideElement,
   hideField,
@@ -11,25 +29,9 @@ import {
   showField,
 } from "./elementDom.js";
 import {
-  KEY_GROUPS_POSTED,
-  KEY_IS_IN_PROGRESS,
-  KEY_IS_TEST,
-  KEY_MAX_GROUP_PER_TIME,
   MAX_GROUP_PER_TIME_INITIAL,
-  KEY_INDEXS_GROUP_CHECKED,
-  KEY_GROUPS_NEED_POST,
   initialTimeDelay,
-  KEY_IS_FIX_STEAL_FOCUS,
   KEY_IS_DARK_THEME,
-  KEY_IS_DEVELOPER_MODE,
-  KEY_IS_SHUFFLE_SCHEDULER_TIME,
-  KEY_IS_SPAMMED,
-  KEY_IS_FIX_STEAL_ALL_FOCUS,
-  KEY_IS_SHUFFLE_GROUPS_NEED_POST,
-  KEY_IS_RANDOM_BATCH_POST,
-  KEY_IS_PREMIUM,
-  KEY_IS_RANDOM_TIME_POST,
-  KEY_IS_SPECIAL_FRAME_HOURS,
 } from "../../../contants/contants.js";
 import { updateDataSavedInfo } from "../draw_element/dataSavedInfo.js";
 import {
@@ -37,16 +39,26 @@ import {
   logActions,
   logError,
 } from "../../../utils/utils.js";
-import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
+import { DB_getValue } from "../utils/api-helper.js";
 import { getDataSavedInStorage } from "../services/dataSavedService.js";
 import {
   clearAndCreateSchedulerAlarm,
   clearSchedulerAuto,
+  getIsSpecialFrameHoursInStore,
   getSchedulerService,
 } from "../services/scheduler-service.js";
 import { shuffleTimes } from "./scheduler.js";
 import { initHistoryLogs } from "../draw_element/panel-log.js";
 import { handleShowOrHideElementPremium } from "./premium.js";
+import {
+  getAllGroupPostedsInStorage,
+  getListGroupsNeedPostInStorage,
+  setAllGroupPostedsInStorage,
+} from "../services/groupService.js";
+import {
+  getIsCommentWhenPostSuccessService,
+  getListCommentWhenPostSuccessService,
+} from "../services/comment-service.js";
 
 async function initialData({ anchorElement = document.body }) {
   try {
@@ -68,45 +80,53 @@ async function initialData({ anchorElement = document.body }) {
       } = getAllFieldsSetting();
 
       //get max group
-      let maxGroup = await DB_getValue(KEY_MAX_GROUP_PER_TIME);
+      let maxGroup = await getMaxGroupPerTimeInStorage();
       if (!maxGroup) {
         maxGroup = MAX_GROUP_PER_TIME_INITIAL;
-        DB_setValue(KEY_MAX_GROUP_PER_TIME, maxGroup);
+        setMaxGroupPerTimeInStorage(maxGroup);
       }
 
       setMaxGroupPerTime(maxGroup);
 
-      const isTesting = (await DB_getValue(KEY_IS_TEST)) || false;
+      const isTesting = await getIsTestInStorage();
       setIsTest(isTesting);
 
-      const isProcessing = (await DB_getValue(KEY_IS_IN_PROGRESS)) || false;
+      const isProcessing = await getProgress();
+      if (!isProcessing) {
+        disabledElement({
+          selector: "#tm_checkbox-is-processing",
+          fieldSelector: ".tm_field-container",
+          isCheckbox: true,
+          isField: true,
+        });
+      } else {
+        enabledElement({
+          selector: "#tm_checkbox-is-processing",
+          fieldSelector: ".tm_field-container",
+          isField: true,
+        });
+      }
       setIsProcessing(isProcessing);
 
-      const isFixStealFocus =
-        (await DB_getValue(KEY_IS_FIX_STEAL_FOCUS)) || false;
+      const isFixStealFocus = await getIsStealFocusInStorage();
       setIsFixStealFocus(isFixStealFocus);
 
-      const isFixStealAllFocus =
-        (await DB_getValue(KEY_IS_FIX_STEAL_ALL_FOCUS)) || false;
+      const isFixStealAllFocus = await getIsFixStealAllFocusInStorage();
       setIsFixStealAllFocus(isFixStealAllFocus);
 
-      const isSpammed = (await DB_getValue(KEY_IS_SPAMMED)) || false;
+      const isSpammed = await getIsSpammedInStorage();
       setIsSpammed(isSpammed);
 
-      const isShuffleSchedulerTime =
-        (await DB_getValue(KEY_IS_SHUFFLE_SCHEDULER_TIME)) || false;
+      const isShuffleSchedulerTime = await getIsShuffleSchedulerTimeInStorage();
       setIsShuffleSchedulerTime(isShuffleSchedulerTime);
 
-      const isShuffleGroupsNeedPost =
-        (await DB_getValue(KEY_IS_SHUFFLE_GROUPS_NEED_POST)) || false;
+      const isShuffleGroupsNeedPost = await getIsShuffleGroupNeedPost();
       setIsShuffleGroupsNeedPost(isShuffleGroupsNeedPost);
 
-      const isRandomTimePost =
-        (await DB_getValue(KEY_IS_RANDOM_TIME_POST)) || false;
+      const isRandomTimePost = await getIsRandomTimePost();
       setIsRandomTimePost(isRandomTimePost);
 
-      const isSpecialFrameHours =
-        (await DB_getValue(KEY_IS_SPECIAL_FRAME_HOURS)) || false;
+      const isSpecialFrameHours = await getIsSpecialFrameHoursInStore();
       setIsSpecialFrameHours(isSpecialFrameHours);
 
       const scheduler = await getSchedulerService();
@@ -132,14 +152,28 @@ async function initialData({ anchorElement = document.body }) {
         setStrictlyMatchTitleGroup(strictlyMatchTitleGroup);
       }
 
-      const isRandomBatchPost =
-        (await DB_getValue(KEY_IS_RANDOM_BATCH_POST)) || false;
+      const isRandomBatchPost = await getIsRandomBatchPost();
       setIsRandomBatchPost(isRandomBatchPost);
+
+      const {
+        setIsCommentWhenPostSuccess,
+        setKeyWordsComment,
+        setIsInteractBeforePost,
+      } = getAllFieldsAdvancedSetting();
+
+      const isCommentWhenPostSuccess =
+        await getIsCommentWhenPostSuccessService();
+      setIsCommentWhenPostSuccess(isCommentWhenPostSuccess);
+      const listComment = await getListCommentWhenPostSuccessService();
+      setKeyWordsComment(listComment.join("\n"));
+
+      const isInteractBeforePost = await getIsInteractBeforePostInStorage();
+      setIsInteractBeforePost(isInteractBeforePost);
     }
 
     await initialSettings();
 
-    const listGroups = (await DB_getValue(KEY_GROUPS_NEED_POST)) || [];
+    const listGroups = await getListGroupsNeedPostInStorage();
     logActions("Initial list groups need post: ", listGroups);
     const dataSaved = (await getDataSavedInStorage()) || [];
     logActions("Initial data saved: ", dataSaved);
@@ -152,8 +186,7 @@ async function initialData({ anchorElement = document.body }) {
       const firstChild = listGroupsContainer.firstElementChild;
       if (firstChild) {
         const childs = firstChild.children || [];
-        const indexsCheckeds =
-          (await DB_getValue(KEY_INDEXS_GROUP_CHECKED)) || [];
+        const indexsCheckeds = await getIndexsGroupChecked();
         logActions("Initial indexs checked: ", indexsCheckeds);
         for (const child of childs) {
           const id = child.getAttribute("data-group-id");
@@ -213,12 +246,12 @@ async function initialData({ anchorElement = document.body }) {
     }
 
     //...
-    const gp = await DB_getValue(KEY_GROUPS_POSTED);
+    const gp = await getAllGroupPostedsInStorage();
     if (!gp) {
-      DB_setValue(KEY_GROUPS_POSTED, []);
+      await setAllGroupPostedsInStorage([]);
     }
 
-    const isDevMode = await DB_getValue(KEY_IS_DEVELOPER_MODE);
+    const isDevMode = await getIsDeveloperModeInStorage();
     if (isDevMode) {
       showElement("#tm_btn-test-auto");
       showField({
@@ -243,7 +276,7 @@ async function initialData({ anchorElement = document.body }) {
       });
     }
 
-    const isPremium = (await DB_getValue(KEY_IS_PREMIUM)) || false;
+    const isPremium = await getPremiumInStorage();
     handleShowOrHideElementPremium(isPremium);
 
     await updateDataSavedInfo();
@@ -270,14 +303,6 @@ async function initialFastAndFirst() {
     });
   } catch (error) {
     logError("Error initialFastAndFirst: " + error);
-  }
-}
-
-async function initialLast() {
-  try {
-    const isDarkTheme = (await DB_getValue(KEY_IS_DARK_THEME)) || false;
-  } catch (error) {
-    logError("Error initialLast: " + error);
   }
 }
 

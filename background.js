@@ -2,15 +2,19 @@ import {
   KEY_ADD_LOG,
   KEY_CLEAR_NOTIFICATION,
   KEY_CLOSE_THIS_TAB,
+  KEY_CLOSE_THIS_WINDOW,
+  KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST,
   KEY_CURRENT_WINDOW_ID,
   KEY_FIRST_TIME_USE,
   KEY_GET_CURRENT_DATA_GROUP_SAVED_NEED_POST,
+  KEY_GET_KEY_SAVED,
   KEY_GET_LIST_GROUPS,
   KEY_NEXT_POST_GROUP,
   KEY_NOTIFICATION,
   KEY_OPEN_IN_TAB,
   KEY_REGISTER_MENU_COMMAND,
   KEY_SCHEDULER_ALARMS,
+  KEY_SET_KEY_SAVED,
   KEY_UNREGISTER_MENU_COMMAND,
   KEY_UPDATE_IS_SPAMMED,
   KEY_UPDATE_STATUS_TASK,
@@ -44,15 +48,23 @@ import {
   shuffleTimes,
 } from "./dashboard/src/helpers/scheduler.js";
 import {
+  getCountBatchPost,
   getCurrentIndexGroupPost,
-  getIsFixStealAllFocusInStorage,
-  getIsStealFocusInStorage,
+  getIsInteractBeforePostInStorage,
+  getIsRandomBatchPost,
+  getIsSpammedInStorage,
   getIsStopTaskInStorage,
-  getPremium,
+  getPremiumInStorage,
   getRandomIndexGroupChecked,
+  setCountBatchPost,
+  setCurrentCountPostLength,
   setCurrentIndexGroupPost,
-} from "./dashboard/src/helpers/storage.js";
-import { automationContinue } from "./dashboard/src/services/automation-service.js";
+  setDecidedInteractBeforePostInStorage,
+} from "./dashboard/src/services/storage-service.js";
+import {
+  automationContinue,
+  openNewTaskHepler,
+} from "./dashboard/src/services/automation-service.js";
 import {
   getAllGroupPostedsInStorage,
   getListGroupsNeedPostInStorage,
@@ -63,27 +75,28 @@ import {
   getIsScheduler,
   getSchedulerService,
 } from "./dashboard/src/services/scheduler-service.js";
-import { DB_openInTab } from "./dashboard/src/utils/api-helper.js";
 import {
   BG_deleteValue,
   BG_getValue,
   BG_setValue,
-  getCountPost,
   getProgressTool,
   getTask,
   saveTask,
-  setCountPost,
-  setCurrentPostLength,
   setProgressTool,
   setStatusTask,
 } from "./utils/bgr-storage.js";
 import {
   getIsDashboardTab,
+  getTextWithLanguage,
   logActions,
   logError,
   now,
-  random,
+  randomRateBoolean,
 } from "./utils/utils.js";
+import {
+  getAllMetadataComments,
+  getIsCommentWhenPostSuccessService,
+} from "./dashboard/src/services/comment-service.js";
 
 //KEY TEST, DELETE AFTER FINISH
 const KEY_COUNT_TRIGGER_TEST = "count triggered";
@@ -181,9 +194,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       case KEY_UPDATE_IS_SPAMMED:
         handleUpdateIsSpammed(msg.data.isSpammed);
         break;
+
       case KEY_ADD_LOG:
         handleAddLog(msg.data);
         break;
+
+      case KEY_GET_KEY_SAVED:
+        handleGetKeySaved(msg.data?.key, sendResponse);
+        return true;
+
+      case KEY_SET_KEY_SAVED:
+        handleSetKeySaved(msg.data?.key, msg.data?.value, sendResponse);
+        return true;
+
+      case KEY_CLOSE_THIS_WINDOW:
+        handleCloseThisWindow(sender);
+        break;
+
+      case KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST.GET_ALL_METADATA:
+        handleGetAllMetadataComments(sendResponse);
+        return true;
     }
   } catch (error) {
     logError("Error at background: ", error);
@@ -198,7 +228,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 async function nextGroupPost() {
   try {
     const isStop = await getIsStopTaskInStorage();
-    const isSpammed = (await BG_getValue(KEY_IS_SPAMMED)) || false;
+    const isSpammed = await getIsSpammedInStorage();
     const isProgress = await getProgressTool();
 
     if (isStop || isSpammed || !isProgress) {
@@ -209,21 +239,21 @@ async function nextGroupPost() {
       await checkPostedAllGroupOrMaxGroupPerTime();
 
     if (isPostedAll || isPostedMaxGroupPerTime) {
-      setCurrentPostLength(0);
+      setCurrentCountPostLength(0);
       setProgressTool(false);
 
       if (isPostedAll) {
         logActions("[Background] All group have been posted");
         addLog({
-          vi: "Tất cả nhóm đã được đăng, đặt lại tất cả nhóm thành đang chờ",
-          en: "All group have been posted, reset all group to pending",
+          vi: "Tất cả nhóm đã được đăng, đặt lại tất cả nhóm thành đang chờ và chuyển sang đợt tiếp theo",
+          en: "All group have been posted, reset all group to pending and switch to next batch",
         });
         await resetPostedGroupAndSave();
       } else {
-        const isRandomBatchPost = await BG_getValue(KEY_IS_RANDOM_BATCH_POST);
+        const isRandomBatchPost = await getIsRandomBatchPost();
         if (isRandomBatchPost) {
-          const countPost = await getCountPost();
-          setCountPost(countPost + 1);
+          const countBatchPost = await getCountBatchPost();
+          setCountBatchPost(countBatchPost + 1);
         }
         logActions("[Background] Max group per time have been posted");
         addLog({
@@ -249,8 +279,11 @@ async function nextGroupPost() {
     let currentIndexGroup = await getCurrentIndexGroupPost();
 
     if (!currentIndexGroup) {
-      logActions("No group need post, change other group");
       setProgressTool(false);
+      addLog({
+        vi: "Không tìm thấy dữ liệu được chọn, hãy thêm hoặc đánh dấu dữ liệu cần đăng bài",
+        en: "No group need post, please add or mark the data to be posted",
+      });
       return;
     }
 
@@ -258,8 +291,11 @@ async function nextGroupPost() {
     const need = listGroups.find((gr) => gr.id === currentIndexGroup);
 
     if (!need || !need.groups || !need.groups.length) {
-      logActions("No group need post");
       setProgressTool(false);
+      addLog({
+        vi: "Dữ liệu hiện tại không có nhóm nào phù hợp, hãy tham gia thêm nhóm hoặc chọn lại dữ liệu khác",
+        en: "Current data does not have any suitable group, please join more groups or select other data",
+      });
       return;
     }
     const posteds = await getAllGroupPostedsInStorage();
@@ -273,10 +309,12 @@ async function nextGroupPost() {
     );
 
     if (!isExistGroupPending) {
+      addLog({
+        vi: "Tất cả nhóm trong dữ liệu hiện tại đã được đăng, đang tìm dữ liệu khác được chọn phù hợp",
+        en: "All group in current data have been posted, looking for other suitable data",
+      });
       let id = await getRandomIndexGroupChecked();
       if (!id) {
-        logActions("All group posted");
-
         await resetPostedGroupAndSave();
         id = await getRandomIndexGroupChecked();
       }
@@ -292,36 +330,24 @@ async function nextGroupPost() {
     if (nextTaskFind) {
       logActions("open next task: ", nextTaskFind);
       saveTask({ task: nextTaskFind, time: now() });
-      const isFixStealFocus = await getIsStealFocusInStorage();
-      const isFixStealAllFocus = await getIsFixStealAllFocusInStorage();
-      if (isFixStealAllFocus) {
-        const tabId = await DB_openInTab(nextTaskFind.id_href, {
-          active: false,
-        });
-        await BG_setValue(KEY_TAB.LAST_POST_TAB_OPEN_ID, tabId);
-      } else if (isFixStealFocus) {
-        const tabId = await DB_openInTab(nextTaskFind.id_href, {
-          active: false,
-        });
-        await BG_setValue(KEY_TAB.LAST_POST_TAB_OPEN_ID, tabId);
-        setTimeout(() => {
-          chrome.tabs.update(tabId, { active: true });
-        }, 4000);
-      } else {
-        const tabId = await DB_openInTab(nextTaskFind.id_href, {
-          active: true,
-        });
-        await BG_setValue(KEY_TAB.LAST_POST_TAB_OPEN_ID, tabId);
-      }
+
+      await openNewTaskHepler(nextTaskFind);
     }
     //not found next task
     else {
       setProgressTool(false);
-      logActions("No next task, maybe posted all in current group");
+      addLog({
+        vi: "Không tìm thấy nhóm tiếp theo để đăng, có thể tất cả nhóm trong dữ liệu hiện tại đã được đăng",
+        en: "No next task to post, maybe all group in current data have been posted",
+      });
     }
   } catch (error) {
     setProgressTool(false);
     logError("Error at next group post: ", error);
+    addLog({
+      vi: "Đã xảy ra lỗi khi tìm nhóm tiếp theo để đăng, tạm dừng tiện ích",
+      en: "Error occurred while finding next group to post, pause tool",
+    });
   }
 }
 
@@ -375,6 +401,15 @@ async function handleGetListGroups() {
       active: true,
     });
     await BG_setValue(KEY_TAB.TAB_GET_LIST_GROUP_ID, tab.id);
+
+    //DO LATER: create popup window for get list group
+    // const win = await chrome.windows.create({
+    //   url: URL_LIST_GROUPS,
+    //   type: "popup",
+    //   width: 900,
+    //   height: 800,
+    // });
+    // await BG_setValue(KEY_WINDOW.WINDOW_GET_LIST_GROUP_ID, win.id);
   } catch (error) {
     logError("Error get list groups: ", error);
   }
@@ -462,7 +497,7 @@ async function handleWelcomeBack() {
       en: "Welcome back",
     });
 
-    const isPremium = (await BG_getValue(KEY_IS_PREMIUM)) || false;
+    const isPremium = await getPremiumInStorage();
 
     if (isPremium) {
       addLog({
@@ -622,6 +657,37 @@ async function handleOnRemove(tabId) {
 
 async function handleOnAlarm(alarm) {
   try {
+    async function randomInteractBeforePost() {
+      try {
+        const isInteract = await getIsInteractBeforePostInStorage();
+        if (isInteract) {
+          addLog({
+            vi: "Chức năng tương tác trước khi đăng bài đang được bật, đang kiểm tra xem có nên tương tác bài viết trước không",
+            en: "The function of interacting before posting is enabled, checking if it should interact with posts before posting",
+          });
+          if (randomRateBoolean(20, 100)) {
+            addLog({
+              vi: "Đã quyết định tương tác bài viết trước khi đăng bài",
+              en: "Decided to interact with posts before posting",
+            });
+            await setDecidedInteractBeforePostInStorage(true);
+          } else {
+            addLog({
+              vi: "Đã quyết định bỏ qua tương tác bài viết trước khi đăng bài, tiếp tục thực hiện tác vụ đăng bài",
+              en: "Decided to skip interacting with posts before posting, continuing to perform posting task",
+            });
+            await setDecidedInteractBeforePostInStorage(false);
+          }
+        }
+      } catch (error) {
+        logError("Error random interact before post:", error);
+        addLog({
+          vi: `Đã xảy ra lỗi khi quyết định tương tác bài viết trước khi đăng bài, ${error}`,
+          en: `Error occurred while deciding to interact with posts before posting, ${error}`,
+        });
+      }
+    }
+
     if (alarm.name === KEY_SCHEDULER_ALARMS) {
       const tabs = await chrome.tabs.query({});
 
@@ -675,41 +741,51 @@ async function handleOnAlarm(alarm) {
               date.toLocaleString(),
           });
           setProgressTool(false);
-          setCountPost(0);
+          setCountBatchPost(0);
           clearAndCreateSchedulerAlarm();
         }
 
-        const countPost = await getCountPost();
-        if (countPost > 8) {
+        const countBatchPost = await getCountBatchPost();
+        if (countBatchPost > 8) {
           sleepThisTime();
           return;
         }
-        if (countPost >= 5 && countPost <= 8) {
+
+        if (countBatchPost >= 5 && countBatchPost <= 8) {
           //increase percent to sleep this time
-          const rd = random(0, 10);
-          if (rd >= 3) {
+          if (randomRateBoolean(30, 100)) {
             sleepThisTime();
             return;
           }
         }
+
         //random this time to post or not with 10% chance
-        const rand = random(0, 10);
-        if (rand >= 10 && countPost >= 2) {
+        if (randomRateBoolean(10, 100) && countBatchPost >= 2) {
           sleepThisTime();
           return;
         }
 
         addLog({
-          vi: "Quyết định bắt đầu đợt đăng bài",
+          vi: "Đã quyết định bắt đầu đợt đăng bài",
           en: "Decided to start this batch",
         });
+
+        const isCommentWhenPost = await getIsCommentWhenPostSuccessService();
+        if (isCommentWhenPost) {
+          addLog({
+            vi: "Chức năng bình luận sau khi đăng bài đang được bật, bình luận sẽ được ngẫu nhiên thực hiện hoặc không sau khi hoàn tất việc đăng bài",
+            en: "The function of commenting after posting is enabled, will be performed or not randomly after completing the posting",
+          });
+        }
+
+        await randomInteractBeforePost();
 
         await automationContinue();
 
         return;
       }
 
-      const isPremium = await getPremium();
+      const isPremium = await getPremiumInStorage();
       if (isPremium) {
         addLog({
           vi: "Đã đến giờ đăng bài trong lịch trình, chế độ nghỉ ngẫu nhiên đang tắt, sẽ bắt đầu đợt đăng bài",
@@ -721,6 +797,8 @@ async function handleOnAlarm(alarm) {
           en: "It's time to post in the schedule, will start this batch",
         });
       }
+
+      await randomInteractBeforePost();
 
       await automationContinue();
 
@@ -738,6 +816,63 @@ async function handleOnAlarm(alarm) {
     }
   } catch (error) {
     logError("Error at alarm: ", error);
+  }
+}
+
+async function handleGetKeySaved(key, sendResponse) {
+  try {
+    const data = await BG_getValue(key);
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data,
+    });
+  } catch (error) {
+    logError("Error at handleGetKeySaved: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleSetKeySaved(key, value, sendResponse) {
+  try {
+    await BG_setValue(key, value);
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: true,
+    });
+  } catch (error) {
+    logError("Error at handleSetKeySaved: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lưu dữ liệu",
+        en: "Error saving data",
+      }),
+    });
+  }
+}
+
+async function handleGetAllMetadataComments(sendResponse) {
+  try {
+    const data = await getAllMetadataComments();
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data,
+    });
+  } catch (error) {
+    logError("Error at handleGetAllMetadataComments: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
   }
 }
 
@@ -765,6 +900,15 @@ async function initialGlobalData() {
     }
   } catch (error) {
     logError("Error at initialGlobalData: ", error);
+  }
+}
+
+async function handleCloseThisWindow(sender) {
+  try {
+    console.log("Close this window");
+    console.log("Sender", sender);
+  } catch (error) {
+    logError("Error at handleCloseThisWindow: ", error);
   }
 }
 

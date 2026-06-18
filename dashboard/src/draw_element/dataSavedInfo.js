@@ -1,21 +1,7 @@
 import {
-  KEY_ALL_GROUPS,
-  KEY_COUNT_POST,
-  KEY_COUNT_RESET_GROUPS,
-  KEY_IS_DEVELOPER_MODE,
-  KEY_IS_IN_PROGRESS,
   KEY_IS_PREMIUM,
-  KEY_IS_RANDOM_BATCH_POST,
-  KEY_IS_RANDOM_TIME_POST,
-  KEY_IS_SHUFFLE_GROUPS_NEED_POST,
   KEY_IS_SHUFFLE_SCHEDULER_TIME,
   KEY_IS_SPAMMED,
-  KEY_IS_SPECIAL_FRAME_HOURS,
-  KEY_IS_TEST,
-  KEY_LAST_TIME_POST,
-  KEY_MAX_GROUP_PER_TIME,
-  KEY_POST,
-  KEY_POST_LENGTH,
   prefix,
 } from "../../../contants/contants.js";
 import {
@@ -30,17 +16,33 @@ import {
 import { DB_getValue } from "../utils/api-helper.js";
 import { getTextWithLanguage, logError } from "../../../utils/utils.js";
 import {
+  getAllDataGroupsInStorage,
   getAllGroupPostedsInStorage,
   getListGroupsNeedPostInStorage,
 } from "../services/groupService.js";
 import {
+  getIsSpecialFrameHoursInStore,
   getObjectIsInSpecialFrameHours,
   getSchedulerService,
 } from "../services/scheduler-service.js";
 import {
+  getCountBatchPost,
+  getCountResetGroupInStorage,
+  getCurrentCountPostLength,
+  getIsDeveloperModeInStorage,
   getIsFixStealAllFocusInStorage,
+  getIsRandomBatchPost,
+  getIsRandomTimePost,
+  getIsShuffleGroupNeedPost,
+  getIsShuffleSchedulerTimeInStorage,
+  getIsSpammedInStorage,
   getIsStealFocusInStorage,
-} from "../helpers/storage.js";
+  getIsTestInStorage,
+  getLastTimePostInStorage,
+  getMaxGroupPerTimeInStorage,
+  getObjectTaskInStorage,
+  getProgress,
+} from "../services/storage-service.js";
 
 function getStatusString(status) {
   switch (status) {
@@ -267,21 +269,21 @@ async function updateDataSavedInfo() {
     if (dataSavedEl) {
       const { groups: groupsNeedPost } = await getListGroupsNeedPostInStorage();
       const scheduler = await getSchedulerService();
-      const allGroups = (await DB_getValue(KEY_ALL_GROUPS)) || [];
+      const allGroups = await getAllDataGroupsInStorage();
       const groupsPosted = await getAllGroupPostedsInStorage();
-      const isTesting = (await DB_getValue(KEY_IS_TEST)) || false;
-      const isProcessing = (await DB_getValue(KEY_IS_IN_PROGRESS)) || false;
-      const length = (await DB_getValue(KEY_POST_LENGTH)) || 0;
-      const objectTask = (await DB_getValue(KEY_POST)) || {};
-      const lastTimePost = (await DB_getValue(KEY_LAST_TIME_POST)) || 0;
+      const isTesting = await getIsTestInStorage();
+      const isProcessing = await getProgress();
       const currentGroupNeedPost = await getCurrentGroupNeedPost();
-      const maxGroupPerTime = (await DB_getValue(KEY_MAX_GROUP_PER_TIME)) || 0;
+      const maxGroupPerTime = await getMaxGroupPerTimeInStorage();
       const isFixStealFocus =
         (await getIsStealFocusInStorage()) ||
         (await getIsFixStealAllFocusInStorage()) ||
         false;
-      const isShuffleTime =
-        (await DB_getValue(KEY_IS_SHUFFLE_SCHEDULER_TIME)) || false;
+
+      const length = await getCurrentCountPostLength();
+      const objectTask = await getObjectTaskInStorage();
+      const lastTimePost = await getLastTimePostInStorage();
+      const isShuffleTime = await getIsShuffleSchedulerTimeInStorage();
 
       let nextTime = await getNextTimePost();
 
@@ -327,25 +329,22 @@ async function updateDataSavedInfo() {
         lastTimePost,
         currentGroupNeedPost,
         nextTimePost: nextTime,
-        isDeveloperMode: (await DB_getValue(KEY_IS_DEVELOPER_MODE)) || false,
         maxGroupPerTime,
-        countResetGroups: (await DB_getValue(KEY_COUNT_RESET_GROUPS)) || 0,
         estimatedTotalTime,
         isFixStealFocus,
         isShuffleTime,
-        isSpammed: (await DB_getValue(KEY_IS_SPAMMED)) || false,
+        isDeveloperMode: await getIsDeveloperModeInStorage(),
+        countResetGroups: await getCountResetGroupInStorage(),
+        isSpammed: await getIsSpammedInStorage(),
         nextTimeWhenSpammed: await getNextTimePostWhenSpammed(),
-        isPremium: (await DB_getValue(KEY_IS_PREMIUM)) || false,
-        countBatch: (await DB_getValue(KEY_COUNT_POST)) || 0,
-        isShuffleGroupsNeedPost:
-          (await DB_getValue(KEY_IS_SHUFFLE_GROUPS_NEED_POST)) || false,
-        isRandomBatchPost:
-          (await DB_getValue(KEY_IS_RANDOM_BATCH_POST)) || false,
-        isRandomTimePost: (await DB_getValue(KEY_IS_RANDOM_TIME_POST)) || false,
-        isSpecialFrameHours:
-          (await DB_getValue(KEY_IS_SPECIAL_FRAME_HOURS)) || false,
+        countBatch: await getCountBatchPost(),
+        isShuffleGroupsNeedPost: await getIsShuffleGroupNeedPost(),
+        isRandomBatchPost: await getIsRandomBatchPost(),
+        isRandomTimePost: await getIsRandomTimePost(),
+        isSpecialFrameHours: await getIsSpecialFrameHoursInStore(),
         maxGroupPerTimeInSpecialFrameHour:
           (await getObjectIsInSpecialFrameHours())?.maxGroup || 0,
+        isPremium: (await DB_getValue(KEY_IS_PREMIUM)) || false,
       });
       dataSavedEl.innerHTML = html;
 
@@ -359,7 +358,7 @@ async function updateDataSavedInfo() {
         lastTimePost,
         nextTimePost: nextTime,
         maxGroupPerTime,
-        isSpammed: (await DB_getValue(KEY_IS_SPAMMED)) || false,
+        isSpammed: await getIsSpammedInStorage(),
         nextTimeWhenSpammed: await getNextTimePostWhenSpammed(),
       });
       if (dataSavedAtDashboard) {

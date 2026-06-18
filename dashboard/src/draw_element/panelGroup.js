@@ -178,8 +178,8 @@ function drawPanelGroup({
     divFieldContent.classList.add(`${prefix}field-container`);
     const labelContent = document.createElement("label");
     labelContent.innerText = getTextWithLanguage({
-      vi: "Nhập nội dung :",
-      en: "Enter content :",
+      vi: "Quản lý nội dung :",
+      en: "Content management :",
     });
 
     findLabelSetedUpAndAddTippy({

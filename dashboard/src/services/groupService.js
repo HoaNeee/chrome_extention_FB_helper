@@ -12,13 +12,14 @@ import {
   DB_setValue,
 } from "../utils/api-helper.js";
 import { logError, now } from "../../../utils/utils.js";
+import { setIsStopTaskInStorage } from "./storage-service.js";
 
 /**
  * @description This function will be redirect to list group page and scroll detect list group
  */
 async function getListGroupsService() {
   try {
-    DB_setValue(KEY_STOP_TASK, false);
+    setIsStopTaskInStorage(false);
     DB_sendMessage(KEY_GET_LIST_GROUPS, { url: URL_LIST_GROUPS });
   } catch (error) {
     logError("Error at get list group service", error);
@@ -60,6 +61,22 @@ async function getAllGroupPostedsInStorage() {
  */
 async function setAllGroupPostedsInStorage(posteds) {
   await DB_setValue(KEY_GROUPS_POSTED, posteds);
+}
+
+/**
+ * Add a group to the list of groups that have been posted
+ * @param {string} groupId - The id of the group to add
+ * @returns {Promise<void>} void
+ */
+async function addGroupToGroupsPosted(groupId) {
+  try {
+    const groupPosteds = await getAllGroupPostedsInStorage();
+    groupPosteds.push(groupId);
+    await setAllGroupPostedsInStorage(groupPosteds);
+  } catch (error) {
+    logError("Error add group to groups posted: " + error);
+    throw new Error("Error add group to groups posted: " + error);
+  }
 }
 
 /**
@@ -112,4 +129,5 @@ export {
   getAllGroupPostedsInStorage,
   getListGroupsNeedPostInStorage,
   setAllGroupPostedsInStorage,
+  addGroupToGroupsPosted,
 };

@@ -218,6 +218,7 @@ body[apply-animation="true"] *:not(.tippy-box, .toastify) {
   padding: 16px;
 }
 
+#tm_root .tm_basic-setting,
 #tm_root .tm_advanced-setting {
   height: 100%;
   overflow: auto;
@@ -227,22 +228,20 @@ body[apply-animation="true"] *:not(.tippy-box, .toastify) {
   gap: 24px;
 }
 
+#tm_root .tm_basic-setting .tm_section,
 #tm_root .tm_advanced-setting .tm_section {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  border-bottom: 1px solid var(--tm-border-color);
-  padding-bottom: 24px;
+  padding-bottom: 16px;
 }
 
-#tm_root .tm_advanced-setting .tm_section:last-child {
-  border-bottom: none;
-  padding-bottom: 0px;
-}
-
+#tm_root .tm_basic-setting .tm_section h2,
 #tm_root .tm_advanced-setting .tm_section h2 {
+  padding-bottom: 12px;
   margin-bottom: 8px;
   font-size: 18px;
+  border-bottom: 1px solid var(--tm-border-color);
 }
 
 #tm_root #tm_div-panel-group {
@@ -482,4 +481,81 @@ footer {
 .tippy-tooltip.dark-theme {
   background-color: #2a2a2a;
   color: #ffffff;
+}
+
+/* switch */
+/* From Uiverse.io by arghyaBiswasDev */
+/* The switch - the box around the slider */
+.switch {
+  font-size: 12px;
+  position: relative;
+  display: inline-block;
+  width: 3.5em;
+  height: 2em;
+}
+
+.switch.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #fff;
+  border: 1px solid #adb5bd;
+  transition: 0.4s;
+  border-radius: 30px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 1.4em;
+  width: 1.4em;
+  border-radius: 20px;
+  left: 0.27em;
+  bottom: 0.25em;
+  background-color: #adb5bd;
+  transition: 0.4s;
+}
+
+input:checked + .slider {
+  background-color: #007bff;
+  border: 1px solid #007bff;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #007bff;
+}
+
+input:checked + .slider:before {
+  transform: translateX(1.4em);
+  background-color: #fff;
+}
+
+.tm_field-container.field-switch {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+}
+
+.tm_field-container.field-switch label:first-child {
+  flex: 1;
+  font-size: 16px;
+  cursor: pointer;
 }

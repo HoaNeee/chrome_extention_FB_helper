@@ -1,22 +1,18 @@
 import { getTextWithLanguage, initLanguage, logError } from "../utils/utils.js";
 import { dialogContainer } from "./src/draw_element/dialog.js";
-import { createPanelTabGroup } from "./src/draw_element/panel-group-tab.js";
+import { createPanelTabGroup } from "./src/draw_element/panel-data-group-tab.js";
 import { addLog, createPanelLog } from "./src/draw_element/panel-log.js";
 import { createPanelSetting } from "./src/draw_element/panel-setting-tab.js";
-import { createPanel } from "./src/draw_element/panel.js";
-import {
-  addAllEvtTooltipForElement,
-  disabledElement,
-  enabledElement,
-  getAllFieldsSetting,
-} from "./src/helpers/elementDom.js";
+import { createPanel } from "./src/draw_element/panel-dashboard.js";
+import { addAllEvtTooltipForElement } from "./src/helpers/elementDom.js";
 import { initialData, initialFastAndFirst } from "./src/helpers/initial.js";
-import { initialTheme } from "./src/helpers/storage.js";
+import { initialTheme } from "./src/services/storage-service.js";
 import addValueChangeListener from "./src/listener/addValueChangeListener.js";
 import {
   getDataSavedInStorage,
   setDataSavedInStorage,
 } from "./src/services/dataSavedService.js";
+import { createPanelAdvancedSetting } from "./src/draw_element/panel-setting-advanced-tab.js";
 
 async function main() {
   try {
@@ -41,27 +37,10 @@ async function main() {
     createPanelLog(mainElement);
     createPanelSetting(mainElement);
     createPanelTabGroup(mainElement);
+    createPanelAdvancedSetting(mainElement);
     await initialData(mainElement);
 
-    const { setIsProcessing } = getAllFieldsSetting();
-
-    addValueChangeListener(async (newVal) => {
-      try {
-        setIsProcessing(newVal);
-        if (newVal) {
-          disabledElement({ selector: "#tm_btn-auto" });
-          disabledElement({ selector: "#tm_btn-continue-post" });
-          disabledElement({ selector: "#tm_btn-get-data-groups" });
-        }
-        if (!newVal) {
-          enabledElement({ selector: "#tm_btn-auto" });
-          enabledElement({ selector: "#tm_btn-continue-post" });
-          enabledElement({ selector: "#tm_btn-get-data-groups" });
-        }
-      } catch (error) {
-        logError("Error at dashboard addValueChangeListener: ", error);
-      }
-    });
+    addValueChangeListener();
 
     const hash = new URLSearchParams(location.hash);
     const tabValue = hash.get("#nav");
@@ -189,10 +168,11 @@ function drawTab() {
   div.className = "tabs";
   div.innerHTML = `
     <ul class="tabs-list">
-      <li class="tab-item tab-item-active" data-tab-value="dashboard">${getTextWithLanguage({ vi: "Bảng điểu khiển", en: "Dashboard" })}</li>
-      <li class="tab-item" data-tab-value="logs">${getTextWithLanguage({ vi: "Nhật ký", en: "Logs" })}</li>
+      <li class="tab-item" data-tab-value="dashboard">${getTextWithLanguage({ vi: "Bảng điểu khiển", en: "Dashboard" })}</li>
       <li class="tab-item" data-tab-value="settings">${getTextWithLanguage({ vi: "Cài đặt", en: "Settings" })}</li>
-      <li class="tab-item" data-tab-value="groups">${getTextWithLanguage({ vi: "Danh sách nhóm", en: "Groups" })}</li>
+      <li class="tab-item" data-tab-value="groups">${getTextWithLanguage({ vi: "Dữ liệu nhóm", en: "Group's data" })}</li>
+      <li class="tab-item" data-tab-value="logs">${getTextWithLanguage({ vi: "Nhật ký", en: "Logs" })}</li>
+      <li class="tab-item" data-tab-value="settings-advanced">${getTextWithLanguage({ vi: "Cài đặt nâng cao", en: "Advanced Settings" })}</li>
     </ul>
   `;
   return div;

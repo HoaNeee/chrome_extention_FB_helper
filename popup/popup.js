@@ -1,4 +1,3 @@
-import { getLanguageInStorage } from "../dashboard/src/helpers/storage.js";
 import { getTextWithLanguage, initLanguage } from "../utils/utils.js";
 
 function drawPopupBody() {
@@ -47,6 +46,11 @@ async function main() {
         window.close();
       });
     });
+
+    const version = document.getElementById("version-app");
+    if (version) {
+      version.textContent = `v${chrome.runtime.getManifest().version}`;
+    }
   } catch (error) {
     console.log("error at main popup: ", error);
   }

@@ -1,19 +1,15 @@
 import {
-  KEY_GROUPS_POSTED,
   KEY_GROUPS_NEED_POST,
-  KEY_POST_LENGTH,
   KEY_INDEXS_GROUP_CHECKED,
   KEY_COUNT_RESET_GROUPS,
   MAX_GROUP_PER_TIME_INITIAL,
-  KEY_MAX_GROUP_PER_TIME,
   STATUS_TASK,
-  KEY_COUNT_POST,
-  KEY_IS_SPECIAL_FRAME_HOURS,
 } from "../../../contants/contants.js";
 import { getDataSavedInStorage } from "../services/dataSavedService.js";
 import {
   getAllGroupPostedsInStorage,
   getListGroupsNeedPostInStorage,
+  setAllGroupPostedsInStorage,
 } from "../services/groupService.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import {
@@ -22,14 +18,22 @@ import {
   logActions,
   logError,
   random,
+  randomRateBoolean,
   shuffleArray,
 } from "../../../utils/utils.js";
 import {
+  getCurrentCountPostLength,
   getCurrentIndexGroupPost,
+  getIndexsGroupChecked,
+  getMaxGroupPerTimeInStorage,
   getRandomIndexGroupChecked,
   getTimeDelayInStorage,
-} from "./storage.js";
-import { getObjectIsInSpecialFrameHours } from "../services/scheduler-service.js";
+  setCurrentCountPostLength,
+} from "../services/storage-service.js";
+import {
+  getIsSpecialFrameHoursInStore,
+  getObjectIsInSpecialFrameHours,
+} from "../services/scheduler-service.js";
 
 /**
  * Check if all group need post have been posted.
@@ -40,17 +44,22 @@ import { getObjectIsInSpecialFrameHours } from "../services/scheduler-service.js
 async function checkIsPostedAllGroup() {
   try {
     const object = await getListGroupsNeedPostInStorage();
-    const indexsChecked = (await DB_getValue(KEY_INDEXS_GROUP_CHECKED)) || [];
+    const indexsChecked = await getIndexsGroupChecked();
     const listGroups =
       object?.groups.filter((gr) => indexsChecked.includes(gr.id)) || [];
 
     const posteds = await getAllGroupPostedsInStorage();
     const set = new Set(posteds);
+
+    const totalGroupsNeedPost = await getTotalGroupsNeedPost();
+
+    if (set.size >= totalGroupsNeedPost) {
+      return true;
+    }
+
     for (const need of listGroups) {
       const groups = need?.groups || [];
-      const isExistPending = groups.some(
-        (gr) => !set.has(gr.id_href) && gr.status === "pending",
-      );
+      const isExistPending = groups.some((gr) => !set.has(gr.id_href));
       if (isExistPending) {
         return false;
       }
@@ -58,7 +67,8 @@ async function checkIsPostedAllGroup() {
 
     return true;
   } catch (error) {
-    throw new Error("Error check posted all group: " + error);
+    logError("Error check posted all group: " + error);
+    return false;
   }
 }
 
@@ -82,8 +92,8 @@ async function resetPostedGroupAndSave() {
       };
     });
 
-    DB_setValue(KEY_POST_LENGTH, 0);
-    DB_setValue(KEY_GROUPS_POSTED, []);
+    setCurrentCountPostLength(0);
+    setAllGroupPostedsInStorage([]);
     DB_setValue(KEY_GROUPS_NEED_POST, { groups: newList, forceChange: false });
   } catch (error) {
     throw new Error("Error reset posted group and save: " + error);
@@ -189,29 +199,26 @@ async function checkPostedAllGroupOrMaxGroupPerTime() {
   let isPostedMaxGroupPerTime = false;
   let isPostedAll = false;
   try {
-    const currentLengthPost = (await DB_getValue(KEY_POST_LENGTH)) || 0;
+    const currentLengthPost = await getCurrentCountPostLength();
     let maxGroupPerTime = MAX_GROUP_PER_TIME_INITIAL;
 
-    const isSpecialFrameHour = DB_getValue(KEY_IS_SPECIAL_FRAME_HOURS);
+    const isSpecialFrameHour = await getIsSpecialFrameHoursInStore();
     if (isSpecialFrameHour) {
       const frame = await getObjectIsInSpecialFrameHours();
       if (frame) {
         maxGroupPerTime = frame?.maxGroup;
       } else {
-        maxGroupPerTime = await DB_getValue(KEY_MAX_GROUP_PER_TIME);
+        maxGroupPerTime = await getMaxGroupPerTimeInStorage();
       }
     } else {
-      maxGroupPerTime = await DB_getValue(KEY_MAX_GROUP_PER_TIME);
+      maxGroupPerTime = await getMaxGroupPerTimeInStorage();
     }
 
-    const per = random(0, 10);
-    const diff = per >= 7 ? -1 : 0;
-    const maxGroupPerTimeDiff = maxGroupPerTime + diff;
-    if (
-      currentLengthPost >= maxGroupPerTimeDiff ||
-      (await checkIsPostedAllGroup())
-    ) {
-      if (await checkIsPostedAllGroup()) {
+    const isSub = randomRateBoolean(4, 10);
+    const maxGroupPerTimeDiff = isSub ? maxGroupPerTime - 1 : maxGroupPerTime;
+    const isPostedAllGroups = await checkIsPostedAllGroup();
+    if (currentLengthPost >= maxGroupPerTimeDiff || isPostedAllGroups) {
+      if (isPostedAllGroups) {
         isPostedAll = true;
       } else {
         isPostedMaxGroupPerTime = true;

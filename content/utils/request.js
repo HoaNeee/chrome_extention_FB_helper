@@ -1,4 +1,7 @@
-import { STATUS_RESPONSE } from "../../contants/constant-extention";
+import {
+  KEY_ADD_LOG,
+  STATUS_RESPONSE,
+} from "../../contants/constant-extention";
 import { logError } from "../../utils/utils";
 
 async function sendMessage(type, data) {
@@ -35,4 +38,16 @@ async function sendMessageWithResponse(type, data) {
   }
 }
 
-export { sendMessage, sendMessageWithResponse };
+/**
+ * Add log to background
+ * @param {{vi: string, en: string}} message
+ */
+async function CL_addLogRequest({ vi, en }) {
+  try {
+    await sendMessage(KEY_ADD_LOG, { vi, en });
+  } catch (error) {
+    logError("Error at CL_addLogRequest: " + error);
+  }
+}
+
+export { sendMessage, sendMessageWithResponse, CL_addLogRequest };

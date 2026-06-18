@@ -1,3 +1,5 @@
+import { getTextWithLanguage } from "../../../utils/utils.js";
+
 function drawEditor({ id, anchorElement = document.body, onRemove }) {
   try {
     // const div = `<div id="${prefix}editor-content" style="height: auto; min-height: 80px"></div>`;
@@ -21,6 +23,10 @@ function drawEditor({ id, anchorElement = document.body, onRemove }) {
     removeDiv.style.top = "4px";
     removeDiv.style.cursor = "pointer";
     removeDiv.innerText = "✖";
+    removeDiv.title = getTextWithLanguage({
+      vi: "Xóa nội dung",
+      en: "Remove content",
+    });
 
     outlerDiv.appendChild(div);
     if (id !== 1) {

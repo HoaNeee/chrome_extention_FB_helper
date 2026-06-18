@@ -14,11 +14,27 @@ import {
   KEY_IS_SHUFFLE_GROUPS_NEED_POST,
   KEY_IS_PREMIUM,
   KEY_IS_DARK_THEME,
+  KEY_CHANGE_GROUPS_CHECKED_FLAG,
+  KEY_INDEXS_GROUP_CHECKED,
+  KEY_IS_TEST,
+  KEY_MAX_GROUP_PER_TIME,
+  KEY_COUNT_RESET_GROUPS,
+  KEY_POST,
+  KEY_IS_RANDOM_BATCH_POST,
+  KEY_IS_RANDOM_TIME_POST,
+  KEY_IS_SPAMMED,
+  KEY_LAST_TIME_POST,
+  KEY_IS_SHUFFLE_SCHEDULER_TIME,
+  MAX_GROUP_PER_TIME_INITIAL,
+  KEY_CURRENT_COUNT_POSTED,
+  KEY_COUNT_BATCH_POST,
+  KEY_IS_INTERACT_BEFORE_POST,
+  KEY_DECIDED_INTERACT_BEFORE_POST,
 } from "../../../contants/contants.js";
 import {
   getAllGroupPostedsInStorage,
   getListGroupsNeedPostInStorage,
-} from "../services/groupService.js";
+} from "./groupService.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import Queue from "../utils/queue.js";
 import { logActions, logError, now, random } from "../../../utils/utils.js";
@@ -116,6 +132,14 @@ async function getIsStopTaskInStorage() {
 
 /**
  *
+ * @param {boolean} b
+ */
+async function setIsStopTaskInStorage(b = false) {
+  DB_setValue(KEY_STOP_TASK, b);
+}
+
+/**
+ *
  * @param {typeof initialTimeDelay} timeDelay
  */
 function setTimeDelayInStorage(timeDelay = initialTimeDelay) {
@@ -153,6 +177,32 @@ async function getIsStealFocusInStorage() {
  */
 async function getIsFixStealAllFocusInStorage() {
   return (await DB_getValue(KEY_IS_FIX_STEAL_ALL_FOCUS)) || false;
+}
+
+/**
+ *
+ * @returns {Promise<boolean>} The setting for whether to fix the steal all focus issue, defaulting to false if not set
+ */
+async function getIsSpammedInStorage() {
+  return (await DB_getValue(KEY_IS_SPAMMED)) || false;
+}
+
+/**
+ *
+ * @param {boolean} b
+ */
+async function setIsSpammedInStorage(b = false) {
+  DB_setValue(KEY_IS_SPAMMED, b);
+}
+
+async function getMaxGroupPerTimeInStorage() {
+  return (
+    (await DB_getValue(KEY_MAX_GROUP_PER_TIME)) || MAX_GROUP_PER_TIME_INITIAL
+  );
+}
+
+async function setMaxGroupPerTimeInStorage(maxGroupPerTime) {
+  DB_setValue(KEY_MAX_GROUP_PER_TIME, maxGroupPerTime);
 }
 
 /**
@@ -230,6 +280,51 @@ async function getIsShuffleGroupNeedPost() {
 
 /**
  *
+ * @returns {Promise<boolean>} The setting for whether to change groups checked flag, defaulting to false if not set
+ */
+async function getChangeGroupsCheckedFlag() {
+  return (await DB_getValue(KEY_CHANGE_GROUPS_CHECKED_FLAG)) || false;
+}
+
+/**
+ *
+ * @param {boolean} b The setting for whether to change groups checked flag
+ */
+async function setChangeGroupsCheckedFlag(b = false) {
+  DB_setValue(KEY_CHANGE_GROUPS_CHECKED_FLAG, b);
+}
+
+/**
+ * @returns {Promise<Array<string>>} The indexs of group checked stored in storage, defaulting to an empty array if not set
+ */
+async function getIndexsGroupChecked() {
+  return (await DB_getValue(KEY_INDEXS_GROUP_CHECKED)) || [];
+}
+
+/**
+ * @param {Array<string>} indexs The indexs of group checked
+ */
+async function setIndexsGroupChecked(indexs = []) {
+  DB_setValue(KEY_INDEXS_GROUP_CHECKED, indexs);
+}
+
+/**
+ *
+ * @param {boolean} b
+ */
+async function setIsTestInStorage(b = false) {
+  DB_setValue(KEY_IS_TEST, b);
+}
+
+/**
+ * @returns {Promise<boolean>} The setting for whether the extension is in test mode, defaulting to false if not set
+ */
+async function getIsTestInStorage() {
+  return (await DB_getValue(KEY_IS_TEST)) || false;
+}
+
+/**
+ *
  * @param {{vi: string, en: string}} msg log to add to history
  */
 async function addHistoryLog(msg = {}) {
@@ -262,12 +357,12 @@ async function clearHistoryLogs() {
 /**
  * @returns {Promise<boolean>} The setting for whether the extension is in premium mode, defaulting to false if not set
  */
-async function getPremium() {
+async function getPremiumInStorage() {
   try {
     const isPremium = await DB_getValue(KEY_IS_PREMIUM);
     return isPremium;
   } catch (error) {
-    logError(`Error getPremium`, error);
+    logError(`Error getPremiumInStorage`, error);
     return false;
   }
 }
@@ -300,6 +395,134 @@ function getTheme() {
   return theme;
 }
 
+/**
+ *
+ * @returns {Promise<number>} The count of reset groups, defaulting to 0 if not set
+ */
+async function getCountResetGroupInStorage() {
+  return (await DB_getValue(KEY_COUNT_RESET_GROUPS)) || 0;
+}
+
+/**
+ *
+ * @param {number} count The count of reset groups
+ */
+async function setCountResetGroupInStorage(count) {
+  DB_setValue(KEY_COUNT_RESET_GROUPS, count);
+}
+
+/**
+ * @returns {Promise<number>} The current count of post length, defaulting to 0 if not set
+ */
+async function getCurrentCountPostLength() {
+  return (await DB_getValue(KEY_CURRENT_COUNT_POSTED)) || 0;
+}
+
+/**
+ * @param {number} count The current count of post length
+ */
+async function setCurrentCountPostLength(count) {
+  DB_setValue(KEY_CURRENT_COUNT_POSTED, count);
+}
+
+/**
+ * @param {number} count The current count of post
+ */
+async function setCountBatchPost(count) {
+  DB_setValue(KEY_COUNT_BATCH_POST, count);
+}
+
+/**
+ * @returns {Promise<number>} The current count of post, defaulting to 1 if not set
+ */
+async function getCountBatchPost() {
+  return (await DB_getValue(KEY_COUNT_BATCH_POST)) || 1;
+}
+
+/**
+ * @returns {Promise<Object>} The object task, defaulting to an empty object if not set
+ */
+async function getObjectTaskInStorage() {
+  return (await DB_getValue(KEY_POST)) || {};
+}
+
+/**
+ * @param {Object} objectTask The object task
+ */
+async function setObjectTaskInStorage(objectTask) {
+  DB_setValue(KEY_POST, objectTask);
+}
+
+/**
+ * @returns {Promise<boolean>} The setting for whether the extension is in random batch post mode, defaulting to false if not set
+ */
+async function getIsRandomBatchPost() {
+  return (await DB_getValue(KEY_IS_RANDOM_BATCH_POST)) || false;
+}
+
+/**
+ * @returns {Promise<boolean>} The setting for whether the extension is in random time post mode, defaulting to false if not set
+ */
+async function getIsRandomTimePost() {
+  return (await DB_getValue(KEY_IS_RANDOM_TIME_POST)) || false;
+}
+
+/**
+ * @returns {Promise<number>} The last time post, defaulting to 0 if not set
+ */
+async function getLastTimePostInStorage() {
+  return (await DB_getValue(KEY_LAST_TIME_POST)) || 0;
+}
+
+/**
+ * @param {number} lastTimePost The last time post
+ */
+async function setLastTimePostInStorage(lastTimePost) {
+  DB_setValue(KEY_LAST_TIME_POST, lastTimePost);
+}
+
+/**
+ * @returns {Promise<boolean>} The setting for whether the extension is in random scheduler time mode, defaulting to false if not set
+ */
+async function getIsShuffleSchedulerTimeInStorage() {
+  return (await DB_getValue(KEY_IS_SHUFFLE_SCHEDULER_TIME)) || false;
+}
+
+/**
+ * @param {boolean} b The setting for whether the extension is in random scheduler time mode
+ */
+async function setIsShuffleSchedulerTimeInStorage(b = false) {
+  DB_setValue(KEY_IS_SHUFFLE_SCHEDULER_TIME, b);
+}
+
+/**
+ * @param {boolean} b The setting for whether the extension is in random scheduler time mode
+ */
+async function setIsInteractBeforePostInStorage(b = false) {
+  DB_setValue(KEY_IS_INTERACT_BEFORE_POST, b);
+}
+
+/**
+ * @returns {Promise<boolean>} The setting for whether the extension is in random scheduler time mode, defaulting to false if not set
+ */
+async function getIsInteractBeforePostInStorage() {
+  return (await DB_getValue(KEY_IS_INTERACT_BEFORE_POST)) || false;
+}
+
+/**
+ * @param {boolean} isDecided The setting for whether the extension is in random scheduler time mode
+ */
+async function setDecidedInteractBeforePostInStorage(isDecided) {
+  DB_setValue(KEY_DECIDED_INTERACT_BEFORE_POST, isDecided);
+}
+
+/**
+ * @returns {Promise<boolean>} The setting for whether the extension is in random scheduler time mode, defaulting to false if not set
+ */
+async function getDecidedInteractBeforePostInStorage() {
+  return (await DB_getValue(KEY_DECIDED_INTERACT_BEFORE_POST)) || false;
+}
+
 export {
   setProgress,
   getProgress,
@@ -321,8 +544,37 @@ export {
   getHistoryLogsInStorage,
   clearHistoryLogs,
   getIsShuffleGroupNeedPost,
-  getPremium,
+  getPremiumInStorage,
   initialTheme,
   getTheme,
   setTheme,
+  getChangeGroupsCheckedFlag,
+  setChangeGroupsCheckedFlag,
+  setIndexsGroupChecked,
+  getIndexsGroupChecked,
+  setIsTestInStorage,
+  getIsTestInStorage,
+  setIsStopTaskInStorage,
+  getIsSpammedInStorage,
+  setIsSpammedInStorage,
+  getMaxGroupPerTimeInStorage,
+  setMaxGroupPerTimeInStorage,
+  getCountResetGroupInStorage,
+  setCountResetGroupInStorage,
+  getCurrentCountPostLength,
+  setCurrentCountPostLength,
+  getObjectTaskInStorage,
+  setObjectTaskInStorage,
+  getIsRandomBatchPost,
+  getIsRandomTimePost,
+  setCountBatchPost,
+  getCountBatchPost,
+  getLastTimePostInStorage,
+  setLastTimePostInStorage,
+  getIsShuffleSchedulerTimeInStorage,
+  setIsShuffleSchedulerTimeInStorage,
+  setIsInteractBeforePostInStorage,
+  getIsInteractBeforePostInStorage,
+  getDecidedInteractBeforePostInStorage,
+  setDecidedInteractBeforePostInStorage,
 };

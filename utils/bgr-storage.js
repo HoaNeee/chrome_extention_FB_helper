@@ -1,15 +1,16 @@
 import {
-  KEY_COUNT_POST,
   KEY_IS_IN_PROGRESS,
   KEY_POST,
-  KEY_POST_LENGTH,
   STATUS_TASK,
 } from "../contants/contants.js";
-import { addLog } from "../dashboard/src/draw_element/panel-log.js";
 import {
   getAllGroupPostedsInStorage,
   setAllGroupPostedsInStorage,
 } from "../dashboard/src/services/groupService.js";
+import {
+  getCurrentCountPostLength,
+  setCurrentCountPostLength,
+} from "../dashboard/src/services/storage-service.js";
 import { logActions, logError } from "./utils.js";
 
 async function BG_setValue(key, value) {
@@ -66,8 +67,8 @@ async function setStatusTask(status) {
     BG_setValue(KEY_POST, taskObject);
     if (status === STATUS_TASK.DONE || status === STATUS_TASK.ERROR) {
       if (status === STATUS_TASK.DONE) {
-        const currentLengthPost = await getCurrentPostLength();
-        setCurrentPostLength(currentLengthPost + 1);
+        const currentLengthPost = await getCurrentCountPostLength();
+        setCurrentCountPostLength(currentLengthPost + 1);
       }
       const posteds = await getAllGroupPostedsInStorage();
       if (id_href && !posteds.includes(id_href)) {
@@ -88,38 +89,6 @@ async function getTask() {
   return await BG_getValue(KEY_POST);
 }
 
-/**
- *
- * @returns {Promise<number>}
- */
-async function getCurrentPostLength() {
-  return (await BG_getValue(KEY_POST_LENGTH)) || 0;
-}
-
-/**
- *
- * @param {number} length
- */
-async function setCurrentPostLength(length) {
-  await BG_setValue(KEY_POST_LENGTH, length);
-}
-
-/**
- *
- * @returns {Promise<number>} Count batch post
- */
-async function getCountPost() {
-  return (await BG_getValue(KEY_COUNT_POST)) || 0;
-}
-
-/**
- * Set count post
- * @param {number} count - Count batch post
- */
-async function setCountPost(count) {
-  await BG_setValue(KEY_COUNT_POST, count);
-}
-
 export {
   BG_setValue,
   BG_getValue,
@@ -128,9 +97,5 @@ export {
   getProgressTool,
   setStatusTask,
   getTask,
-  getCurrentPostLength,
-  setCurrentPostLength,
   saveTask,
-  getCountPost,
-  setCountPost,
 };

@@ -4,7 +4,12 @@ import {
   KEY_NEXT_TIME_POST_WHEN_SPAMMED,
   SCHEDULER_TYPE,
 } from "../../../contants/contants.js";
-import { logActions, logError, random } from "../../../utils/utils.js";
+import {
+  logActions,
+  logError,
+  random,
+  randomRateBoolean,
+} from "../../../utils/utils.js";
 import {
   getSchedulerService,
   setSchedulerService,
@@ -288,10 +293,8 @@ async function shuffleTimes() {
 
   const scheduler = await getSchedulerService();
   const type = scheduler.type;
-  const rand = random(0, 10);
   const diff = random(-2, 2);
-  const per = 8;
-  if (rand > per) {
+  if (randomRateBoolean(7, 10)) {
     if (
       type === SCHEDULER_TYPE.EVERY_MINUTES ||
       type === SCHEDULER_TYPE.EVERY_HOURS

@@ -1,22 +1,24 @@
-import { KEY_ADD_LOG } from "../../contants/constant-extention";
-import {
-  KEY_ALL_GROUPS,
-  KEY_IS_SCROLL_DETECT_LIST_GROUP,
-  KEY_STOP_TASK,
-  SELECTOR,
-  SELECTOR_RAW,
-  SELECTOR_VI,
-} from "../../contants/contants";
+import { SELECTOR, SELECTOR_RAW, SELECTOR_VI } from "../contants/contants";
 import {
   convertCorrectHref,
   getIsCorrectPostURL,
   getLanguage,
   logActions,
   logError,
+  random,
+  randomRateBoolean,
+  shuffleArray,
   sleep,
 } from "../../utils/utils";
-import { sendMessage } from "../utils/request";
-import { findElement, waitForElement } from "./dom";
+import { CL_addLogRequest } from "../utils/request";
+import { findElement, findElementFeedInGroup, waitForElement } from "./dom";
+import {
+  CL_getAllDataGroupsOfUser,
+  CL_getDecidedInteractBeforePost,
+  CL_getIsScrollDetectListGroup,
+  CL_getStopTool,
+  CL_setDecidedInteractBeforePost,
+} from "../utils/storage";
 
 async function getListElementContainer() {
   try {
@@ -93,12 +95,11 @@ async function getListGroups() {
   try {
     const listElement = await getListElementContainer();
 
-    const isScroll =
-      (await GM_getValue(KEY_IS_SCROLL_DETECT_LIST_GROUP)) || false;
+    const isScroll = await CL_getIsScrollDetectListGroup();
     if (isScroll) {
       await scrollDetectListGroups(listElement);
     } else {
-      const allGroup = await GM_getValue(KEY_ALL_GROUPS);
+      const allGroup = await CL_getAllDataGroupsOfUser();
       return allGroup || [];
     }
 
@@ -119,17 +120,16 @@ async function getListGroups() {
         }
       }
     }
-    sendMessage(KEY_ADD_LOG, {
-      vi: `Lấy danh sách nhóm thành công, tổng ${list.length} nhóm`,
-      en: `Got ${list.length} groups successfully`,
+    CL_addLogRequest({
+      vi: `Lấy danh sách nhóm của người dùng thành công, tổng ${list.length} nhóm`,
+      en: `Got ${list.length} groups of user successfully`,
     });
     return list;
   } catch (e) {
-    sendMessage(KEY_ADD_LOG, {
-      vi: `Lỗi khi lấy danh sách nhóm`,
-      en: `Error when getting list groups`,
+    CL_addLogRequest({
+      vi: `Lỗi khi lấy danh sách nhóm của người dùng, ${e?.message || e}`,
+      en: `Error when getting list groups of user, ${e?.message || e}`,
     });
-    logError("Error get list group: " + e);
     throw new Error("Error get list group: " + e);
   }
 }
@@ -177,7 +177,7 @@ async function scrollDetectListGroups(listContainer) {
     let lastCountGroup = currentGroup;
 
     while (i < 10 && currentGroup < maxGroup - 10) {
-      let isStopTask = await GM_getValue(KEY_STOP_TASK);
+      let isStopTask = await CL_getStopTool();
       if (isStopTask) {
         logActions("Stop task -> stop scroll detect list groups");
         break;
@@ -193,10 +193,10 @@ async function scrollDetectListGroups(listContainer) {
         i = 0;
       }
 
-      await sleep(duration);
+      await sleep(duration + random(100, 1000));
 
       //log
-      console.log(currentGroup, maxGroup);
+      logActions(currentGroup, maxGroup);
       window.dispatchEvent(new Event("scroll"));
       ++i;
     }
@@ -205,9 +205,156 @@ async function scrollDetectListGroups(listContainer) {
   }
 }
 
+/**
+ * Random reaction, like, haha, love
+ * @description id = 1: Thích
+ * @description id = 2: Yêu thích
+ * @description id = 3: Thương thương
+ * @description id = 4: Haha
+ * @description id = 5: Ngạc nhiên
+ * @description id = 6: Buồn
+ * @description id = 7: Phẫn nộ
+ * @returns {{id: number, ariaLabel: {vi: string, en: string}}}
+ */
+function getRandomReaction(ignoreIds = []) {
+  let reactions = [
+    { id: 1, ariaLabel: { vi: "Thích", en: "Like" } },
+    { id: 2, ariaLabel: { vi: "Yêu thích", en: "Love" } },
+    {
+      id: 3,
+      ariaLabel: { vi: "Thương thương", en: "Care" },
+    },
+    { id: 4, ariaLabel: { vi: "Haha", en: "Haha" } },
+    { id: 5, ariaLabel: { vi: "Ngạc nhiên", en: "Wow" } },
+    { id: 6, ariaLabel: { vi: "Buồn", en: "Sad" } },
+    { id: 7, ariaLabel: { vi: "Phẫn nộ", en: "Angry" } },
+  ];
+
+  if (ignoreIds?.length) {
+    reactions = reactions.filter(
+      (reaction) => !ignoreIds.includes(reaction.id),
+    );
+  }
+
+  const reaction = reactions[random(0, reactions.length - 1)];
+  return reaction;
+}
+
+function findPopupAndReact() {
+  const popupReact = document.querySelector(
+    'div[data-visualcompletion][aria-label="Cảm xúc"][role="dialog"]',
+  );
+
+  const buttons = popupReact.querySelectorAll('div[role="button"][aria-label]');
+  if (buttons.length) {
+    const randomReact = getRandomReaction([5, 6, 7]);
+
+    console.log("randomReact", randomReact);
+
+    console.log(buttons[randomReact.id - 1]);
+
+    buttons[3].dispatchEvent(
+      new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+      }),
+    );
+  }
+}
+
+async function interactBeforePost() {
+  try {
+    const canInteract = await CL_getDecidedInteractBeforePost();
+
+    if (!canInteract) {
+      return;
+    }
+    CL_addLogRequest({
+      vi: "Bắt đầu tương tác bài viết trước khi đăng",
+      en: "Started interacting with posts before posting",
+    });
+
+    let divFeed = await findElementFeedInGroup();
+    if (divFeed) {
+      const randomLengthReact = random(1, 5);
+      let numberScroll = randomLengthReact * 2;
+
+      while (numberScroll > 0) {
+        divFeed?.lastElementChild?.scrollIntoView({ behavior: "smooth" });
+        await sleep(random(2, 4) * 1000);
+        numberScroll--;
+      }
+
+      divFeed = await findElementFeedInGroup();
+
+      // const allDivToReacts = document.querySelectorAll(
+      //   'div[aria-label*="Bày tỏ cảm xúc về bài viết"]',
+      // );
+
+      // Current just like, cannot other reaction
+      const lang = getLanguage();
+      const selector =
+        lang === "vi" ? SELECTOR_VI.elementLike : SELECTOR.elementLike;
+      let allDivToLikes = document.querySelectorAll(selector);
+
+      allDivToLikes = shuffleArray(allDivToLikes);
+
+      const arrayDivNeedReact = [];
+
+      for (const divReact of allDivToLikes) {
+        if (arrayDivNeedReact.length < randomLengthReact) {
+          if (randomRateBoolean(50, 100)) {
+            arrayDivNeedReact.push(divReact);
+          }
+        }
+      }
+
+      CL_addLogRequest({
+        vi: `Số bài viết cần tương tác: ${arrayDivNeedReact.length}`,
+        en: `Number of posts to interact: ${arrayDivNeedReact.length}`,
+      });
+
+      for (const divReact of arrayDivNeedReact) {
+        await sleep(random(1, 3) * 1234);
+
+        divReact.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        await sleep(1000);
+
+        divReact.focus();
+
+        await sleep(random(1, 3) * 1234);
+        divReact.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+          }),
+        );
+
+        await sleep(random(2, 4) * 1234);
+      }
+
+      CL_addLogRequest({
+        vi: `Đã tương tác xong, tiếp tục thực hiện đăng bài`,
+        en: `Already interacted, continuing to post`,
+      });
+      await CL_setDecidedInteractBeforePost(false);
+    }
+  } catch (error) {
+    logError("Error at interactBeforePost: ", error);
+    CL_addLogRequest({
+      vi: `Lỗi khi tương tác trước khi đăng bài, ${error?.message || error}`,
+      en: `Error when interacting before posting, ${error?.message || error}`,
+    });
+  }
+}
+
 export {
   getListElementContainer,
   getLastItemElementListGroup,
   getAllListItemElement,
   getListGroups,
+  interactBeforePost,
 };

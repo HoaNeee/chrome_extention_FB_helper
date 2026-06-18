@@ -1,7 +1,7 @@
 import {
   getIsDeveloperModeInStorage,
   getLanguageInStorage,
-} from "../dashboard/src/helpers/storage.js";
+} from "../dashboard/src/services/storage-service.js";
 
 async function sleep(duration) {
   return await new Promise((resolve) => {
@@ -11,6 +11,17 @@ async function sleep(duration) {
 
 function random(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ *
+ * @param {number} win rate want to win
+ * @param {number} total total rate
+ * @returns {boolean} true if win, false if lose
+ */
+function randomRateBoolean(win = 0, total = 100) {
+  const randomNumber = Math.random() * total;
+  return randomNumber <= win;
 }
 
 function now() {
@@ -92,6 +103,11 @@ function getListTitle(value) {
     .map((val) => cvString(val.trim()))
     .filter((val) => val.trim());
 }
+
+/**
+ * get language at facebook page
+ * @returns {string} language
+ */
 
 function getLanguage() {
   try {
@@ -222,4 +238,5 @@ export {
   getTextWithLanguage,
   getIsDashboardTab,
   getIsCorrectURL,
+  randomRateBoolean,
 };

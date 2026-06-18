@@ -13,6 +13,8 @@ const KEY_CLEAR_NOTIFICATION = "clearNotification";
 
 const KEY_CLOSE_THIS_TAB = "CLOSE_THIS_TAB";
 
+const KEY_CLOSE_THIS_WINDOW = "CLOSE_THIS_WINDOW";
+
 const KEY_GET_LIST_GROUPS = "get_list_groups";
 
 const KEY_OPEN_DASHBOARD = "open_dashboard";
@@ -44,6 +46,14 @@ const KEY_ADD_LOG = "add_log";
 
 const KEY_FIRST_TIME_USE = "first_time_use";
 
+const KEY_GET_KEY_SAVED = "get_key_saved";
+
+const KEY_SET_KEY_SAVED = "set_key_saved";
+
+const KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST = {
+  GET_ALL_METADATA: "get_all_metadata_comment_when_post_success",
+};
+
 export {
   KEY_NOTIFICATION,
   KEY_OPEN_IN_TAB,
@@ -70,4 +80,8 @@ export {
   KEY_UPDATE_IS_SPAMMED,
   KEY_ADD_LOG,
   KEY_FIRST_TIME_USE,
+  KEY_GET_KEY_SAVED,
+  KEY_SET_KEY_SAVED,
+  KEY_CLOSE_THIS_WINDOW,
+  KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST,
 };

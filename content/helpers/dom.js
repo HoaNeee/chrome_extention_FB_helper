@@ -1,16 +1,13 @@
-import {
-  KEY_STOP_TASK,
-  SELECTOR,
-  SELECTOR_VI,
-} from "../../contants/contants.js";
+import { SELECTOR, SELECTOR_RAW, SELECTOR_VI } from "../contants/contants.js";
 import { getLanguage, logError, random, sleep } from "../../utils/utils.js";
+import { CL_getStopTool } from "../utils/storage.js";
 
 function checkIsUseEvaluate(selector = "") {
   return selector.includes(`//`);
 }
 
 async function waitForElement(selector, anchorElement = document, time = 0) {
-  const isStopTask = await GM_getValue(KEY_STOP_TASK);
+  const isStopTask = await CL_getStopTool();
   if (time >= 50 || isStopTask) {
     return null;
   }
@@ -320,6 +317,156 @@ function showElement(selector = "", anchorElem = document) {
   }
 }
 
+function findElementJustPosted() {
+  try {
+    const lang = getLanguage();
+
+    const selectorsAlertPending =
+      lang === "vi"
+        ? SELECTOR_VI.elementsPostedPendingAlert
+        : SELECTOR.elementsPostedPendingAlert;
+    const selectorsPostedPending =
+      lang === "vi"
+        ? SELECTOR_VI.elementsPostedPending
+        : SELECTOR.elementsPostedPending;
+
+    for (const selector of selectorsAlertPending) {
+      const nodeAlert = findElement(selector);
+      if (nodeAlert) {
+        return null;
+      }
+    }
+
+    const divFeed = document.querySelector('div[role="feed"]');
+
+    if (divFeed) {
+      const parentDiv = divFeed.parentElement?.parentElement;
+
+      for (const selector of selectorsPostedPending) {
+        const node = findElement(selector, parentDiv);
+        if (node) {
+          return null;
+        }
+      }
+
+      const childrenOfParentDivFeed = divFeed.parentElement.children;
+
+      if (childrenOfParentDivFeed.length >= 3) {
+        return childrenOfParentDivFeed[1];
+      }
+      if (childrenOfParentDivFeed.length >= 2) {
+        return childrenOfParentDivFeed[0];
+      }
+    }
+    return null;
+  } catch (error) {
+    logError("Error at find link post success:", error);
+    return null;
+  }
+}
+
+function findTextBoxJustPosted(anchorElem = document) {
+  try {
+    for (const selector of SELECTOR_RAW.formToCommentInGroup) {
+      const form = findElement(selector, anchorElem);
+      if (form) {
+        for (const selectorTextBox of SELECTOR_RAW.textBoxToCommentInGroup) {
+          const textBox = findElement(selectorTextBox, form);
+          if (textBox) {
+            return textBox;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    logError("Error at findTextBoxJustPosted: ", error);
+    return null;
+  }
+}
+
+function findButtonPostCommentJustPosted(anchorElem = document) {
+  try {
+    const lang = getLanguage();
+    const selectors =
+      lang === "vi"
+        ? SELECTOR_VI.buttonSubmitCommentInGroup
+        : SELECTOR.buttonSubmitCommentInGroup;
+    for (const selector of selectors) {
+      const button = findElement(selector, anchorElem);
+      return button;
+    }
+  } catch (error) {
+    logError("Error at findButtonPostCommentJustPosted: ", error);
+    return null;
+  }
+}
+
+/**
+ * Get feed element
+ * @param {number} time
+ * @returns {Promise<HTMLElement>}
+ */
+async function findElementFeedInGroup(time = 0) {
+  try {
+    const div = document.querySelector('div[role="feed"]');
+    if (div) return div;
+    if (time > 10) return null;
+    await sleep(200);
+    return await findElementFeedInGroup(time + 1);
+  } catch (error) {
+    logError("Error at getElementFeedInGroup: ", error);
+    return null;
+  }
+}
+
+/**
+ * Scroll element into view
+ * @param {string|HTMLElement} selector
+ */
+function scrollElementIntoView(selector) {
+  if (selector instanceof HTMLElement || selector instanceof Node) {
+    selector.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  const element = document.querySelector(selector);
+  if (element) {
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+/**
+ * Click element
+ * @param {HTMLElement} element
+ * @param {object} options
+ */
+async function eventClickElement(element, isDispatch = false) {
+  await sleep(random(1, 2) * 1000 + random(100, 1000));
+
+  scrollElementIntoView(element);
+
+  await sleep(random(1, 2) * 1000 + random(100, 1000));
+
+  const overEvt = new MouseEvent("mouseover", {
+    bubbles: true,
+    cancelable: true,
+  });
+  element.dispatchEvent(overEvt);
+
+  await sleep(random(2, 4) * 200);
+
+  if (isDispatch) {
+    element.dispatchEvent(
+      new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+      }),
+    );
+  } else {
+    element.click();
+  }
+}
+
 export {
   waitForElement,
   findDivToPost,
@@ -334,4 +481,10 @@ export {
   showElement,
   findElement,
   checkIsSpammed,
+  findElementJustPosted,
+  findTextBoxJustPosted,
+  findButtonPostCommentJustPosted,
+  findElementFeedInGroup,
+  scrollElementIntoView,
+  eventClickElement,
 };
