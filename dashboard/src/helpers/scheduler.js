@@ -1,5 +1,4 @@
 import {
-  KEY_IS_SPAMMED,
   KEY_IS_TEST,
   KEY_NEXT_TIME_POST_WHEN_SPAMMED,
   SCHEDULER_TYPE,
@@ -14,6 +13,7 @@ import {
   getSchedulerService,
   setSchedulerService,
 } from "../services/scheduler-service.js";
+import { getIsSpammedInStorage } from "../services/storage-service.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 
 /**
@@ -328,7 +328,7 @@ async function getNextTimePostWhenSpammed() {
 
 async function getCorrectNextTime() {
   try {
-    const isSpammed = await DB_getValue(KEY_IS_SPAMMED);
+    const isSpammed = await getIsSpammedInStorage();
     if (isSpammed) {
       return await getNextTimePostWhenSpammed();
     }

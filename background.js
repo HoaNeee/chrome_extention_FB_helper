@@ -469,8 +469,8 @@ async function handleUpdateIsSpammed(isSpammed) {
   try {
     if (isSpammed) {
       await addLog({
-        vi: "Tài khoản bị spam, tạm dừng tool",
-        en: "Account is spammed, stop task",
+        vi: "Tài khoản người dùng đã bị spam, tạm dừng tiện ích",
+        en: "User account is spammed, pausing the tool",
       });
       setProgressTool(false);
       const nextTime = now() + 1000 * 60 * 60 * 24 * 2; // 2 day
@@ -506,25 +506,25 @@ async function handleWelcomeBack() {
       });
     }
 
-    const isProgress = await getProgressTool();
-    if (!isProgress) {
-      const scheduler = await getSchedulerService();
-      if (scheduler.isScheduler) {
-        const nextTime = await getCorrectNextTime();
-        const date = new Date(nextTime);
-        addLog({
-          vi:
-            "Lịch trình tự động đang được bật, thời gian thực hiện tiếp theo: " +
-            date.toLocaleString(),
-          en:
-            "Auto schedule is enabled, the next execution time: " +
-            date.toLocaleString(),
-        });
-      }
-    } else {
+    const isScheduler = await getIsScheduler();
+    if (isScheduler) {
+      const nextTime = await getCorrectNextTime();
+      const date = new Date(nextTime);
       addLog({
-        vi: "Tiện ích đang trong quá trình chạy, hãy cố gắng đừng đóng tab này",
-        en: "Tool is running, please try not to close this tab",
+        vi:
+          "Lịch trình tự động đang được bật, thời gian thực hiện tiếp theo: " +
+          date.toLocaleString(),
+        en:
+          "Auto schedule is enabled, the next execution time: " +
+          date.toLocaleString(),
+      });
+    }
+    const isProgress = await getProgressTool();
+    if (isProgress) {
+      setProgressTool(false);
+      addLog({
+        vi: "Đã phát hiện tiện ích vừa được khởi động lại trong lúc đang có tác vụ chạy dở, đợt đăng bài trước đó đã bị ngắt",
+        en: "Detected that the tool was just restarted while a task was in progress, the previous posting batch has been interrupted",
       });
     }
   } catch (error) {
