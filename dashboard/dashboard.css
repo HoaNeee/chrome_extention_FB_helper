@@ -251,7 +251,7 @@ body[apply-animation="true"] *:not(.tippy-box, .toastify) {
   flex-direction: column;
 }
 
-#tm_root #tm_div-panel-group #tm_list-groups-container {
+#tm_root #tm_div-panel-group #tm_list-data-groups-container {
   overflow: auto;
 }
 
