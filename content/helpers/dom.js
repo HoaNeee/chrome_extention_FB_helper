@@ -423,7 +423,7 @@ async function findElementFeedInGroup(time = 0) {
  * Scroll element into view
  * @param {string|HTMLElement} selector
  */
-function scrollElementIntoView(selector) {
+async function scrollElementIntoView(selector) {
   if (selector instanceof HTMLElement || selector instanceof Node) {
     selector.scrollIntoView({ behavior: "smooth", block: "center" });
     return;
@@ -432,6 +432,7 @@ function scrollElementIntoView(selector) {
   if (element) {
     element.scrollIntoView({ behavior: "smooth", block: "center" });
   }
+  await sleep(1000 + random(100, 500));
 }
 
 /**
@@ -442,7 +443,7 @@ function scrollElementIntoView(selector) {
 async function eventClickElement(element, isDispatch = false) {
   await sleep(random(1, 2) * 1000 + random(100, 1000));
 
-  scrollElementIntoView(element);
+  await scrollElementIntoView(element);
 
   await sleep(random(1, 2) * 1000 + random(100, 1000));
 

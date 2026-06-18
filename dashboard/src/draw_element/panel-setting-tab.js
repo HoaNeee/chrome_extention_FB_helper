@@ -30,6 +30,10 @@ import {
 } from "../helpers/scheduler.js";
 import {
   getTimeDelayInStorage,
+  setCountBatchPost,
+  setCountResetGroupInStorage,
+  setCurrentCountPostLength,
+  setMaxGroupPerTimeInStorage,
   setStrictlyMatchTitleGroupInStorage,
   setTimeDelayInStorage,
 } from "../services/storage-service.js";
@@ -452,7 +456,10 @@ async function createPanelSetting(anchorElem = document.body) {
           );
           setSchedulerService(scheduler);
           showNotify({
-            message: "Save custom every minutes successfully",
+            message: getTextWithLanguage({
+              en: "Save custom every minutes successfully",
+              vi: "Lưu cài đặt khoảng thời gian thành công",
+            }),
             type: "success",
           });
 
@@ -541,20 +548,29 @@ async function createPanelSetting(anchorElem = document.body) {
                 let val = maxGroupPerTime.value;
                 if (!Number.isNaN(Number(val))) {
                   val = Math.max(1, Number(val));
-                  DB_setValue(KEY_MAX_GROUP_PER_TIME, Number(val));
+                  setMaxGroupPerTimeInStorage(Number(val));
                 } else {
-                  DB_setValue(KEY_MAX_GROUP_PER_TIME, 1);
+                  setMaxGroupPerTimeInStorage(1);
                 }
               }
               showNotify({
-                message: "Save max group per time successfully",
+                message: getTextWithLanguage({
+                  en: "Save max group per time successfully",
+                  vi: "Lưu cài đặt số bài đăng trong mỗi đợt thành công",
+                }),
                 type: "success",
               });
+              setCurrentCountPostLength(0);
+              setCountBatchPost(0);
+              setCountResetGroupInStorage(0);
               updateDataSavedInfo();
             } catch (error) {
               logError("Error save max group per time: ", error);
               showNotify({
-                message: "Save max group per time failed",
+                message: getTextWithLanguage({
+                  en: "Save max group per time failed",
+                  vi: "Lưu cài đặt số bài đăng trong mỗi đợt thất bại",
+                }),
                 type: "error",
               });
             }

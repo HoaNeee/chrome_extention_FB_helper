@@ -11,12 +11,7 @@ import {
   KEY_IS_SCROLL_DETECT_LIST_GROUP,
   KEY_IS_TEST,
 } from "../contants/contants.js";
-import {
-  getIsCorrectPostURL,
-  logError,
-  random,
-  sleep,
-} from "../utils/utils.js";
+import { logError, random, sleep } from "../utils/utils.js";
 import { notificationContainer } from "./elements/notify.js";
 import {
   checkIsSpammed,

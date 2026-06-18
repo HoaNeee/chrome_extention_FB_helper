@@ -32,7 +32,6 @@ import {
   findElementJustPosted,
   findTextBoxJustPosted,
   getIsExistDialog,
-  scrollElementIntoView,
 } from "./dom.js";
 import { CL_getTextWithLang, CL_setValue } from "../utils/utils.js";
 import { SELECTOR_RAW } from "../contants/contants.js";
@@ -186,7 +185,7 @@ async function postHelper(task) {
 
     const div = await findDivToPost();
     if (div) {
-      eventClickElement(div);
+      await eventClickElement(div);
 
       //double check exist dialog, try 2 times
       await sleep(500);
@@ -199,7 +198,7 @@ async function postHelper(task) {
 
         const node = await findDivToPost();
         if (node) {
-          eventClickElement(node);
+          await eventClickElement(node);
         }
         await sleep(random(1, 4) * 1000);
         retryTime++;
@@ -212,7 +211,7 @@ async function postHelper(task) {
 
         const node2 = await findDivToPost();
         if (node2) {
-          eventClickElement(node2, true);
+          await eventClickElement(node2, true);
         }
       }
 

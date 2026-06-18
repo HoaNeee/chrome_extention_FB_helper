@@ -678,7 +678,7 @@
       return null;
     }
   }
-  function scrollElementIntoView(selector) {
+  async function scrollElementIntoView(selector) {
     if (selector instanceof HTMLElement || selector instanceof Node) {
       selector.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
@@ -687,10 +687,11 @@
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "center" });
     }
+    await sleep(1e3 + random(100, 500));
   }
   async function eventClickElement(element, isDispatch = false) {
     await sleep(random(1, 2) * 1e3 + random(100, 1e3));
-    scrollElementIntoView(element);
+    await scrollElementIntoView(element);
     await sleep(random(1, 2) * 1e3 + random(100, 1e3));
     const overEvt = new MouseEvent("mouseover", {
       bubbles: true,
@@ -1071,7 +1072,7 @@
       await sleep(delayClickToPost);
       const div = await findDivToPost();
       if (div) {
-        eventClickElement(div);
+        await eventClickElement(div);
         await sleep(500);
         let retryTime = 1;
         while (retryTime < 2 && !getIsExistDialog()) {
@@ -1081,7 +1082,7 @@
           });
           const node = await findDivToPost();
           if (node) {
-            eventClickElement(node);
+            await eventClickElement(node);
           }
           await sleep(random(1, 4) * 1e3);
           retryTime++;
@@ -1093,7 +1094,7 @@
           });
           const node2 = await findDivToPost();
           if (node2) {
-            eventClickElement(node2, true);
+            await eventClickElement(node2, true);
           }
         }
         if (!getIsExistDialog()) {
