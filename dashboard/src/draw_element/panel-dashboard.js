@@ -26,6 +26,8 @@ import {
   setTheme,
   getIsInteractBeforePostInStorage,
   setDecidedInteractBeforePostInStorage,
+  setIsSpammedInStorage,
+  getIsSpammedInStorage,
 } from "../services/storage-service.js";
 import {
   getAllDataGroupsInStorage,
@@ -53,7 +55,11 @@ import {
   automationContinue,
   automationTest,
 } from "../services/automation-service.js";
-import { clearSchedulerAuto } from "../services/scheduler-service.js";
+import {
+  clearAndCreateSchedulerAlarm,
+  clearSchedulerAuto,
+  getIsScheduler,
+} from "../services/scheduler-service.js";
 import { addLog } from "./panel-log.js";
 import { KEY_CURRENT_WINDOW_ID } from "../../../contants/constant-extention.js";
 
@@ -476,8 +482,26 @@ async function createPanel(doc = document.body) {
       if (btnResetIsSpammed) {
         btnResetIsSpammed.addEventListener("click", async () => {
           try {
-            DB_setValue(KEY_IS_SPAMMED, false);
-            updateDataSavedInfo();
+            const isSpammed = await getIsSpammedInStorage();
+            if (isSpammed) {
+              await setIsSpammedInStorage(false);
+              addLog({
+                vi: "Bạn vừa đặt lại trạng thái bị spam",
+                en: "You just reset spammed status",
+              });
+              showNotify({
+                message: getTextWithLanguage({
+                  vi: "Đặt lại trạng thái bị spam thành công",
+                  en: "Reset spammed status successfully",
+                }),
+                type: "success",
+              });
+              updateDataSavedInfo();
+              const isScheduler = await getIsScheduler();
+              if (isScheduler) {
+                await clearAndCreateSchedulerAlarm();
+              }
+            }
           } catch (error) {
             logError("Error at btnResetIsSpammed click event: ", error);
           }
