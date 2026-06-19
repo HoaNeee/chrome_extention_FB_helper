@@ -23,11 +23,11 @@ async function createPanelAdvancedSetting(anchorElem = document.body) {
                 <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt nâng cao", en: "Advanced Setting" })}</h2>
                 <div class="${prefix}field-container field-checkbox">
                     <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-comment-when-post-success">
-                    <label for="${prefix}checkbox-is-comment-when-post-success" style="user-select: none;">${getTextWithLanguage({ vi: "Bình luận tương tác khi đăng bài thành công", en: "Comment interact when post success" })}</label>
+                    <label for="${prefix}checkbox-is-comment-when-post-success" style="user-select: none;">${getTextWithLanguage({ vi: "Bình luận tương tác khi đăng bài thành công (Thử nghiệm)", en: "Comment interact when post success (Beta)" })}</label>
                 </div>
                 <div style="margin-left: 48px;">
                   <div class="${prefix}field-container">
-                      <label for="${prefix}input-keyword-comment-when-post-success">${getTextWithLanguage({ vi: `Nhập nội dung bình luận (cách nhau bằng cách xuống dòng)`, en: "Enter comment content (separate by newline)" })}:
+                      <label for="${prefix}input-keyword-comment-when-post-success">${getTextWithLanguage({ vi: `Nhập nội dung bình luận (cách nhau bằng cách xuống dòng) (Thử nghiệm)`, en: "Enter comment content (separate by newline) (Beta)" })}:
                       </label>
                       <div style="display: flex; gap: 4px;">
                           <textarea placeholder="Ex: Hay quá!\nIb mình\nGiá nhiêu shop ơi?" id="${prefix}input-keyword-comment-when-post-success" class="${prefix}input-outline" style="flex: 1; height: 70px; padding: 8px 4px"></textarea>
