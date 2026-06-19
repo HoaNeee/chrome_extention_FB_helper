@@ -37,8 +37,6 @@ const KEY_IS_RANDOM_BATCH_POST = "is_random_batch_post";
 const KEY_IS_RANDOM_TIME_POST = "is_random_time_post";
 const KEY_IS_SPECIAL_FRAME_HOURS = "is_special_frame_hours";
 const KEY_CHANGE_GROUPS_CHECKED_FLAG = "change_groups_checked_flag";
-const KEY_IS_INTERACT_BEFORE_POST = "is_interact_before_post";
-const KEY_DECIDED_INTERACT_BEFORE_POST = "decided_interact_before_post";
 
 const KEY_IS_PREMIUM = "is_premium";
 
@@ -73,6 +71,7 @@ const KEY_POST = "posting";
 const KEY_CAN_POST_THIS_TAB = "can_post_this_tab";
 const KEY_NEXT_TIME_POST_WHEN_SPAMMED = "next_time_post_when_spammed";
 const KEY_SPECIAL_FRAME_HOURS = "special_frame_hours";
+const KEY_TIME_DELAY_FOR_SCHEDULER = "time_delay_for_scheduler";
 
 const KEY_HISTORY_LOGS = "history_logs";
 const KEY_HISTORY_SYSTEM_LOGS = "history_system_logs";
@@ -82,6 +81,7 @@ const MAX_GROUP_PER_TIME_INITIAL = 1;
 const KEY_COMMENT_WHEN_POST_SUCCESS = {
   LIST_CONTENT: "list_comment_when_post_success_content",
   IS_ACTIVE: "is_comment_when_post_success",
+  MAX_COMMENT_PER_TIME: "max_comment_per_time",
 };
 
 const KEY_TAB = {
@@ -89,6 +89,12 @@ const KEY_TAB = {
   TAB_GET_LIST_GROUP_ID: "tab_get_list_group_id",
   LAST_POST_TAB_OPEN_ID: "last_post_tab_open_id",
   TAB_DASHBOARD_ID: "tab_dashboard_id",
+};
+
+const KEY_INTERACT_BEFORE_POST = {
+  IS_ACTIVE: "is_interact_before_post",
+  MAX_POST_INTERACT: "max_post_interact",
+  DECIDED_INTERACT: "decided_interact_before_post",
 };
 
 const KEY_WINDOW = {
@@ -108,6 +114,8 @@ const SCHEDULER_TYPE = {
   EVERY_HOURS: "custom-every-hours",
   FRAME_HOURS: "custom-frame-hours",
   DAILY_HOURS: "daily-hours",
+  SCHEDULER_MINUTES: "scheduler-minutes",
+  SCHEDULER_HOURS: "scheduler-hours",
 };
 
 const URL_LIST_GROUPS = "https://www.facebook.com/groups/joins/?nav_source=tab";
@@ -176,6 +184,6 @@ export {
   KEY_CURRENT_COUNT_POSTED,
   KEY_WINDOW,
   KEY_COMMENT_WHEN_POST_SUCCESS,
-  KEY_IS_INTERACT_BEFORE_POST,
-  KEY_DECIDED_INTERACT_BEFORE_POST,
+  KEY_INTERACT_BEFORE_POST,
+  KEY_TIME_DELAY_FOR_SCHEDULER,
 };

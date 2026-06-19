@@ -12,11 +12,13 @@ import {
   getIsTestInStorage,
   getLanguageInStorage,
   getMaxGroupPerTimeInStorage,
+  getMaxPostInteractInStorage,
   getPremiumInStorage,
   getProgress,
   getStrictlyMatchTitleGroupInStorage,
   getTimeDelayInStorage,
   setMaxGroupPerTimeInStorage,
+  setMaxPostInteractInStorage,
 } from "../services/storage-service.js";
 import {
   disabledElement,
@@ -58,6 +60,8 @@ import {
 import {
   getIsCommentWhenPostSuccessService,
   getListCommentWhenPostSuccessService,
+  getMaxCommentPerTimeService,
+  setMaxCommentPerTimeService,
 } from "../services/comment-service.js";
 
 async function initialData({ anchorElement = document.body }) {
@@ -159,6 +163,8 @@ async function initialData({ anchorElement = document.body }) {
         setIsCommentWhenPostSuccess,
         setKeyWordsComment,
         setIsInteractBeforePost,
+        setMaxCommentPerTime,
+        setMaxPostInteract,
       } = getAllFieldsAdvancedSetting();
 
       const isCommentWhenPostSuccess =
@@ -169,6 +175,20 @@ async function initialData({ anchorElement = document.body }) {
 
       const isInteractBeforePost = await getIsInteractBeforePostInStorage();
       setIsInteractBeforePost(isInteractBeforePost);
+
+      let maxCommentPerTime = await getMaxCommentPerTimeService();
+      if (!maxCommentPerTime) {
+        maxCommentPerTime = 1;
+        await setMaxCommentPerTimeService(maxCommentPerTime);
+      }
+      setMaxCommentPerTime(maxCommentPerTime);
+
+      let maxPost = await getMaxPostInteractInStorage();
+      if (!maxPost) {
+        maxPost = 1;
+        await setMaxPostInteractInStorage(maxPost);
+      }
+      setMaxPostInteract(maxPost);
     }
 
     await initialSettings();

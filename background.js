@@ -18,8 +18,10 @@ import {
   KEY_UNREGISTER_MENU_COMMAND,
   KEY_UPDATE_IS_SPAMMED,
   KEY_UPDATE_STATUS_TASK,
+  KEY_ADD_TIME_DELAY_FOR_SCHEDULER,
   KEY_XMLHTTP_REQUEST,
   STATUS_RESPONSE,
+  KEY_INTERACT_BEFORE_POST_REQUEST,
 } from "./contants/constant-extention.js";
 import {
   KEY_CAN_POST_THIS_TAB,
@@ -44,22 +46,26 @@ import {
 } from "./dashboard/src/helpers/group.js";
 import {
   getCorrectNextTime,
-  getNextTimePost,
+  logSchedulerHelper,
   shuffleTimes,
 } from "./dashboard/src/helpers/scheduler.js";
 import {
   getCountBatchPost,
   getCurrentIndexGroupPost,
+  getDecidedInteractBeforePostInStorage,
   getIsInteractBeforePostInStorage,
   getIsRandomBatchPost,
   getIsSpammedInStorage,
   getIsStopTaskInStorage,
+  getMaxPostInteractInStorage,
   getPremiumInStorage,
   getRandomIndexGroupChecked,
+  getTimeDelayForScheduler,
   setCountBatchPost,
   setCurrentCountPostLength,
   setCurrentIndexGroupPost,
   setDecidedInteractBeforePostInStorage,
+  setTimeDelayForScheduler,
 } from "./dashboard/src/services/storage-service.js";
 import {
   automationContinue,
@@ -91,6 +97,7 @@ import {
   logActions,
   logError,
   now,
+  random,
   randomRateBoolean,
 } from "./utils/utils.js";
 import {
@@ -214,6 +221,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       case KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST.GET_ALL_METADATA:
         handleGetAllMetadataComments(sendResponse);
         return true;
+
+      case KEY_ADD_TIME_DELAY_FOR_SCHEDULER:
+        handleAddTimeDelayForScheduler(msg.data.timeDelay);
+        break;
+      case KEY_INTERACT_BEFORE_POST_REQUEST.GET_ALL_METADATA:
+        handleGetAllMetadataInteractBeforePost(sendResponse);
+        return true;
     }
   } catch (error) {
     logError("Error at background: ", error);
@@ -264,13 +278,8 @@ async function nextGroupPost() {
 
       const isScheduler = await getIsScheduler();
       if (isScheduler) {
-        clearAndCreateSchedulerAlarm();
-        const nextTime = await getNextTimePost();
-        const date = new Date(nextTime);
-        addLog({
-          vi: `Thời gian đăng bài tiếp theo trong bộ lịch: ${date.toLocaleString()}`,
-          en: `Next time for next post in the scheduler: ${date.toLocaleString()}`,
-        });
+        await clearAndCreateSchedulerAlarm();
+        await logSchedulerHelper();
       }
       return;
     }
@@ -506,19 +515,8 @@ async function handleWelcomeBack() {
       });
     }
 
-    const isScheduler = await getIsScheduler();
-    if (isScheduler) {
-      const nextTime = await getCorrectNextTime();
-      const date = new Date(nextTime);
-      addLog({
-        vi:
-          "Lịch trình tự động đang được bật, thời gian thực hiện tiếp theo: " +
-          date.toLocaleString(),
-        en:
-          "Auto schedule is enabled, the next execution time: " +
-          date.toLocaleString(),
-      });
-    }
+    await logSchedulerHelper();
+
     const isProgress = await getProgressTool();
     if (isProgress) {
       setProgressTool(false);
@@ -527,6 +525,7 @@ async function handleWelcomeBack() {
         en: "Detected that the tool was just restarted while a task was in progress, the previous posting batch has been interrupted",
       });
     }
+    setTimeDelayForScheduler(0);
   } catch (error) {
     logError("Error at handleWelcomeBack method: ", error);
   }
@@ -599,17 +598,8 @@ async function handleOnRemove(tabId) {
     try {
       const scheduler = await getSchedulerService();
       if (scheduler.isScheduler) {
-        const nextTime = await getCorrectNextTime();
-        const date = new Date(nextTime);
-        addLog({
-          vi:
-            "Lên lịch đang được bật, thời gian đăng bài tiếp theo: " +
-            date.toLocaleString(),
-          en:
-            "Auto schedule is enabled, the next execution time: " +
-            date.toLocaleString(),
-        });
-        clearAndCreateSchedulerAlarm();
+        await clearAndCreateSchedulerAlarm();
+        await logSchedulerHelper();
       }
     } catch (error) {
       logError("Error handle scheduler: ", error);
@@ -860,6 +850,8 @@ async function handleSetKeySaved(key, value, sendResponse) {
 async function handleGetAllMetadataComments(sendResponse) {
   try {
     const data = await getAllMetadataComments();
+    const numberComment = random(1, data.maxComment);
+    data.numberComment = numberComment;
     sendResponse({
       status: STATUS_RESPONSE.SUCCESS,
       data,
@@ -909,6 +901,40 @@ async function handleCloseThisWindow(sender) {
     console.log("Sender", sender);
   } catch (error) {
     logError("Error at handleCloseThisWindow: ", error);
+  }
+}
+
+async function handleAddTimeDelayForScheduler(timeDelay) {
+  try {
+    const time = await getTimeDelayForScheduler();
+    const newTimeDelay = time + timeDelay;
+    await setTimeDelayForScheduler(Number(newTimeDelay));
+  } catch (error) {
+    logError("Error at handleAddTimeDelayForScheduler: ", error);
+  }
+}
+
+async function handleGetAllMetadataInteractBeforePost(sendResponse) {
+  try {
+    const canInteract = await getDecidedInteractBeforePostInStorage();
+    const maxPost = await getMaxPostInteractInStorage();
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: {
+        canInteract,
+        maxPost,
+      },
+    });
+  } catch (error) {
+    logError("Error at handleGetAllMetadataInteractBeforePost: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
   }
 }
 

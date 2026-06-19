@@ -33,7 +33,11 @@ import {
   findTextBoxJustPosted,
   getIsExistDialog,
 } from "./dom.js";
-import { CL_getTextWithLang, CL_setValue } from "../utils/utils.js";
+import {
+  CL_getTextWithLang,
+  CL_setTimeDelayForScheduler,
+  CL_setValue,
+} from "../utils/utils.js";
 import { SELECTOR_RAW } from "../contants/contants.js";
 
 /**
@@ -323,7 +327,7 @@ async function commentToJustPostedHelper() {
     }
 
     //random rate
-    if (!randomRateBoolean(35)) {
+    if (!randomRateBoolean(28)) {
       CL_addLogRequest({
         vi: "Đã quyết định sẽ bỏ qua bình luận, chuyển sang công việc tiếp theo",
         en: "Decided to skip comment, switch to next task.",
@@ -346,48 +350,70 @@ async function commentToJustPostedHelper() {
     }
 
     CL_addLogRequest({
-      vi: "Đã quyết định sẽ bình luận bài viết này.",
-      en: "Decided to comment on this post.",
+      vi: `Đã quyết định sẽ bình luận bài viết này, số bình luận ${data.numberComment}`,
+      en: `Decided to comment on this post, number comment ${data.numberComment}`,
     });
 
-    await sleep(random(1, 4) * 1000);
+    await sleep(random(1000, 4000) + random(100, 1000));
 
     const elementJustPosted = findElementJustPosted();
+
+    async function typeAndSubmit(textBox, elementJustPosted) {
+      try {
+        const content =
+          data.listContent[random(0, data.listContent.length - 1)];
+
+        if (textBox) {
+          await simulateTyping(textBox, content, {
+            minDelay: 200,
+            maxDelay: 1000,
+          });
+          const btn = findButtonPostCommentJustPosted(elementJustPosted);
+          await sleep(random(1000, 3000) + random(100, 1000));
+          if (btn) {
+            btn.click();
+          } else {
+            textBox.dispatchEvent(
+              new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+            );
+            textBox.dispatchEvent(
+              new KeyboardEvent("keyup", { key: "Enter", bubbles: true }),
+            );
+          }
+          await sleep(random(2000, 4000) + random(100, 1000));
+        }
+      } catch (error) {
+        throw error;
+      }
+    }
+
     if (elementJustPosted) {
       const textBox = findTextBoxJustPosted(elementJustPosted);
-
-      await sleep(1000);
-
-      textBox.scrollIntoView({ behavior: "smooth", block: "center" });
-
-      await sleep(random(1, 5) * 1000);
-
-      textBox.focus();
-
-      await sleep(random(1, 3) * 1000);
-
-      const content = data.listContent[random(0, data.listContent.length - 1)];
-
       if (textBox) {
-        await simulateTyping(textBox, content, {
-          minDelay: 200,
-          maxDelay: 1000,
-        });
-        const btn = findButtonPostCommentJustPosted(elementJustPosted);
-        if (btn) {
-          await sleep(random(1, 3) * 1000);
-          btn.click();
-        } else {
-          textBox.dispatchEvent(
-            new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-          );
-          textBox.dispatchEvent(
-            new KeyboardEvent("keyup", { key: "Enter", bubbles: true }),
-          );
-          await sleep(random(2, 3) * 1000);
+        await sleep(random(1, 2) * 1000);
+
+        textBox.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        await sleep(random(1, 5) * 1000);
+
+        textBox.focus();
+
+        await sleep(random(1, 3) * 1000);
+
+        for (let i = 0; i < data.numberComment; i++) {
+          await typeAndSubmit(textBox, elementJustPosted);
+          await sleep(random(1000, 2000));
         }
       }
     }
+
+    const timeClick = 3;
+    const timeType = data.numberComment * 8;
+    const timeCheckDialog = cnt * 1;
+
+    const timeDelay = timeClick + timeType + timeCheckDialog;
+
+    await CL_setTimeDelayForScheduler(timeDelay * 1000);
   } catch (error) {
     logError("Error at commentToJustPostedHelper: ", error);
     CL_addLogRequest({

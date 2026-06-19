@@ -16,6 +16,10 @@
   var KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST = {
     GET_ALL_METADATA: "get_all_metadata_comment_when_post_success"
   };
+  var KEY_INTERACT_BEFORE_POST_REQUEST = {
+    GET_ALL_METADATA: "get_all_metadata_interact_before_post"
+  };
+  var KEY_ADD_TIME_DELAY_FOR_SCHEDULER = "update_time_delay_for_scheduler";
 
   // dist/contants/contants.js
   var KEY_LANGUAGE = "language";
@@ -25,10 +29,14 @@
   var KEY_STOP_TASK = "is_stop_task";
   var KEY_IS_DEVELOPER_MODE = "is_developer_mode";
   var KEY_IS_SCROLL_DETECT_LIST_GROUP = "is_scroll_detect_list_group";
-  var KEY_DECIDED_INTERACT_BEFORE_POST = "decided_interact_before_post";
   var KEY_LAST_TIME_POST = "last_time_post";
   var KEY_ALL_GROUPS = "all_groups";
   var KEY_CAN_POST_THIS_TAB = "can_post_this_tab";
+  var KEY_INTERACT_BEFORE_POST = {
+    IS_ACTIVE: "is_interact_before_post",
+    MAX_POST_INTERACT: "max_post_interact",
+    DECIDED_INTERACT: "decided_interact_before_post"
+  };
   var STATUS_TASK = {
     PENDING: "pending",
     SELECTING: "selecting",
@@ -386,7 +394,7 @@
       const response = await sendMessageWithResponse(
         KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST.GET_ALL_METADATA
       );
-      return response.data || { listContent: [], isActive: false };
+      return response.data || { listContent: [], isActive: false, numberComment: 0 };
     } catch (error) {
       CL_addLogRequest({
         vi: error || "L\u1ED7i khi l\u1EA5y d\u1EEF li\u1EC7u b\xECnh lu\u1EADn",
@@ -395,11 +403,11 @@
       return { listContent: [], isActive: false };
     }
   }
-  async function CL_getDecidedInteractBeforePost() {
+  async function CL_getMetadataInteractBeforePost() {
     try {
-      const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
-        key: KEY_DECIDED_INTERACT_BEFORE_POST
-      });
+      const response = await sendMessageWithResponse(
+        KEY_INTERACT_BEFORE_POST_REQUEST.GET_ALL_METADATA
+      );
       return response.data || false;
     } catch (error) {
       CL_addLogRequest({
@@ -412,7 +420,7 @@
   async function CL_setDecidedInteractBeforePost(value) {
     try {
       await sendMessageWithResponse(KEY_SET_KEY_SAVED, {
-        key: KEY_DECIDED_INTERACT_BEFORE_POST,
+        key: KEY_INTERACT_BEFORE_POST.DECIDED_INTERACT,
         value
       });
     } catch (error) {
@@ -858,7 +866,9 @@
   }
   async function interactBeforePost() {
     try {
-      const canInteract = await CL_getDecidedInteractBeforePost();
+      const metadataInteractBeforePost = await CL_getMetadataInteractBeforePost();
+      const canInteract = metadataInteractBeforePost?.canInteract || false;
+      const maxPost = metadataInteractBeforePost?.maxPost || 0;
       if (!canInteract) {
         return;
       }
@@ -868,7 +878,7 @@
       });
       let divFeed = await findElementFeedInGroup();
       if (divFeed) {
-        const randomLengthReact = random(1, 5);
+        const randomLengthReact = random(1, maxPost);
         let numberScroll = randomLengthReact * 2;
         while (numberScroll > 0) {
           divFeed?.lastElementChild?.scrollIntoView({ behavior: "smooth" });
@@ -964,6 +974,17 @@
     } catch (error) {
       logError("Error CL_getTextWithLang: ", error);
       return viText;
+    }
+  }
+  async function CL_setTimeDelayForScheduler(timeDelay) {
+    try {
+      await sendMessage(KEY_ADD_TIME_DELAY_FOR_SCHEDULER, {
+        timeDelay
+      });
+      return true;
+    } catch (error) {
+      logError("Error CL_setTimeDelayCommentForScheduler: ", error);
+      return false;
     }
   }
 
@@ -1179,7 +1200,7 @@
       if (!data.isActive) {
         return;
       }
-      if (!randomRateBoolean(35)) {
+      if (!randomRateBoolean(28)) {
         CL_addLogRequest({
           vi: "\u0110\xE3 quy\u1EBFt \u0111\u1ECBnh s\u1EBD b\u1ECF qua b\xECnh lu\u1EADn, chuy\u1EC3n sang c\xF4ng vi\u1EC7c ti\u1EBFp theo",
           en: "Decided to skip comment, switch to next task."
@@ -1199,39 +1220,56 @@
         return;
       }
       CL_addLogRequest({
-        vi: "\u0110\xE3 quy\u1EBFt \u0111\u1ECBnh s\u1EBD b\xECnh lu\u1EADn b\xE0i vi\u1EBFt n\xE0y.",
-        en: "Decided to comment on this post."
+        vi: `\u0110\xE3 quy\u1EBFt \u0111\u1ECBnh s\u1EBD b\xECnh lu\u1EADn b\xE0i vi\u1EBFt n\xE0y, s\u1ED1 b\xECnh lu\u1EADn ${data.numberComment}`,
+        en: `Decided to comment on this post, number comment ${data.numberComment}`
       });
-      await sleep(random(1, 4) * 1e3);
+      await sleep(random(1e3, 4e3) + random(100, 1e3));
       const elementJustPosted = findElementJustPosted();
+      async function typeAndSubmit(textBox, elementJustPosted2) {
+        try {
+          const content = data.listContent[random(0, data.listContent.length - 1)];
+          if (textBox) {
+            await simulateTyping(textBox, content, {
+              minDelay: 200,
+              maxDelay: 1e3
+            });
+            const btn = findButtonPostCommentJustPosted(elementJustPosted2);
+            await sleep(random(1e3, 3e3) + random(100, 1e3));
+            if (btn) {
+              btn.click();
+            } else {
+              textBox.dispatchEvent(
+                new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+              );
+              textBox.dispatchEvent(
+                new KeyboardEvent("keyup", { key: "Enter", bubbles: true })
+              );
+            }
+            await sleep(random(2e3, 4e3) + random(100, 1e3));
+          }
+        } catch (error) {
+          throw error;
+        }
+      }
       if (elementJustPosted) {
         const textBox = findTextBoxJustPosted(elementJustPosted);
-        await sleep(1e3);
-        textBox.scrollIntoView({ behavior: "smooth", block: "center" });
-        await sleep(random(1, 5) * 1e3);
-        textBox.focus();
-        await sleep(random(1, 3) * 1e3);
-        const content = data.listContent[random(0, data.listContent.length - 1)];
         if (textBox) {
-          await simulateTyping(textBox, content, {
-            minDelay: 200,
-            maxDelay: 1e3
-          });
-          const btn = findButtonPostCommentJustPosted(elementJustPosted);
-          if (btn) {
-            await sleep(random(1, 3) * 1e3);
-            btn.click();
-          } else {
-            textBox.dispatchEvent(
-              new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
-            );
-            textBox.dispatchEvent(
-              new KeyboardEvent("keyup", { key: "Enter", bubbles: true })
-            );
-            await sleep(random(2, 3) * 1e3);
+          await sleep(random(1, 2) * 1e3);
+          textBox.scrollIntoView({ behavior: "smooth", block: "center" });
+          await sleep(random(1, 5) * 1e3);
+          textBox.focus();
+          await sleep(random(1, 3) * 1e3);
+          for (let i = 0; i < data.numberComment; i++) {
+            await typeAndSubmit(textBox, elementJustPosted);
+            await sleep(random(1e3, 2e3));
           }
         }
       }
+      const timeClick = 3;
+      const timeType = data.numberComment * 8;
+      const timeCheckDialog = cnt * 1;
+      const timeDelay = timeClick + timeType + timeCheckDialog;
+      await CL_setTimeDelayForScheduler(timeDelay * 1e3);
     } catch (error) {
       logError("Error at commentToJustPostedHelper: ", error);
       CL_addLogRequest({

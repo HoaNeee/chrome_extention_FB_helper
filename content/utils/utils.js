@@ -1,10 +1,11 @@
 import {
+  KEY_ADD_TIME_DELAY_FOR_SCHEDULER,
   KEY_GET_KEY_SAVED,
   KEY_SET_KEY_SAVED,
 } from "../../contants/constant-extention.js";
 import { KEY_LANGUAGE } from "../../contants/contants.js";
 import { logError } from "../../utils/utils.js";
-import { sendMessageWithResponse } from "./request.js";
+import { sendMessage, sendMessageWithResponse } from "./request.js";
 
 function getIsMatchUrl(url) {
   if (!url) return false;
@@ -59,4 +60,26 @@ async function CL_getTextWithLang({ viText, enText } = {}) {
   }
 }
 
-export { getIsMatchUrl, CL_getValue, CL_setValue, CL_getTextWithLang };
+/**
+ * Set delay comment time for scheduler
+ * @param {number} timeDelay
+ */
+async function CL_setTimeDelayForScheduler(timeDelay) {
+  try {
+    await sendMessage(KEY_ADD_TIME_DELAY_FOR_SCHEDULER, {
+      timeDelay: timeDelay,
+    });
+    return true;
+  } catch (error) {
+    logError("Error CL_setTimeDelayCommentForScheduler: ", error);
+    return false;
+  }
+}
+
+export {
+  getIsMatchUrl,
+  CL_getValue,
+  CL_setValue,
+  CL_getTextWithLang,
+  CL_setTimeDelayForScheduler,
+};

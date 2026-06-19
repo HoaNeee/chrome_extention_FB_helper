@@ -14,8 +14,8 @@ import { CL_addLogRequest } from "../utils/request";
 import { findElement, findElementFeedInGroup, waitForElement } from "./dom";
 import {
   CL_getAllDataGroupsOfUser,
-  CL_getDecidedInteractBeforePost,
   CL_getIsScrollDetectListGroup,
+  CL_getMetadataInteractBeforePost,
   CL_getStopTool,
   CL_setDecidedInteractBeforePost,
 } from "../utils/storage";
@@ -265,7 +265,10 @@ function findPopupAndReact() {
 
 async function interactBeforePost() {
   try {
-    const canInteract = await CL_getDecidedInteractBeforePost();
+    const metadataInteractBeforePost = await CL_getMetadataInteractBeforePost();
+
+    const canInteract = metadataInteractBeforePost?.canInteract || false;
+    const maxPost = metadataInteractBeforePost?.maxPost || 0;
 
     if (!canInteract) {
       return;
@@ -277,7 +280,7 @@ async function interactBeforePost() {
 
     let divFeed = await findElementFeedInGroup();
     if (divFeed) {
-      const randomLengthReact = random(1, 5);
+      const randomLengthReact = random(1, maxPost);
       let numberScroll = randomLengthReact * 2;
 
       while (numberScroll > 0) {

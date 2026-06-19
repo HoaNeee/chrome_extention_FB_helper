@@ -4,7 +4,10 @@ import { createPanelTabGroup } from "./src/draw_element/panel-data-group-tab.js"
 import { addLog, createPanelLog } from "./src/draw_element/panel-log.js";
 import { createPanelSetting } from "./src/draw_element/panel-setting-tab.js";
 import { createPanel } from "./src/draw_element/panel-dashboard.js";
-import { addAllEvtTooltipForElement } from "./src/helpers/elementDom.js";
+import {
+  addAllEvtTooltipForElement,
+  addCssForTextarea,
+} from "./src/helpers/elementDom.js";
 import { initialData, initialFastAndFirst } from "./src/helpers/initial.js";
 import { initialTheme } from "./src/services/storage-service.js";
 import addValueChangeListener from "./src/listener/addValueChangeListener.js";
@@ -70,6 +73,9 @@ async function main() {
             tabValue,
             displayValue: tabValue === "dashboard" ? "flex" : "block",
           });
+          if (tabValue === "settings-advanced") {
+            addCssForTextarea();
+          }
         });
       });
     }
@@ -89,6 +95,7 @@ async function main() {
     });
 
     addAllEvtTooltipForElement();
+    addCssForTextarea();
 
     //test api
     //at spring u need config cors for web
@@ -128,6 +135,12 @@ function getTitleByTabValue(tabValue) {
       return getTextWithLanguage({ vi: "Cài đặt", en: "Settings" });
     case "groups":
       return getTextWithLanguage({ vi: "Danh sách nhóm", en: "Groups" });
+    case "settings-advanced":
+      return getTextWithLanguage({
+        vi: "Cài đặt nâng cao",
+        en: "Advanced Settings",
+      });
+
     default:
       return "";
   }

@@ -1,7 +1,5 @@
 import { KEY_SCHEDULER_ALARMS } from "../../../contants/constant-extention.js";
 import {
-  KEY_IS_RANDOM_TIME_POST,
-  KEY_IS_SPAMMED,
   KEY_IS_SPECIAL_FRAME_HOURS,
   KEY_SCHEDULER,
   KEY_SPECIAL_FRAME_HOURS,
@@ -10,34 +8,32 @@ import { now, logActions, logError, random } from "../../../utils/utils.js";
 import { addLog } from "../draw_element/panel-log.js";
 import {
   createSchedulerDailyHours,
+  getCorrectNextTime,
   getNextTimePost,
   getNextTimePostWhenSpammed,
 } from "../helpers/scheduler.js";
 
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import {
+  getIsRandomTimePost,
   getIsSpammedInStorage,
+  getTimeDelayForScheduler,
   setIsSpammedInStorage,
+  setTimeDelayForScheduler,
 } from "./storage-service.js";
 
 async function createSchedulerAuto(forceTime = 0) {
   try {
     const scheduler = await getSchedulerService();
     const isScheduler = scheduler?.isScheduler || false;
-    const isRandomTimePost =
-      (await DB_getValue(KEY_IS_RANDOM_TIME_POST)) || false;
+    const isRandomTimePost = await getIsRandomTimePost();
     const randomMinutes = isRandomTimePost ? random(-2, 2) * 1000 * 60 : 0;
     if (isScheduler) {
       let nextTime = 0;
       if (forceTime) {
         nextTime = forceTime;
       } else {
-        const isSpammed = await DB_getValue(KEY_IS_SPAMMED);
-        if (isSpammed) {
-          nextTime = await getNextTimePostWhenSpammed();
-        } else {
-          nextTime = await getNextTimePost();
-        }
+        nextTime = await getCorrectNextTime();
       }
       nextTime = nextTime + randomMinutes;
       chrome.alarms.create(KEY_SCHEDULER_ALARMS, {
@@ -171,11 +167,18 @@ async function clearAndCreateSchedulerAlarm() {
       isSpammed = false;
     }
 
+    const timeDelay = await getTimeDelayForScheduler();
+
     timeoutId = setTimeout(() => {
-      createSchedulerAuto(isSpammed ? timeSpammed : time);
+      createSchedulerAuto(isSpammed ? timeSpammed : time + timeDelay);
+      setTimeDelayForScheduler(0);
     }, 2000);
   } catch (error) {
     logError("Error clearAndCreateSchedulerAlarm:", error);
+    addLog({
+      vi: `Lỗi khi tạo bộ lập lịch tự động, ${error}`,
+      en: `Error create scheduler auto, ${error}`,
+    });
   }
 }
 

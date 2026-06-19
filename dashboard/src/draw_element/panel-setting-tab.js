@@ -11,7 +11,6 @@ import {
   KEY_IS_SPAMMED,
   KEY_IS_SPECIAL_FRAME_HOURS,
   KEY_IS_TEST,
-  KEY_MAX_GROUP_PER_TIME,
   prefix,
 } from "../../../contants/contants.js";
 import {
@@ -27,6 +26,7 @@ import {
   getCorrectNextTime,
   getListFrameHours,
   getSchedulerWithType,
+  logSchedulerHelper,
 } from "../helpers/scheduler.js";
 import {
   getTimeDelayInStorage,
@@ -159,7 +159,7 @@ async function createPanelSetting(anchorElem = document.body) {
                 <label for="${prefix}input-custom-minutes" style="font-size: 11px">${getTextWithLanguage({ vi: "Nhập tùy chỉnh mỗi phút", en: "Enter custom every minutes" })}: </label>
                 <input min="1"  type="number" id="${prefix}input-custom-minutes" class="${prefix}input-outline not-style" placeholder="Ex: 1,5,10,...">
                 <div style="text-align: right;">
-                  <button class="not-style" style="padding: 4px; font-size: 12px; " id="${prefix}btn-save-custom-minutes">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
+                  <button class="not-style" style="padding: 6px 12px; font-size: 12px; " id="${prefix}btn-save-custom-minutes">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
                 </div>
               </div>
             </div>
@@ -168,7 +168,7 @@ async function createPanelSetting(anchorElem = document.body) {
                 <label for="${prefix}input-custom-hours" style="font-size: 11px">${getTextWithLanguage({ vi: "Nhập tùy chỉnh mỗi giờ", en: "Enter custom every hours" })}: </label>
                 <input min="1"  type="number" id="${prefix}input-custom-hours" class="${prefix}input-outline not-style" placeholder="Ex: 1,2,3,...">
                 <div style="text-align: right;">
-                  <button class="not-style" style="padding: 4px; font-size: 12px; " id="${prefix}btn-save-custom-hours">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
+                  <button class="not-style" style="padding: 6px 12px; font-size: 12px; " id="${prefix}btn-save-custom-hours">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
                 </div>
               </div>
             </div>
@@ -201,7 +201,7 @@ async function createPanelSetting(anchorElem = document.body) {
 
     const timeDelayHTML = `
       <div class="${prefix}section">
-        <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt thời gian chờ (sẽ cộng trừ một vài đơn vị)", en: "Delay Settings (will add or subtract a few units)" })}</h2>
+        <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt thời gian chờ khi đăng bài (sẽ cộng trừ một vài đơn vị)", en: "Delay Settings for posting (will add or subtract a few units)" })}</h2>
         <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px">
           <div class="${prefix}field-container">
             <label for="${prefix}input-delay-click-to-post" style="font-size: 13px">${getTextWithLanguage({ vi: "Chọn thời gian chờ nhấn nút hiển thị hộp thoại đăng", en: "Enter delay click to post" })} (${getTextWithLanguage({ vi: "Giây", en: "Seconds" })}): </label>
@@ -936,13 +936,8 @@ async function createPanelSetting(anchorElem = document.body) {
                   en: "Turn off scheduler auto",
                 });
               } else {
-                const nextTime = await getCorrectNextTime();
-                const date = new Date(nextTime).toLocaleString();
-                addLog({
-                  vi: `Chức năng lên lịch tự động đã được bật, thời gian đăng tiếp theo ${date}`,
-                  en: `Turn on scheduler auto, next time ${date}`,
-                });
-                clearAndCreateSchedulerAlarm();
+                await clearAndCreateSchedulerAlarm();
+                await logSchedulerHelper();
               }
             } catch (error) {
               logError("Error at checkboxIsScheduler: ", error);

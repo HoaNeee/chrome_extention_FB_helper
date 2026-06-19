@@ -22,6 +22,10 @@ async function getListCommentWhenPostSuccessService() {
   return contents;
 }
 
+/**
+ *
+ * @param {boolean} b
+ */
 async function setIsCommentWhenPostSuccessService(b = false) {
   DB_setValue(KEY_COMMENT_WHEN_POST_SUCCESS.IS_ACTIVE, b);
 }
@@ -39,13 +43,31 @@ async function setListCommentWhenPostSuccessService(content) {
 
 /**
  * Get all metadata comments
- * @returns {Promise<{listContent: string[], isActive: boolean}>}
+ * @returns {Promise<{listContent: string[], isActive: boolean, maxComment: number}>}
  */
 async function getAllMetadataComments() {
   const listContent = await getListCommentWhenPostSuccessService();
   const isActive = await getIsCommentWhenPostSuccessService();
+  const maxComment = await getMaxCommentPerTimeService();
+  return { listContent, isActive, maxComment };
+}
 
-  return { listContent, isActive };
+/**
+ * Get max comment per time
+ * @returns {Promise<number>}
+ */
+async function getMaxCommentPerTimeService() {
+  return (
+    (await DB_getValue(KEY_COMMENT_WHEN_POST_SUCCESS.MAX_COMMENT_PER_TIME)) || 1
+  );
+}
+
+/**
+ * Set max comment per time
+ * @param {number} max
+ */
+async function setMaxCommentPerTimeService(max) {
+  DB_setValue(KEY_COMMENT_WHEN_POST_SUCCESS.MAX_COMMENT_PER_TIME, max);
 }
 
 export {
@@ -54,4 +76,6 @@ export {
   setIsCommentWhenPostSuccessService,
   setListCommentWhenPostSuccessService,
   getAllMetadataComments,
+  getMaxCommentPerTimeService,
+  setMaxCommentPerTimeService,
 };

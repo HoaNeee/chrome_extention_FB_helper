@@ -54,6 +54,12 @@ const KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST = {
   GET_ALL_METADATA: "get_all_metadata_comment_when_post_success",
 };
 
+const KEY_INTERACT_BEFORE_POST_REQUEST = {
+  GET_ALL_METADATA: "get_all_metadata_interact_before_post",
+};
+
+const KEY_ADD_TIME_DELAY_FOR_SCHEDULER = "update_time_delay_for_scheduler";
+
 export {
   KEY_NOTIFICATION,
   KEY_OPEN_IN_TAB,
@@ -84,4 +90,6 @@ export {
   KEY_SET_KEY_SAVED,
   KEY_CLOSE_THIS_WINDOW,
   KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST,
+  KEY_ADD_TIME_DELAY_FOR_SCHEDULER,
+  KEY_INTERACT_BEFORE_POST_REQUEST,
 };

@@ -9,11 +9,16 @@ import {
   random,
   randomRateBoolean,
 } from "../../../utils/utils.js";
+import { addLog } from "../draw_element/panel-log.js";
 import {
+  getIsScheduler,
   getSchedulerService,
   setSchedulerService,
 } from "../services/scheduler-service.js";
-import { getIsSpammedInStorage } from "../services/storage-service.js";
+import {
+  getIsSpammedInStorage,
+  getTimeDelayForScheduler,
+} from "../services/storage-service.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 
 /**
@@ -329,15 +334,43 @@ async function getNextTimePostWhenSpammed() {
 async function getCorrectNextTime() {
   try {
     const isSpammed = await getIsSpammedInStorage();
+    let nextTime = 0;
     if (isSpammed) {
-      return await getNextTimePostWhenSpammed();
+      nextTime = await getNextTimePostWhenSpammed();
+    } else {
+      const timeDelay = await getTimeDelayForScheduler();
+      nextTime = (await getNextTimePost()) + timeDelay;
     }
-    return await getNextTimePost();
+
+    return nextTime;
   } catch (error) {
     logError("Error at getCorrectNextTime method: ", error);
     return null;
   }
 }
+
+async function logSchedulerHelper() {
+  try {
+    const isScheduler = await getIsScheduler();
+    if (isScheduler) {
+      const nextTime = await getCorrectNextTime();
+      const date = new Date(nextTime);
+      let text_vi = "Đăng bài tự động theo lịch trình đang được bật";
+      let text_en = "Auto posting schedule is enabled";
+
+      text_vi += `, thời gian đăng bài tiếp theo trong bộ lịch: ${date.toLocaleString()}`;
+      text_en += `, the next posting time in schedule: ${date.toLocaleString()}`;
+
+      addLog({
+        vi: text_vi,
+        en: text_en,
+      });
+    }
+  } catch (error) {
+    logError("Error at logSchedulerHelper method: ", error);
+  }
+}
+
 export {
   checkScheduler,
   getListFrameHours,
@@ -350,4 +383,5 @@ export {
   shuffleTimes,
   getNextTimePostWhenSpammed,
   getCorrectNextTime,
+  logSchedulerHelper,
 };

@@ -28,8 +28,8 @@ import {
   MAX_GROUP_PER_TIME_INITIAL,
   KEY_CURRENT_COUNT_POSTED,
   KEY_COUNT_BATCH_POST,
-  KEY_IS_INTERACT_BEFORE_POST,
-  KEY_DECIDED_INTERACT_BEFORE_POST,
+  KEY_TIME_DELAY_FOR_SCHEDULER,
+  KEY_INTERACT_BEFORE_POST,
 } from "../../../contants/contants.js";
 import {
   getAllGroupPostedsInStorage,
@@ -499,28 +499,61 @@ async function setIsShuffleSchedulerTimeInStorage(b = false) {
  * @param {boolean} b The setting for whether the extension is in random scheduler time mode
  */
 async function setIsInteractBeforePostInStorage(b = false) {
-  DB_setValue(KEY_IS_INTERACT_BEFORE_POST, b);
+  DB_setValue(KEY_INTERACT_BEFORE_POST.IS_ACTIVE, b);
 }
 
 /**
  * @returns {Promise<boolean>} The setting for whether the extension is in random scheduler time mode, defaulting to false if not set
  */
 async function getIsInteractBeforePostInStorage() {
-  return (await DB_getValue(KEY_IS_INTERACT_BEFORE_POST)) || false;
+  return (await DB_getValue(KEY_INTERACT_BEFORE_POST.IS_ACTIVE)) || false;
 }
 
 /**
  * @param {boolean} isDecided The setting for whether the extension is in random scheduler time mode
  */
 async function setDecidedInteractBeforePostInStorage(isDecided) {
-  DB_setValue(KEY_DECIDED_INTERACT_BEFORE_POST, isDecided);
+  DB_setValue(KEY_INTERACT_BEFORE_POST.DECIDED_INTERACT, isDecided);
 }
 
 /**
  * @returns {Promise<boolean>} The setting for whether the extension is in random scheduler time mode, defaulting to false if not set
  */
 async function getDecidedInteractBeforePostInStorage() {
-  return (await DB_getValue(KEY_DECIDED_INTERACT_BEFORE_POST)) || false;
+  return (
+    (await DB_getValue(KEY_INTERACT_BEFORE_POST.DECIDED_INTERACT)) || false
+  );
+}
+
+/**
+ * @returns {Promise<number>} The time delay for scheduler
+ */
+async function getTimeDelayForScheduler() {
+  return (await DB_getValue(KEY_TIME_DELAY_FOR_SCHEDULER)) || 0;
+}
+
+/**
+ * @param {number} timeDelay The time delay for scheduler
+ */
+async function setTimeDelayForScheduler(timeDelay) {
+  await DB_setValue(KEY_TIME_DELAY_FOR_SCHEDULER, timeDelay);
+}
+
+/**
+ * @returns {Promise<number>} The max post interact, defaulting to 0 if not set
+ */
+async function getMaxPostInteractInStorage() {
+  return (await DB_getValue(KEY_INTERACT_BEFORE_POST.MAX_POST_INTERACT)) || 0;
+}
+
+/**
+ * @param {number} maxPostInteract The max post interact
+ */
+async function setMaxPostInteractInStorage(maxPostInteract) {
+  await DB_setValue(
+    KEY_INTERACT_BEFORE_POST.MAX_POST_INTERACT,
+    maxPostInteract,
+  );
 }
 
 export {
@@ -577,4 +610,8 @@ export {
   getIsInteractBeforePostInStorage,
   getDecidedInteractBeforePostInStorage,
   setDecidedInteractBeforePostInStorage,
+  getTimeDelayForScheduler,
+  setTimeDelayForScheduler,
+  getMaxPostInteractInStorage,
+  setMaxPostInteractInStorage,
 };

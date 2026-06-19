@@ -1,12 +1,13 @@
 import {
   KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST,
   KEY_GET_KEY_SAVED,
+  KEY_INTERACT_BEFORE_POST_REQUEST,
   KEY_SET_KEY_SAVED,
 } from "../../contants/constant-extention";
 import {
   initialTimeDelay,
   KEY_ALL_GROUPS,
-  KEY_DECIDED_INTERACT_BEFORE_POST,
+  KEY_INTERACT_BEFORE_POST,
   KEY_IS_IN_PROGRESS,
   KEY_IS_SCROLL_DETECT_LIST_GROUP,
   KEY_IS_TEST,
@@ -125,6 +126,7 @@ async function CL_getIsScrollDetectListGroup() {
  * @returns {Promise<{
  * listContent: string[],
  * isActive: boolean,
+ * numberComment: number
  * }>>}
  */
 async function CL_getMetadataComments() {
@@ -132,7 +134,9 @@ async function CL_getMetadataComments() {
     const response = await sendMessageWithResponse(
       KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST.GET_ALL_METADATA,
     );
-    return response.data || { listContent: [], isActive: false };
+    return (
+      response.data || { listContent: [], isActive: false, numberComment: 0 }
+    );
   } catch (error) {
     CL_addLogRequest({
       vi: error || "Lỗi khi lấy dữ liệu bình luận",
@@ -145,11 +149,11 @@ async function CL_getMetadataComments() {
 /**
  * @returns {Promise<boolean>}
  */
-async function CL_getDecidedInteractBeforePost() {
+async function CL_getMetadataInteractBeforePost() {
   try {
-    const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
-      key: KEY_DECIDED_INTERACT_BEFORE_POST,
-    });
+    const response = await sendMessageWithResponse(
+      KEY_INTERACT_BEFORE_POST_REQUEST.GET_ALL_METADATA,
+    );
     return response.data || false;
   } catch (error) {
     CL_addLogRequest({
@@ -163,7 +167,7 @@ async function CL_getDecidedInteractBeforePost() {
 async function CL_setDecidedInteractBeforePost(value) {
   try {
     await sendMessageWithResponse(KEY_SET_KEY_SAVED, {
-      key: KEY_DECIDED_INTERACT_BEFORE_POST,
+      key: KEY_INTERACT_BEFORE_POST.DECIDED_INTERACT,
       value,
     });
   } catch (error) {
@@ -182,6 +186,6 @@ export {
   CL_getAllDataGroupsOfUser,
   CL_getIsScrollDetectListGroup,
   CL_getMetadataComments,
-  CL_getDecidedInteractBeforePost,
+  CL_getMetadataInteractBeforePost,
   CL_setDecidedInteractBeforePost,
 };

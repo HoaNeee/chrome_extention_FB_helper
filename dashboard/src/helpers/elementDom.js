@@ -164,6 +164,12 @@ function getAllFieldsAdvancedSetting(root = document) {
   const checkboxIsInteractBeforePost = root.querySelector(
     `#${prefix}checkbox-is-interact-before-post`,
   );
+  const inputMaxCommentPerTime = root.querySelector(
+    `#${prefix}input-max-comment-per-time`,
+  );
+  const inputMaxPostInteract = root.querySelector(
+    `#${prefix}input-max-post-interact`,
+  );
 
   function getIsCommentWhenPostSuccess() {
     return checkboxIsCommentWhenPostSuccess.checked;
@@ -189,6 +195,22 @@ function getAllFieldsAdvancedSetting(root = document) {
     checkboxIsInteractBeforePost.checked = val;
   }
 
+  function getMaxCommentPerTime() {
+    return parseInt(inputMaxCommentPerTime.value) || 1;
+  }
+
+  function setMaxCommentPerTime(val) {
+    inputMaxCommentPerTime.value = val;
+  }
+
+  function getMaxPostInteract() {
+    return parseInt(inputMaxPostInteract.value) || 1;
+  }
+
+  function setMaxPostInteract(val) {
+    inputMaxPostInteract.value = val;
+  }
+
   return {
     getIsCommentWhenPostSuccess: getIsCommentWhenPostSuccess,
     getKeyWordsComment: getKeyWordsComment,
@@ -196,6 +218,10 @@ function getAllFieldsAdvancedSetting(root = document) {
     setKeyWordsComment: setKeyWordsComment,
     getIsInteractBeforePost: getIsInteractBeforePost,
     setIsInteractBeforePost: setIsInteractBeforePost,
+    getMaxCommentPerTime: getMaxCommentPerTime,
+    setMaxCommentPerTime: setMaxCommentPerTime,
+    getMaxPostInteract: getMaxPostInteract,
+    setMaxPostInteract: setMaxPostInteract,
   };
 }
 
@@ -447,6 +473,21 @@ function addAllEvtTooltipForElement() {
         en: "Only active when posting, it is the delay time after posting the article and before preparing to open a new tab, before preparing to interact with that tab (if needed)",
       }),
     });
+
+    findLabelSetedUpAndAddTippy({
+      selector: "tm_checkbox-is-comment-when-post-success",
+      content: getTextWithLanguage({
+        vi: "Khi bật tùy chọn này, tiện ích sẽ tự động bình luận vào bài viết của chính bạn sau khi đăng bài thành công (ngẫu nhiên bài viết), hãy cài đặt số bình luận tối đa, và các nội dung cần bình luận vào viết, tiện ích sẽ chọn ngẫu nhiên nội mỗi lần bình luận. Hãy chú ý thời gian trễ với bộ lịch",
+        en: "When this option is enabled, the utility will automatically comment on your own post after successfully posting (random post). Please set the maximum number of comments and the content to be commented on. The utility will randomly select the content each time it comments. Please pay attention to the time delay with the schedule",
+      }),
+    });
+    findLabelSetedUpAndAddTippy({
+      selector: "tm_checkbox-is-interact-before-post",
+      content: getTextWithLanguage({
+        vi: "Khi bật tùy chọn này, tiện ích sẽ tự động tương tác (Thích) trước khi đợt đăng diễn ra để tránh bị phát hiện là máy, ngẫu nhiên đợt đăng sẽ tương tác, hãy cài đặt số bài viết tối đa cần tương tác",
+        en: "When this option is enabled, the utility will automatically interact (like) before the posting batch takes place to avoid being detected as a machine, randomly the posting batch will interact. Please set the maximum number of posts to interact.",
+      }),
+    });
   } catch (error) {
     logError("Error at addAllTooltipForElement", error);
   }
@@ -490,6 +531,33 @@ function addTippy(selector, content, appendTo = document.body) {
   }
 }
 
+function addCssForTextarea() {
+  const textareaElements = document.querySelectorAll("textarea.auto-stretch");
+
+  textareaElements.forEach((textarea) => {
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + 2 + "px";
+
+    const MAX_HEIGHT = 200;
+
+    if (textarea.scrollHeight >= MAX_HEIGHT) {
+      textarea.style.overflowY = "auto";
+    } else {
+      textarea.style.overflowY = "hidden";
+    }
+
+    textarea.addEventListener("input", function () {
+      this.style.height = "auto";
+      this.style.height = this.scrollHeight + 2 + "px";
+      if (this.scrollHeight >= MAX_HEIGHT) {
+        this.style.overflowY = "auto";
+      } else {
+        this.style.overflowY = "hidden";
+      }
+    });
+  });
+}
+
 export {
   getAllFieldsSetting,
   disabledElement,
@@ -502,4 +570,5 @@ export {
   addAllEvtTooltipForElement,
   findLabelSetedUpAndAddTippy,
   getAllFieldsAdvancedSetting,
+  addCssForTextarea,
 };

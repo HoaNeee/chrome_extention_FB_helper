@@ -39,6 +39,7 @@ body.light {
   --tm-bg-tabs-active: #ffffff;
   --tm-bg-scrollbar: #d1d5db;
   --tm-bg-dialog: #ffffff;
+  --tm-text-placeholder: #9ca3af;
 }
 
 /*
@@ -62,6 +63,7 @@ body.dark {
   --tm-bg-tabs-active: #3f3f46;
   --tm-bg-scrollbar: #52525b;
   --tm-bg-dialog: #2a2a2a;
+  --tm-text-placeholder: #71717a;
 }
 
 body {
@@ -284,6 +286,11 @@ select {
   outline: none;
 }
 
+#tm_root input::placeholder,
+#tm_root textarea::placeholder {
+  color: var(--tm-text-placeholder);
+}
+
 input:focus,
 textarea:focus,
 select:focus {
@@ -321,6 +328,18 @@ label {
   color: var(--tm-text-primary);
   font-weight: 500;
   font-size: 14px;
+}
+
+.tm_field-container textarea {
+  flex: 1;
+  min-height: 70px;
+  padding: 8px 4px;
+}
+
+.tm_field-container textarea.auto-stretch {
+  overflow: hidden;
+  resize: none;
+  max-height: 200px;
 }
 
 #tm_root h3,
