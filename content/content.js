@@ -1209,6 +1209,9 @@
       }
       let cnt = 0;
       while (getIsExistDialog() && cnt < 30) {
+        if (checkIsSpammed()) {
+          break;
+        }
         await sleep(1e3);
         ++cnt;
       }

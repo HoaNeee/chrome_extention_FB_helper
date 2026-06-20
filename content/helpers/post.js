@@ -24,6 +24,7 @@ import {
   sleep,
 } from "../../utils/utils.js";
 import {
+  checkIsSpammed,
   eventClickElement,
   findButtonPostAndClick,
   findButtonPostCommentJustPosted,
@@ -337,6 +338,9 @@ async function commentToJustPostedHelper() {
 
     let cnt = 0;
     while (getIsExistDialog() && cnt < 30) {
+      if (checkIsSpammed()) {
+        break;
+      }
       await sleep(1000);
       ++cnt;
     }
