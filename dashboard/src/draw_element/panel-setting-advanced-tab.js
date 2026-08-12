@@ -1,15 +1,15 @@
 import { prefix } from "../../../contants/contants.js";
-import { getTextWithLanguage, logError } from "../../../utils/utils.js";
 import {
-  setIsCommentWhenPostSuccessService,
   setListCommentWhenPostSuccessService,
   setMaxCommentPerTimeService,
-} from "../services/comment-service.js";
+} from "../../../services/comment-service.js";
+import { setMaxPostInteractService } from "../../../services/interact-before-post-service.js";
 import {
-  getProgress,
-  setIsInteractBeforePostInStorage,
-  setMaxPostInteractInStorage,
-} from "../services/storage-service.js";
+  setIsCommentWhenPostSuccessData,
+  setIsInteractBeforePostData,
+} from "../../../services/setting-service.js";
+import { getProgress } from "../../../services/storage-service.js";
+import { getTextWithLanguage, logError } from "../../../utils/utils.js";
 import { showNotify } from "./notify.js";
 import { addLog } from "./panel-log.js";
 
@@ -76,31 +76,34 @@ async function createPanelAdvancedSetting(anchorElem = document.body) {
       const buttonSaveKeywordCommentWhenPostSuccess = document.getElementById(
         `${prefix}btn-save-keyword-comment-when-post-success`,
       );
-      buttonSaveKeywordCommentWhenPostSuccess.addEventListener("click", () => {
-        try {
-          const inputKeyword = anchorElem.querySelector(
-            `#${prefix}input-keyword-comment-when-post-success`,
-          );
-          const keyword = inputKeyword.value?.trim();
-          setListCommentWhenPostSuccessService(keyword);
-          showNotify({
-            message: getTextWithLanguage({
-              vi: "Lưu bình luận thành công",
-              en: "Save comment success",
-            }),
-            type: "success",
-          });
-        } catch (error) {
-          logError("Error at buttonSaveKeywordCommentWhenPostSuccess", error);
-          showNotify({
-            message: getTextWithLanguage({
-              vi: "Lưu bình luận thất bại",
-              en: "Save comment failed",
-            }),
-            type: "error",
-          });
-        }
-      });
+      buttonSaveKeywordCommentWhenPostSuccess.addEventListener(
+        "click",
+        async () => {
+          try {
+            const inputKeyword = anchorElem.querySelector(
+              `#${prefix}input-keyword-comment-when-post-success`,
+            );
+            const keyword = inputKeyword.value?.trim();
+            setListCommentWhenPostSuccessService(keyword);
+            showNotify({
+              message: getTextWithLanguage({
+                vi: "Lưu bình luận thành công",
+                en: "Save comment success",
+              }),
+              type: "success",
+            });
+          } catch (error) {
+            logError("Error at buttonSaveKeywordCommentWhenPostSuccess", error);
+            showNotify({
+              message: getTextWithLanguage({
+                vi: "Lưu bình luận thất bại",
+                en: "Save comment failed",
+              }),
+              type: "error",
+            });
+          }
+        },
+      );
 
       const buttonSaveMaxCommentPerTime = document.getElementById(
         `${prefix}btn-save-max-comment-per-time`,
@@ -145,14 +148,14 @@ async function createPanelAdvancedSetting(anchorElem = document.body) {
       const buttonSaveMaxPostInteract = document.getElementById(
         `${prefix}btn-save-max-post-interact`,
       );
-      buttonSaveMaxPostInteract.addEventListener("click", () => {
+      buttonSaveMaxPostInteract.addEventListener("click", async () => {
         try {
           const inputMaxPostInteract = anchorElem.querySelector(
             `#${prefix}input-max-post-interact`,
           );
           const maxPostInteract = inputMaxPostInteract.value?.trim();
           if (maxPostInteract) {
-            setMaxPostInteractInStorage(Number(maxPostInteract));
+            await setMaxPostInteractService(Number(maxPostInteract));
           } else {
             showNotify({
               message: getTextWithLanguage({
@@ -174,8 +177,8 @@ async function createPanelAdvancedSetting(anchorElem = document.body) {
           logError("Error at buttonSaveMaxPostInteract", error);
           showNotify({
             message: getTextWithLanguage({
-              vi: "Lưu số lượng bài viết tối đa cần tương tác thất bại",
-              en: "Save max post interact failed",
+              vi: "Đã có lỗi xảy ra",
+              en: "Something went wrong",
             }),
             type: "error",
           });
@@ -189,22 +192,46 @@ async function createPanelAdvancedSetting(anchorElem = document.body) {
       );
       checkboxIsCommentWhenPostSuccess.addEventListener("change", async (e) => {
         const isComment = e.target.checked;
-        setIsCommentWhenPostSuccessService(isComment);
-        const isProgress = await getProgress();
-        if (isProgress) {
-          addLog({
-            vi: `Tính năng bình luận sau khi đăng bài đã được ${isComment ? "bật" : "tắt"}`,
-            en: `The function of commenting after posting has been ${isComment ? "enabled" : "disabled"}`,
+        try {
+          await setIsCommentWhenPostSuccessData(isComment);
+          const isProgress = await getProgress();
+          if (isProgress) {
+            addLog({
+              vi: `Tính năng bình luận sau khi đăng bài đã được ${isComment ? "bật" : "tắt"}`,
+              en: `The function of commenting after posting has been ${isComment ? "enabled" : "disabled"}`,
+            });
+          }
+        } catch (error) {
+          logError("Error at checkboxIsCommentWhenPostSuccess", error);
+          showNotify({
+            message: getTextWithLanguage({
+              vi: "Đã xảy ra lỗi",
+              en: "Something went wrong",
+            }),
+            type: "error",
           });
+          e.target.checked = !isComment;
         }
       });
 
       const checkboxIsInteractBeforePost = document.getElementById(
         `${prefix}checkbox-is-interact-before-post`,
       );
-      checkboxIsInteractBeforePost.addEventListener("change", (e) => {
+      checkboxIsInteractBeforePost.addEventListener("change", async (e) => {
         const isInteract = e.target.checked;
-        setIsInteractBeforePostInStorage(isInteract);
+        try {
+          await setIsInteractBeforePostData(isInteract);
+        } catch (error) {
+          logError("Error at checkboxIsInteractBeforePost", error);
+          showNotify({
+            message: getTextWithLanguage({
+              vi: "Đã xảy ra lỗi",
+              en: "Something went wrong",
+            }),
+            type: "error",
+          });
+          e.target.checked = !isInteract;
+        }
       });
     }
 

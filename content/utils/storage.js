@@ -36,11 +36,9 @@ async function CL_getIsTest() {
  *
  * @returns {Promise<typeof initialTimeDelay>} The time delay settings from storage, or the initial default if not set
  */
-async function CL_getTimeDelayInStorage() {
+async function CL_getTimeDelayData() {
   try {
-    const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
-      key: KEY_TIME_DELAY,
-    });
+    const response = await sendMessageWithResponse(KEY_TIME_DELAY);
 
     return response.data || initialTimeDelay;
   } catch (error) {
@@ -124,9 +122,9 @@ async function CL_getIsScrollDetectListGroup() {
 /**
  *
  * @returns {Promise<{
- * listContent: string[],
- * isActive: boolean,
- * numberComment: number
+ * contents: string[],
+ * is_active: boolean,
+ * max_comment_per_post: number
  * }>>}
  */
 async function CL_getMetadataComments() {
@@ -134,33 +132,46 @@ async function CL_getMetadataComments() {
     const response = await sendMessageWithResponse(
       KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST.GET_ALL_METADATA,
     );
-    return (
-      response.data || { listContent: [], isActive: false, numberComment: 0 }
-    );
+
+    if (response?.data) {
+      return response.data;
+    }
+    return {
+      contents: [],
+      max_comment_per_post: 0,
+      is_active: false,
+    };
   } catch (error) {
     CL_addLogRequest({
       vi: error || "Lỗi khi lấy dữ liệu bình luận",
       en: error || "Error getting comment data",
     });
-    return { listContent: [], isActive: false };
+    return {
+      contents: [],
+      is_active: false,
+      max_comment_per_post: 0,
+    };
   }
 }
 
 /**
- * @returns {Promise<boolean>}
+ * @returns {Promise<{
+ * max_post_interact_per_batch: number,
+ * can_interact: boolean
+ * }>}
  */
 async function CL_getMetadataInteractBeforePost() {
   try {
     const response = await sendMessageWithResponse(
       KEY_INTERACT_BEFORE_POST_REQUEST.GET_ALL_METADATA,
     );
-    return response.data || false;
+    return response.data || null;
   } catch (error) {
     CL_addLogRequest({
       vi: error || "Lỗi khi lấy trạng thái interact before post",
       en: error || "Error when getting interact before post status",
     });
-    return false;
+    return null;
   }
 }
 
@@ -180,7 +191,7 @@ async function CL_setDecidedInteractBeforePost(value) {
 
 export {
   CL_getIsTest,
-  CL_getTimeDelayInStorage,
+  CL_getTimeDelayData,
   CL_getProgressTool,
   CL_getStopTool,
   CL_getAllDataGroupsOfUser,

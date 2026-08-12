@@ -1,4 +1,4 @@
-function showNotify({ message, type = "info", duration = 3000 }) {
+function showNotify({ message, type = "success", duration = 3000 }) {
   let bgr = "";
   let color = "";
 
@@ -14,6 +14,10 @@ function showNotify({ message, type = "info", duration = 3000 }) {
     case "warning":
       bgr = "#e8f54c";
       color = "#000";
+      break;
+    case "info":
+      bgr = "#007ACC";
+      color = "#fff";
       break;
     default:
       bgr = "#28a745";

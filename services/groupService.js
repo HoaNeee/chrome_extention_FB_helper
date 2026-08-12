@@ -1,17 +1,22 @@
-import { KEY_GET_LIST_GROUPS } from "../../../contants/constant-extention.js";
+import { KEY_GET_LIST_GROUPS } from "../contants/constant-extention.js";
 import {
   KEY_ALL_GROUPS,
   KEY_GROUPS_NEED_POST,
   KEY_GROUPS_POSTED,
-  KEY_STOP_TASK,
   URL_LIST_GROUPS,
-} from "../../../contants/contants.js";
+} from "../contants/contants.js";
+import {
+  getGroupsMatch,
+  updateUIDataGroupPostCheckeds,
+} from "../helpers/group.js";
 import {
   DB_getValue,
   DB_sendMessage,
   DB_setValue,
 } from "../utils/api-helper.js";
-import { logError, now } from "../../../utils/utils.js";
+import { logActions, logError, now } from "../utils/utils.js";
+import { getListDataGroupPostNeedPost } from "./data-group-post-service.js";
+import { getStrictlyMatchTitleGroupData } from "./setting-service.js";
 import { setIsStopTaskInStorage } from "./storage-service.js";
 
 /**
@@ -122,6 +127,62 @@ async function setGroupsNeedPost(list) {
   }
 }
 
+async function updateGroupNeedPosts(forceChange = false) {
+  try {
+    const allGroups = await getAllDataGroupsInStorage();
+
+    const listGroupsNeedPost = await getListDataGroupPostNeedPost();
+
+    const listGroups = allGroups;
+
+    const titleStrictlyMatch = await getStrictlyMatchTitleGroupData();
+    const titleString = titleStrictlyMatch.join(", ");
+    let list = [];
+    for (const data of listGroupsNeedPost) {
+      const id = data.id;
+
+      const title = data.title;
+      const name = data.name || "";
+      const priority = data.priority || 1;
+      const listGroupsMatch = getGroupsMatch({
+        title,
+        listGroups,
+        titleStrictlyMatch: titleString,
+      });
+
+      list.push({
+        id,
+        title,
+        name,
+        priority,
+        groups: listGroupsMatch,
+      });
+    }
+
+    // //sort by groups length asc
+    list = list.sort((a, b) => {
+      if (
+        a.priority !== b.priority &&
+        a.priority !== undefined &&
+        b.priority !== undefined &&
+        a.priority !== null &&
+        b.priority !== null
+      ) {
+        return a.priority - b.priority;
+      }
+      return a.groups.length - b.groups.length;
+    });
+    logActions("update group need posts", list);
+
+    await setGroupsNeedPost(list);
+    await updateUIDataGroupPostCheckeds(null, forceChange);
+    return true;
+  } catch (error) {
+    logError("Error at update group need posts", error);
+    throw error;
+  }
+}
+
 export {
   getListGroupsService,
   setGroupsNeedPost,
@@ -130,4 +191,5 @@ export {
   getListGroupsNeedPostInStorage,
   setAllGroupPostedsInStorage,
   addGroupToGroupsPosted,
+  updateGroupNeedPosts,
 };

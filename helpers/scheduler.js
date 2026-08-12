@@ -1,70 +1,27 @@
 import {
-  KEY_IS_TEST,
   KEY_NEXT_TIME_POST_WHEN_SPAMMED,
   SCHEDULER_TYPE,
-} from "../../../contants/contants.js";
+} from "../contants/contants.js";
 import {
   logActions,
   logError,
   random,
   randomRateBoolean,
-} from "../../../utils/utils.js";
-import { addLog } from "../draw_element/panel-log.js";
+} from "../utils/utils.js";
+import { addLog } from "../dashboard/src/draw_element/panel-log.js";
 import {
-  getIsScheduler,
+  getSchedulerDetail,
   getSchedulerService,
-  setSchedulerService,
 } from "../services/scheduler-service.js";
 import {
-  getIsSpammedInStorage,
+  getIsTestInStorage,
   getTimeDelayForScheduler,
 } from "../services/storage-service.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
-
-/**
- *
- * @param {Array<{h: number, m: number}>} schedulerTimes
- * @param {number|null} hours
- * @param {number|null} minutes
- * @returns
- */
-function checkIsInTime(schedulerTimes, hours, minutes) {
-  if (!hours) {
-    hours = new Date().getHours();
-  }
-
-  if (!minutes) {
-    minutes = new Date().getMinutes();
-  }
-
-  for (const time of schedulerTimes) {
-    if (hours === time.h && minutes === time.m) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-async function checkScheduler() {
-  const scheduler = await getSchedulerService();
-  const date = new Date();
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-
-  switch (scheduler.type) {
-    case SCHEDULER_TYPE.DAILY_HOURS:
-      return checkIsInTime(scheduler.dailyHours, hours, minutes);
-    case SCHEDULER_TYPE.EVERY_MINUTES:
-      return checkIsInTime(scheduler.schedulerMinutes, hours, minutes);
-    case SCHEDULER_TYPE.EVERY_HOURS:
-      return checkIsInTime(scheduler.schedulerHours, hours, minutes);
-    case SCHEDULER_TYPE.FRAME_HOURS:
-      return checkIsInTime(scheduler.frameHours, hours, minutes);
-    default:
-      return false;
-  }
-}
+import {
+  getIsSchedulerData,
+  getIsSpammedData,
+} from "../services/setting-service.js";
 
 async function createSchedulerMinutes(val) {
   // Implementation for creating scheduler minutes
@@ -148,22 +105,12 @@ function createSchedulerDailyHours() {
 }
 
 async function getSchedulerWithType(type) {
-  const scheduler = await getSchedulerService();
   if (!type) {
-    type = scheduler.type;
+    const object = await getSchedulerService();
+    type = object.scheduler_type;
   }
-  switch (type) {
-    case "daily-hours":
-      return scheduler.dailyHours;
-    case "custom-every-minutes":
-      return scheduler.schedulerMinutes;
-    case "custom-every-hours":
-      return scheduler.schedulerHours;
-    case "custom-frame-hours":
-      return scheduler.frameHours;
-    default:
-      return [];
-  }
+  const scheduler = await getSchedulerDetail(type);
+  return scheduler?.scheduler_time_list || [];
 }
 
 function convertFrameHours(val) {
@@ -195,62 +142,6 @@ function convertFrameHours(val) {
   }
 
   return { h: Number(time[0].trim()), m: Number(time[1].trim()) };
-}
-
-function getListFrameHours(strs) {
-  try {
-    if (!strs || typeof strs !== "string") {
-      throw new Error("Invalid value for frame hours");
-    }
-    const times = strs.split(",").map((s) => s.trim());
-    const frameHours = [];
-    for (const time of times) {
-      const { h, m } = convertFrameHours(time);
-      frameHours.push({ h, m });
-    }
-    return frameHours;
-  } catch (error) {
-    throw error;
-  }
-}
-
-async function getNextTimePost() {
-  try {
-    const schedulers = await getSchedulerWithType();
-    if (!schedulers || !schedulers.length) {
-      return null;
-    }
-    const now = Date.now();
-    let ans = null;
-    const oneMinute = 1000 * 60;
-    const isTest = await DB_getValue(KEY_IS_TEST);
-    let diff = oneMinute;
-    if (!isTest) {
-      diff = oneMinute * 4;
-    }
-    for (const time of schedulers) {
-      const t = new Date(new Date().setHours(time.h, time.m, 0, 0)).getTime();
-      if (t > now + diff) {
-        ans = t;
-        break;
-      }
-    }
-    if (!ans) {
-      ans = new Date(new Date().setDate(new Date().getDate() + 1)).setHours(
-        schedulers[0].h,
-        schedulers[0].m,
-        0,
-        0,
-      );
-    }
-    if (!ans) {
-      ans = new Date().getTime() + oneMinute * 60;
-    }
-    return ans;
-  } catch (error) {
-    logError("Error at getNextTimePost: ", error);
-    return null;
-  }
 }
 
 async function shuffleTimes() {
@@ -317,8 +208,72 @@ async function shuffleTimes() {
       } else {
         scheduler.schedulerHours = newTimes;
       }
-      setSchedulerService(scheduler);
+      // setSchedulerService(scheduler);
     }
+  }
+}
+
+async function getNextTimePost() {
+  try {
+    const object = await getSchedulerService();
+    const type = object.scheduler_type;
+
+    const tomorrow = Date.now() + 1000 * 60 * 60 * 24;
+
+    const now = Date.now();
+
+    if (
+      type === SCHEDULER_TYPE.EVERY_HOURS ||
+      type === SCHEDULER_TYPE.EVERY_MINUTES
+    ) {
+      const details = await getSchedulerDetail(type);
+      if (!details) {
+        return tomorrow;
+      }
+      const timeValue = details.scheduler_time_value;
+      if (type === SCHEDULER_TYPE.EVERY_MINUTES) {
+        return now + 1000 * 60 * timeValue;
+      }
+      if (type === SCHEDULER_TYPE.EVERY_HOURS) {
+        return now + 1000 * 60 * 60 * timeValue;
+      }
+      return tomorrow;
+    }
+
+    const schedulers = await getSchedulerWithType(type);
+    if (!schedulers || !schedulers.length) {
+      return tomorrow;
+    }
+
+    let ans = null;
+    const oneMinute = 1000 * 60;
+    const isTest = await getIsTestInStorage();
+    let diff = oneMinute;
+    if (!isTest) {
+      diff = oneMinute * 4;
+    }
+    for (const time of schedulers) {
+      const t = new Date(new Date().setHours(time.h, time.m, 0, 0)).getTime();
+      if (t > now + diff) {
+        ans = t;
+        break;
+      }
+    }
+    if (!ans) {
+      ans = new Date(new Date().setDate(new Date().getDate() + 1)).setHours(
+        schedulers[0].h,
+        schedulers[0].m,
+        0,
+        0,
+      );
+    }
+    if (!ans) {
+      ans = new Date().getTime() + oneMinute * 60;
+    }
+    return ans;
+  } catch (error) {
+    logError("Error at getNextTimePost: ", error);
+    return null;
   }
 }
 
@@ -333,7 +288,7 @@ async function getNextTimePostWhenSpammed() {
 
 async function getCorrectNextTime() {
   try {
-    const isSpammed = await getIsSpammedInStorage();
+    const isSpammed = await getIsSpammedData();
     let nextTime = 0;
     if (isSpammed) {
       nextTime = await getNextTimePostWhenSpammed();
@@ -351,29 +306,27 @@ async function getCorrectNextTime() {
 
 async function logSchedulerHelper() {
   try {
-    const isScheduler = await getIsScheduler();
-    if (isScheduler) {
-      const nextTime = await getCorrectNextTime();
-      const date = new Date(nextTime);
-      let text_vi = "Đăng bài tự động theo lịch trình đang được bật";
-      let text_en = "Auto posting schedule is enabled";
+    const isScheduler = await getIsSchedulerData();
+    if (!isScheduler) return;
 
-      text_vi += `, thời gian đăng bài tiếp theo trong bộ lịch: ${date.toLocaleString()}`;
-      text_en += `, the next posting time in schedule: ${date.toLocaleString()}`;
+    const nextTime = await getCorrectNextTime();
+    const date = new Date(nextTime);
+    let text_vi = "Đăng bài tự động theo lịch trình đang được bật";
+    let text_en = "Auto posting schedule is enabled";
 
-      addLog({
-        vi: text_vi,
-        en: text_en,
-      });
-    }
+    text_vi += `, thời gian đăng bài tiếp theo trong bộ lịch: ${date.toLocaleString()}`;
+    text_en += `, the next posting time in schedule: ${date.toLocaleString()}`;
+
+    addLog({
+      vi: text_vi,
+      en: text_en,
+    });
   } catch (error) {
     logError("Error at logSchedulerHelper method: ", error);
   }
 }
 
 export {
-  checkScheduler,
-  getListFrameHours,
   createSchedulerMinutes,
   createSchedulerHours,
   createSchedulerDailyHours,

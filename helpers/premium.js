@@ -3,8 +3,8 @@ import {
   KEY_IS_RANDOM_BATCH_POST,
   KEY_IS_RANDOM_TIME_POST,
   KEY_IS_SHUFFLE_SCHEDULER_TIME,
-} from "../../../contants/contants.js";
-import { logError } from "../../../utils/utils.js";
+} from "../contants/contants.js";
+import { logError } from "../utils/utils.js";
 import { DB_setValue } from "../utils/api-helper.js";
 import {
   hideElement,

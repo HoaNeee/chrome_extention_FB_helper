@@ -1,4 +1,4 @@
-import { getTextWithLanguage, initLanguage, logError } from "../utils/utils.js";
+import { initLanguage, logError } from "../utils/utils.js";
 import { dialogContainer } from "./src/draw_element/dialog.js";
 import { createPanelTabGroup } from "./src/draw_element/panel-data-group-tab.js";
 import { addLog, createPanelLog } from "./src/draw_element/panel-log.js";
@@ -7,25 +7,32 @@ import { createPanel } from "./src/draw_element/panel-dashboard.js";
 import {
   addAllEvtTooltipForElement,
   addCssForTextarea,
-} from "./src/helpers/elementDom.js";
+} from "../helpers/elementDom.js";
 import { initialData, initialFastAndFirst } from "./src/helpers/initial.js";
-import { initialTheme } from "./src/services/storage-service.js";
 import addValueChangeListener from "./src/listener/addValueChangeListener.js";
-import {
-  getDataSavedInStorage,
-  setDataSavedInStorage,
-} from "./src/services/dataSavedService.js";
 import { createPanelAdvancedSetting } from "./src/draw_element/panel-setting-advanced-tab.js";
+import { changeTab, drawTab } from "./src/draw_element/tab.js";
+import { getSpecialFrameHoursService } from "../services/special-frame-hours-service.js";
+import { DB_getValue, DB_listValues } from "../utils/api-helper.js";
+import { getDeviceSetting } from "../services/setting-service.js";
+import { getSchedulerService } from "../services/scheduler-service.js";
+import {
+  getCommentPostRequest,
+  getListCommentWhenPostSuccessService,
+} from "../services/comment-service.js";
+import { addEvtHeader } from "./src/helpers/header.js";
+import { initialTheme } from "../services/storage-global-service.js";
 
 async function main() {
   try {
+    dialogContainer({ anchorElem: document.body });
+
     await initLanguage();
     await initialTheme();
     await initialFastAndFirst();
+    await addEvtHeader();
 
     const mainElement = document.querySelector("main");
-
-    dialogContainer({ anchorElem: document.body });
 
     const divTab = drawTab();
 
@@ -36,17 +43,22 @@ async function main() {
       root.style.display = "none";
       root.style.pointerEvents = "none";
     }
-    createPanel(mainElement);
-    createPanelLog(mainElement);
-    createPanelSetting(mainElement);
-    createPanelTabGroup(mainElement);
-    createPanelAdvancedSetting(mainElement);
+
+    await Promise.all([
+      createPanel(mainElement),
+      createPanelLog(mainElement),
+      createPanelSetting(mainElement),
+      createPanelTabGroup(mainElement),
+      createPanelAdvancedSetting(mainElement),
+    ]);
+
     await initialData(mainElement);
 
     addValueChangeListener();
 
-    const hash = new URLSearchParams(location.hash);
-    const tabValue = hash.get("#nav");
+    const hashParams = new URLSearchParams(location.hash);
+
+    const tabValue = hashParams.get("#nav");
 
     if (tabValue) {
       changeTab({
@@ -97,113 +109,29 @@ async function main() {
     addAllEvtTooltipForElement();
     addCssForTextarea();
 
-    //test api
-    //at spring u need config cors for web
-
-    //at @RestController
-    // @CrossOrigin(origins = "*")
-    // or at @SpringBootApplication
-    // @CrossOrigin(origins = "*")
-    // fetch("http://localhost:8080/api/products", {
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //     Authorization:
-    //       "Bearer " +
-    //       "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4MDQxNzk3NX0.VxCK3PwOtB1x0zbz6iLPxHpFhzT77LoTcnJd84Dem-c",
-    //   },
-    //   // credentials: "include",
-    // })
-    //   .then((res) => res.json())
-    //   .then((data) => {
-    //     console.log(data);
-    //   })
-    //   .catch((err) => {
-    //     console.log(err);
-    //   });
+    test();
   } catch (error) {
     logError("Error at dashboard main: ", error);
   }
 }
 
-function getTitleByTabValue(tabValue) {
-  switch (tabValue) {
-    case "dashboard":
-      return getTextWithLanguage({ vi: "Bảng điểu khiển", en: "Dashboard" });
-    case "logs":
-      return getTextWithLanguage({ vi: "Nhật ký", en: "Logs" });
-    case "settings":
-      return getTextWithLanguage({ vi: "Cài đặt", en: "Settings" });
-    case "groups":
-      return getTextWithLanguage({ vi: "Danh sách nhóm", en: "Groups" });
-    case "settings-advanced":
-      return getTextWithLanguage({
-        vi: "Cài đặt nâng cao",
-        en: "Advanced Settings",
-      });
-
-    default:
-      return "";
-  }
-}
-
-function changeTab({ tabValue = "dashboard", displayValue = "block" } = {}) {
-  const root = document.querySelector("#tm_root");
-  const allTabs = root.querySelectorAll("[data-tab-value]");
-  const allTabItems = document.querySelectorAll(".tab-item");
-
-  const titleElement = document.querySelector("title");
-  if (titleElement) {
-    titleElement.textContent = getTitleByTabValue(tabValue);
-  }
-
-  allTabItems.forEach((tabItem) => {
-    if (tabItem.getAttribute("data-tab-value") === tabValue) {
-      tabItem.classList.add("tab-item-active");
-    } else {
-      tabItem.classList.remove("tab-item-active");
-    }
-  });
-
-  allTabs.forEach((tab) => {
-    const tabValueCurrent = tab.getAttribute("data-tab-value");
-    if (tabValueCurrent === tabValue) {
-      tab.style.display = displayValue;
-      tab.style.pointerEvents = "auto";
-    } else {
-      tab.style.display = "none";
-      tab.style.pointerEvents = "none";
-    }
-  });
-}
-
-function drawTab() {
-  const div = document.createElement("div");
-  div.className = "tabs";
-  div.innerHTML = `
-    <ul class="tabs-list">
-      <li class="tab-item" data-tab-value="dashboard">${getTextWithLanguage({ vi: "Bảng điểu khiển", en: "Dashboard" })}</li>
-      <li class="tab-item" data-tab-value="settings">${getTextWithLanguage({ vi: "Cài đặt", en: "Settings" })}</li>
-      <li class="tab-item" data-tab-value="groups">${getTextWithLanguage({ vi: "Dữ liệu nhóm", en: "Group's data" })}</li>
-      <li class="tab-item" data-tab-value="logs">${getTextWithLanguage({ vi: "Nhật ký", en: "Logs" })}</li>
-      <li class="tab-item" data-tab-value="settings-advanced">${getTextWithLanguage({ vi: "Cài đặt nâng cao", en: "Advanced Settings" })}</li>
-    </ul>
-  `;
-  return div;
-}
-
-async function migrateDataSaved() {
+async function test() {
   try {
-    const dataSaved = await getDataSavedInStorage();
-    let prio = 1;
-    for (const data of dataSaved || []) {
-      if (data.priority === null || data.priority === undefined) {
-        data.priority = prio;
-        prio++;
-      }
-    }
-    setDataSavedInStorage(dataSaved);
+    // const id = await getRandomIndexGroupChecked();
+    // console.log(id);
+    // const setting = await getSettingByDeviceRequest();
+    // console.log(setting);
+    // const nextTime = await getNextTimePost();
+    // console.log(new Date(nextTime));
+    // const deviceId = await getDeviceId();
+    // const res = await get("/schedulers/" + deviceId);
+    // console.log(res);
+    // const listKey = await DB_listValues();
+    // console.log(listKey);
+    // console.log(await getSchedulerService());
+    // console.log(await getListCommentWhenPostSuccessService());
   } catch (error) {
-    logError("Error at migrate DataSaved", error);
+    logError("Error at test: ", error);
   }
 }
 

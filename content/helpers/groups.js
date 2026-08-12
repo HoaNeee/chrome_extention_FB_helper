@@ -267,15 +267,17 @@ async function interactBeforePost() {
   try {
     const metadataInteractBeforePost = await CL_getMetadataInteractBeforePost();
 
-    const canInteract = metadataInteractBeforePost?.canInteract || false;
-    const maxPost = metadataInteractBeforePost?.maxPost || 0;
+    const canInteract = metadataInteractBeforePost?.can_interact || false;
+    const maxPost =
+      metadataInteractBeforePost?.max_post_interact_per_batch || 0;
 
     if (!canInteract) {
       return;
     }
+
     CL_addLogRequest({
-      vi: "Bắt đầu tương tác bài viết trước khi đăng",
-      en: "Started interacting with posts before posting",
+      vi: "Bắt đầu thực hiện tác vụ tương tác bài viết trước khi đăng",
+      en: "Started performing the task of interacting with posts before posting",
     });
 
     let divFeed = await findElementFeedInGroup();
@@ -314,8 +316,8 @@ async function interactBeforePost() {
       }
 
       CL_addLogRequest({
-        vi: `Số bài viết cần tương tác: ${arrayDivNeedReact.length}`,
-        en: `Number of posts to interact: ${arrayDivNeedReact.length}`,
+        vi: `Số bài viết cần tương tác trong đợt này: ${arrayDivNeedReact.length}`,
+        en: `Number of posts to interact in this batch: ${arrayDivNeedReact.length}`,
       });
 
       for (const divReact of arrayDivNeedReact) {
@@ -340,8 +342,8 @@ async function interactBeforePost() {
       }
 
       CL_addLogRequest({
-        vi: `Đã tương tác xong, tiếp tục thực hiện đăng bài`,
-        en: `Already interacted, continuing to post`,
+        vi: `Tác vụ tương tác đã được hoàn thành, tiếp tục thực hiện đăng bài`,
+        en: `The interaction task has been completed, continuing to post`,
       });
       await CL_setDecidedInteractBeforePost(false);
     }

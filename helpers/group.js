@@ -1,39 +1,36 @@
 import {
   KEY_GROUPS_NEED_POST,
-  KEY_INDEXS_GROUP_CHECKED,
-  KEY_COUNT_RESET_GROUPS,
   MAX_GROUP_PER_TIME_INITIAL,
+  prefix,
   STATUS_TASK,
-} from "../../../contants/contants.js";
-import { getDataSavedInStorage } from "../services/dataSavedService.js";
+} from "../contants/contants.js";
+import { getListIdDataGroupPostCheckeds } from "../services/data-group-post-service.js";
 import {
   getAllGroupPostedsInStorage,
   getListGroupsNeedPostInStorage,
   setAllGroupPostedsInStorage,
 } from "../services/groupService.js";
-import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
+import {
+  getIsSpecialFrameHoursData,
+  getMaxGroupPerTimeData,
+  getTimeDelayData,
+} from "../services/setting-service.js";
+import { getObjectIsInSpecialFrameHours } from "../services/special-frame-hours-service.js";
+import {
+  getCountResetGroupInStorage,
+  getCurrentCountPostLength,
+  setCountResetGroupInStorage,
+  setCurrentCountPostLength,
+} from "../services/storage-service.js";
+import { DB_setValue } from "../utils/api-helper.js";
 import {
   cvString,
   getListTitle,
   logActions,
   logError,
-  random,
   randomRateBoolean,
   shuffleArray,
-} from "../../../utils/utils.js";
-import {
-  getCurrentCountPostLength,
-  getCurrentIndexGroupPost,
-  getIndexsGroupChecked,
-  getMaxGroupPerTimeInStorage,
-  getRandomIndexGroupChecked,
-  getTimeDelayInStorage,
-  setCurrentCountPostLength,
-} from "../services/storage-service.js";
-import {
-  getIsSpecialFrameHoursInStore,
-  getObjectIsInSpecialFrameHours,
-} from "../services/scheduler-service.js";
+} from "../utils/utils.js";
 
 /**
  * Check if all group need post have been posted.
@@ -44,9 +41,9 @@ import {
 async function checkIsPostedAllGroup() {
   try {
     const object = await getListGroupsNeedPostInStorage();
-    const indexsChecked = await getIndexsGroupChecked();
+    const idsCheckeds = await getListIdDataGroupPostCheckeds();
     const listGroups =
-      object?.groups.filter((gr) => indexsChecked.includes(gr.id)) || [];
+      object?.groups.filter((gr) => idsCheckeds.includes(gr.id)) || [];
 
     const posteds = await getAllGroupPostedsInStorage();
     const set = new Set(posteds);
@@ -77,8 +74,9 @@ async function checkIsPostedAllGroup() {
  */
 async function resetPostedGroupAndSave() {
   try {
-    const countReset = (await DB_getValue(KEY_COUNT_RESET_GROUPS)) || 0;
-    DB_setValue(KEY_COUNT_RESET_GROUPS, countReset + 1);
+    const countReset = await getCountResetGroupInStorage();
+    await setCountResetGroupInStorage(countReset + 1);
+
     const object = await getListGroupsNeedPostInStorage();
     const listGroups = object?.groups || [];
     const newList = listGroups.map((need) => {
@@ -92,9 +90,14 @@ async function resetPostedGroupAndSave() {
       };
     });
 
-    setCurrentCountPostLength(0);
-    setAllGroupPostedsInStorage([]);
-    DB_setValue(KEY_GROUPS_NEED_POST, { groups: newList, forceChange: false });
+    await Promise.all([
+      setCurrentCountPostLength(0),
+      setAllGroupPostedsInStorage([]),
+      DB_setValue(KEY_GROUPS_NEED_POST, {
+        groups: newList,
+        forceChange: false,
+      }),
+    ]);
   } catch (error) {
     throw new Error("Error reset posted group and save: " + error);
   }
@@ -148,51 +151,6 @@ function getGroupsMatch({ title, listGroups, titleStrictlyMatch } = {}) {
 
 /**
  *
- * @returns Object: { id, title, groups: [ {id_href, status} ] } or null if not exist
- */
-async function getCurrentGroupNeedPost() {
-  try {
-    const objectList = await getListGroupsNeedPostInStorage();
-    let currentIndexGroup = await getCurrentIndexGroupPost();
-
-    if (!currentIndexGroup) {
-      return null;
-    }
-
-    const listGroups = objectList?.groups || [];
-    const need = listGroups.find((gr) => gr.id === currentIndexGroup);
-
-    return need;
-  } catch (error) {
-    logActions("Error get current groups need post: " + error);
-    throw new Error("Error get current groups need post: " + error);
-  }
-}
-
-/**
- *
- * @returns {Promise<{ id, title, contents: string[], files: Blob[], priority: number }>} or null if not exist
- */
-async function getCurrentDataGroupSavedNeedPost() {
-  try {
-    let id = await getCurrentIndexGroupPost();
-    if (!id) {
-      id = await getRandomIndexGroupChecked();
-    }
-    if (!id) {
-      logActions("No group checked in storage");
-      return null;
-    }
-    const data = (await getDataSavedInStorage()) || [];
-    return data.find((d) => d.id === id) || null;
-  } catch (error) {
-    logActions("Error get current data group saved need post: " + error);
-    throw new Error("Error get current data group saved need post: " + error);
-  }
-}
-
-/**
- *
  * @returns {Promise<{ isPostedAll: boolean, isPostedMaxGroupPerTime: boolean }>}
  */
 async function checkPostedAllGroupOrMaxGroupPerTime() {
@@ -200,18 +158,14 @@ async function checkPostedAllGroupOrMaxGroupPerTime() {
   let isPostedAll = false;
   try {
     const currentLengthPost = await getCurrentCountPostLength();
-    let maxGroupPerTime = MAX_GROUP_PER_TIME_INITIAL;
+    let maxGroupPerTime = await getMaxGroupPerTimeData();
 
-    const isSpecialFrameHour = await getIsSpecialFrameHoursInStore();
+    const isSpecialFrameHour = await getIsSpecialFrameHoursData();
     if (isSpecialFrameHour) {
       const frame = await getObjectIsInSpecialFrameHours();
       if (frame) {
-        maxGroupPerTime = frame?.maxGroup;
-      } else {
-        maxGroupPerTime = await getMaxGroupPerTimeInStorage();
+        maxGroupPerTime = frame?.max_group || 0;
       }
-    } else {
-      maxGroupPerTime = await getMaxGroupPerTimeInStorage();
     }
 
     const isSub = randomRateBoolean(4, 10);
@@ -236,18 +190,18 @@ async function checkPostedAllGroupOrMaxGroupPerTime() {
  */
 async function getTimeToPostOneGroup() {
   try {
-    const timeDelay = await getTimeDelayInStorage();
+    const timeDelay = await getTimeDelayData();
 
     const totalTimeDelayPost =
-      timeDelay.clickToPost +
+      timeDelay.time_delay_click_to_post +
       1 +
-      timeDelay.fillContent +
+      timeDelay.time_delay_fill_content +
       1 +
-      timeDelay.fillFile +
+      timeDelay.time_delay_fill_file +
       1 +
-      timeDelay.openNewTab +
+      timeDelay.time_delay_open_new_tab +
       1 +
-      timeDelay.post +
+      timeDelay.time_delay_post +
       1;
     return totalTimeDelayPost + 4;
   } catch (error) {
@@ -273,13 +227,35 @@ async function getTotalGroupsNeedPost() {
   return 0;
 }
 
+async function updateUIDataGroupPostCheckeds(ids, forceUpdate = false) {
+  try {
+    if (!ids) {
+      ids = await getListIdDataGroupPostCheckeds(forceUpdate);
+    }
+    const container = document.querySelector(
+      `#${prefix}list-data-groups-container`,
+    );
+    if (!container) {
+      return;
+    }
+    const elements = container.querySelectorAll(`[data-group-id]`);
+
+    for (const element of elements) {
+      const id = element.getAttribute("data-group-id");
+      const checkbox = element.querySelector('input[type="checkbox"]');
+      checkbox.checked = !!ids.includes(id);
+    }
+  } catch (error) {
+    logError("Error update UI data group post checkeds: ", error);
+  }
+}
+
 export {
   checkIsPostedAllGroup,
-  resetPostedGroupAndSave,
-  getGroupsMatch,
-  getCurrentGroupNeedPost,
-  getCurrentDataGroupSavedNeedPost,
   checkPostedAllGroupOrMaxGroupPerTime,
+  getGroupsMatch,
   getTimeToPostOneGroup,
   getTotalGroupsNeedPost,
+  resetPostedGroupAndSave,
+  updateUIDataGroupPostCheckeds,
 };

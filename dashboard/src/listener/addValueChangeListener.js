@@ -1,5 +1,6 @@
 import {
   KEY_ALL_GROUPS,
+  KEY_AUTH,
   KEY_GROUPS_NEED_POST,
   KEY_HISTORY_LOGS,
   KEY_IS_DEVELOPER_MODE,
@@ -21,13 +22,14 @@ import {
   hideField,
   showElement,
   showField,
-} from "../helpers/elementDom.js";
-import { handleShowOrHideElementPremium } from "../helpers/premium.js";
-import {
-  clearAndCreateSchedulerAlarm,
-  getSchedulerService,
-} from "../services/scheduler-service.js";
-import { DB_setValue } from "../utils/api-helper.js";
+} from "../../../helpers/elementDom.js";
+import { handleShowOrHideElementPremium } from "../../../helpers/premium.js";
+import { clearAndCreateSchedulerAlarm } from "../../../services/scheduler-service.js";
+import { setIsTestInStorage } from "../../../services/storage-service.js";
+import { getIsSchedulerData } from "../../../services/setting-service.js";
+import { logSchedulerHelper } from "../../../helpers/scheduler.js";
+import { KEY_IS_USE_LOCAL_STORAGE } from "../../../contants/constant-extention.js";
+import { updateAuthUI } from "../helpers/header.js";
 
 let timeOutClearAndCreateSchedulerAlarm = null;
 
@@ -43,19 +45,26 @@ export default function addValueChangeListener() {
     KEY_IS_SPAMMED,
     KEY_HISTORY_LOGS,
     KEY_IS_PREMIUM,
+    // KEY_IS_USE_LOCAL_STORAGE,
+    KEY_AUTH,
   ];
   const { setIsTest } = getAllFieldsSetting();
-  chrome.storage.onChanged.addListener((changes, areaName) => {
+  chrome.storage.onChanged.addListener(async (changes, areaName) => {
     if (areaName === "local") {
       for (const key of keys) {
         try {
           if (changes[key]) {
             const newVal = changes[key]?.newValue;
+
+            if (key === KEY_AUTH) {
+              await updateAuthUI(newVal);
+            }
             if (key === KEY_IS_IN_PROGRESS) {
-              handleIsProgress(newVal);
+              await handleIsProgress(newVal);
             }
             if (key === KEY_IS_DEVELOPER_MODE) {
               if (newVal) {
+                showElement("#tm_btn-reset-all-data-saved");
                 showElement("#tm_btn-test-auto");
                 showElement("#tm_btn-click");
                 showField({
@@ -67,7 +76,7 @@ export default function addValueChangeListener() {
                   fieldSelector: ".tm_field-container",
                 });
               } else {
-                DB_setValue(KEY_IS_TEST, false);
+                await setIsTestInStorage(false);
                 setIsTest(false);
                 hideElement("#tm_btn-test-auto");
                 hideElement("#tm_btn-click");
@@ -79,6 +88,7 @@ export default function addValueChangeListener() {
                   selector: "#tm_checkbox-is-spammed",
                   fieldSelector: ".tm_field-container",
                 });
+                hideElement("#tm_btn-reset-all-data-saved");
               }
             }
             if (key === KEY_IS_TEST) {
@@ -112,8 +122,8 @@ export default function addValueChangeListener() {
 
 async function handleIsSpammed() {
   try {
-    const scheduler = await getSchedulerService();
-    if (scheduler.isScheduler) {
+    const isScheduler = await getIsSchedulerData();
+    if (isScheduler) {
       clearAndCreateSchedulerAlarm();
     }
   } catch (error) {
@@ -192,6 +202,8 @@ async function handleIsProgress(val) {
         isCheckbox: true,
         isField: true,
       });
+
+      await clearAndCreateSchedulerAlarm();
     }
   } catch (error) {
     logError("Error at handleIsProgress: ", error);

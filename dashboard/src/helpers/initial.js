@@ -1,25 +1,8 @@
+import { API_RESPONSE_CODE } from "../../../contants/constant-extention.js";
 import {
-  getIndexsGroupChecked,
-  getIsDeveloperModeInStorage,
-  getIsFixStealAllFocusInStorage,
-  getIsInteractBeforePostInStorage,
-  getIsRandomBatchPost,
-  getIsRandomTimePost,
-  getIsShuffleGroupNeedPost,
-  getIsShuffleSchedulerTimeInStorage,
-  getIsSpammedInStorage,
-  getIsStealFocusInStorage,
-  getIsTestInStorage,
-  getLanguageInStorage,
-  getMaxGroupPerTimeInStorage,
-  getMaxPostInteractInStorage,
-  getPremiumInStorage,
-  getProgress,
-  getStrictlyMatchTitleGroupInStorage,
-  getTimeDelayInStorage,
-  setMaxGroupPerTimeInStorage,
-  setMaxPostInteractInStorage,
-} from "../services/storage-service.js";
+  initialTimeDelay,
+  KEY_IS_DARK_THEME,
+} from "../../../contants/contants.js";
 import {
   disabledElement,
   enabledElement,
@@ -29,40 +12,71 @@ import {
   hideField,
   showElement,
   showField,
-} from "./elementDom.js";
+} from "../../../helpers/elementDom.js";
+import { handleShowOrHideElementPremium } from "../../../helpers/premium.js";
+import { shuffleTimes } from "../../../helpers/scheduler.js";
 import {
-  MAX_GROUP_PER_TIME_INITIAL,
-  initialTimeDelay,
-  KEY_IS_DARK_THEME,
-} from "../../../contants/contants.js";
-import { updateDataSavedInfo } from "../draw_element/dataSavedInfo.js";
+  getAuthFromStorage,
+  getPremiumService,
+  getProfile,
+} from "../../../services/auth-service.js";
+import {
+  getListCommentWhenPostSuccessService,
+  getMaxCommentPerTimeService,
+  setMaxCommentPerTimeService,
+} from "../../../services/comment-service.js";
+import { getListDataGroupPost } from "../../../services/data-group-post-service.js";
+import {
+  getAllGroupPostedsInStorage,
+  getListGroupsNeedPostInStorage,
+  setAllGroupPostedsInStorage,
+} from "../../../services/groupService.js";
+import {
+  getMaxPostInteractService,
+  setMaxPostInteractService,
+} from "../../../services/interact-before-post-service.js";
+import {
+  clearAndCreateSchedulerAlarm,
+  clearSchedulerAuto,
+  initialSchedulerSetting,
+} from "../../../services/scheduler-service.js";
+import {
+  getIsCommentWhenPostSuccessData,
+  getIsFixStealAllFocusData,
+  getIsFixStealFocusData,
+  getIsInteractBeforePostData,
+  getIsRandomBreakBatchData,
+  getIsRandomTimePostData,
+  getIsSchedulerData,
+  getIsShuffleGroupNeedPostData,
+  getIsSpammedData,
+  getIsSpecialFrameHoursData,
+  getMaxGroupPerTimeData,
+  getStrictlyMatchTitleGroupData,
+  getTimeDelayData,
+  initialDeviceSetting,
+} from "../../../services/setting-service.js";
+import {
+  initIsUseLocalStorage,
+  setIsUseLocalStorage,
+} from "../../../services/storage-global-service.js";
+import {
+  getIsDeveloperModeInStorage,
+  getIsShuffleSchedulerTimeInStorage,
+  getIsTestInStorage,
+  getLanguageInStorage,
+  getProgress,
+} from "../../../services/storage-service.js";
+import { DB_getValue } from "../../../utils/api-helper.js";
+import { handleErrorHelper } from "../../../utils/exception.js";
 import {
   getIsDashboardTab,
   logActions,
   logError,
 } from "../../../utils/utils.js";
-import { DB_getValue } from "../utils/api-helper.js";
-import { getDataSavedInStorage } from "../services/dataSavedService.js";
-import {
-  clearAndCreateSchedulerAlarm,
-  clearSchedulerAuto,
-  getIsSpecialFrameHoursInStore,
-  getSchedulerService,
-} from "../services/scheduler-service.js";
-import { shuffleTimes } from "./scheduler.js";
+import { updateDataSavedInfo } from "../draw_element/dataSavedInfo.js";
 import { initHistoryLogs } from "../draw_element/panel-log.js";
-import { handleShowOrHideElementPremium } from "./premium.js";
-import {
-  getAllGroupPostedsInStorage,
-  getListGroupsNeedPostInStorage,
-  setAllGroupPostedsInStorage,
-} from "../services/groupService.js";
-import {
-  getIsCommentWhenPostSuccessService,
-  getListCommentWhenPostSuccessService,
-  getMaxCommentPerTimeService,
-  setMaxCommentPerTimeService,
-} from "../services/comment-service.js";
+import { updateAuthUI } from "./header.js";
 
 async function initialData({ anchorElement = document.body }) {
   try {
@@ -84,13 +98,12 @@ async function initialData({ anchorElement = document.body }) {
       } = getAllFieldsSetting();
 
       //get max group
-      let maxGroup = await getMaxGroupPerTimeInStorage();
-      if (!maxGroup) {
-        maxGroup = MAX_GROUP_PER_TIME_INITIAL;
-        setMaxGroupPerTimeInStorage(maxGroup);
+      try {
+        let maxGroup = await getMaxGroupPerTimeData();
+        setMaxGroupPerTime(maxGroup);
+      } catch (error) {
+        logError("Error when get or set max group per time", error);
       }
-
-      setMaxGroupPerTime(maxGroup);
 
       const isTesting = await getIsTestInStorage();
       setIsTest(isTesting);
@@ -112,51 +125,47 @@ async function initialData({ anchorElement = document.body }) {
       }
       setIsProcessing(isProcessing);
 
-      const isFixStealFocus = await getIsStealFocusInStorage();
+      const isFixStealFocus = await getIsFixStealFocusData();
       setIsFixStealFocus(isFixStealFocus);
 
-      const isFixStealAllFocus = await getIsFixStealAllFocusInStorage();
+      const isFixStealAllFocus = await getIsFixStealAllFocusData();
       setIsFixStealAllFocus(isFixStealAllFocus);
 
-      const isSpammed = await getIsSpammedInStorage();
+      const isSpammed = await getIsSpammedData();
       setIsSpammed(isSpammed);
 
       const isShuffleSchedulerTime = await getIsShuffleSchedulerTimeInStorage();
       setIsShuffleSchedulerTime(isShuffleSchedulerTime);
 
-      const isShuffleGroupsNeedPost = await getIsShuffleGroupNeedPost();
+      const isShuffleGroupsNeedPost = await getIsShuffleGroupNeedPostData();
       setIsShuffleGroupsNeedPost(isShuffleGroupsNeedPost);
 
-      const isRandomTimePost = await getIsRandomTimePost();
+      const isRandomTimePost = await getIsRandomTimePostData();
       setIsRandomTimePost(isRandomTimePost);
 
-      const isSpecialFrameHours = await getIsSpecialFrameHoursInStore();
+      const isSpecialFrameHours = await getIsSpecialFrameHoursData();
       setIsSpecialFrameHours(isSpecialFrameHours);
 
-      const scheduler = await getSchedulerService();
+      const isScheduler = await getIsSchedulerData();
 
-      if (scheduler) {
-        const isCheduler = scheduler.isScheduler || false;
-        if (isCheduler) {
-          setSchedulerSetting(isCheduler);
-          clearAndCreateSchedulerAlarm();
-        } else {
-          clearSchedulerAuto();
-        }
-
-        //shuffle time
-        if (getIsDashboardTab(location.href) && isShuffleSchedulerTime) {
-          shuffleTimes();
-        }
+      if (isScheduler) {
+        setSchedulerSetting(isScheduler);
+        clearAndCreateSchedulerAlarm();
+      } else {
+        clearSchedulerAuto();
       }
 
-      const strictlyMatchTitleGroup =
-        await getStrictlyMatchTitleGroupInStorage();
-      if (strictlyMatchTitleGroup) {
-        setStrictlyMatchTitleGroup(strictlyMatchTitleGroup);
+      //shuffle time
+      if (getIsDashboardTab(location.href) && isShuffleSchedulerTime) {
+        shuffleTimes();
       }
 
-      const isRandomBatchPost = await getIsRandomBatchPost();
+      const strictlyMatchTitleGroup = await getStrictlyMatchTitleGroupData();
+      if (strictlyMatchTitleGroup && Array.isArray(strictlyMatchTitleGroup)) {
+        setStrictlyMatchTitleGroup(strictlyMatchTitleGroup.join(", "));
+      }
+
+      const isRandomBatchPost = await getIsRandomBreakBatchData();
       setIsRandomBatchPost(isRandomBatchPost);
 
       const {
@@ -167,13 +176,12 @@ async function initialData({ anchorElement = document.body }) {
         setMaxPostInteract,
       } = getAllFieldsAdvancedSetting();
 
-      const isCommentWhenPostSuccess =
-        await getIsCommentWhenPostSuccessService();
+      const isCommentWhenPostSuccess = await getIsCommentWhenPostSuccessData();
       setIsCommentWhenPostSuccess(isCommentWhenPostSuccess);
       const listComment = await getListCommentWhenPostSuccessService();
       setKeyWordsComment(listComment.join("\n"));
 
-      const isInteractBeforePost = await getIsInteractBeforePostInStorage();
+      const isInteractBeforePost = await getIsInteractBeforePostData();
       setIsInteractBeforePost(isInteractBeforePost);
 
       let maxCommentPerTime = await getMaxCommentPerTimeService();
@@ -183,10 +191,10 @@ async function initialData({ anchorElement = document.body }) {
       }
       setMaxCommentPerTime(maxCommentPerTime);
 
-      let maxPost = await getMaxPostInteractInStorage();
+      let maxPost = await getMaxPostInteractService();
       if (!maxPost) {
         maxPost = 1;
-        await setMaxPostInteractInStorage(maxPost);
+        await setMaxPostInteractService(maxPost);
       }
       setMaxPostInteract(maxPost);
     }
@@ -195,33 +203,11 @@ async function initialData({ anchorElement = document.body }) {
 
     const listGroups = await getListGroupsNeedPostInStorage();
     logActions("Initial list groups need post: ", listGroups);
-    const dataSaved = (await getDataSavedInStorage()) || [];
+    const dataSaved = (await getListDataGroupPost()) || [];
     logActions("Initial data saved: ", dataSaved);
 
-    //initial indexs checked
-    const listGroupsContainer = anchorElement.querySelector(
-      "#tm_list-groups-container",
-    );
-    if (listGroupsContainer) {
-      const firstChild = listGroupsContainer.firstElementChild;
-      if (firstChild) {
-        const childs = firstChild.children || [];
-        const indexsCheckeds = await getIndexsGroupChecked();
-        logActions("Initial indexs checked: ", indexsCheckeds);
-        for (const child of childs) {
-          const id = child.getAttribute("data-group-id");
-          if (id && indexsCheckeds.includes(id)) {
-            const input = child.querySelector("input[type=checkbox]");
-            if (input) {
-              input.checked = true;
-            }
-          }
-        }
-      }
-    }
-
     async function initialInputTimeDelay() {
-      const timeDelay = await getTimeDelayInStorage();
+      const timeDelay = await getTimeDelayData();
 
       const inputClickToPost = anchorElement.querySelector(
         `#tm_input-delay-click-to-post`,
@@ -239,21 +225,27 @@ async function initialData({ anchorElement = document.body }) {
         anchorElement.querySelector(`#tm_input-delay-post`);
       if (inputClickToPost) {
         inputClickToPost.value =
-          timeDelay.clickToPost || initialTimeDelay.clickToPost;
+          timeDelay.time_delay_click_to_post ||
+          initialTimeDelay.time_delay_click_to_post;
       }
       if (inputFillContent) {
         inputFillContent.value =
-          timeDelay.fillContent || initialTimeDelay.fillContent;
+          timeDelay.time_delay_fill_content ||
+          initialTimeDelay.time_delay_fill_content;
       }
       if (inputFillFile) {
-        inputFillFile.value = timeDelay.fillFile || initialTimeDelay.fillFile;
+        inputFillFile.value =
+          timeDelay.time_delay_fill_file ||
+          initialTimeDelay.time_delay_fill_file;
       }
       if (inputDelayPost) {
-        inputDelayPost.value = timeDelay.post || initialTimeDelay.post;
+        inputDelayPost.value =
+          timeDelay.time_delay_post || initialTimeDelay.time_delay_post;
       }
       if (inputOpenNewTab) {
         inputOpenNewTab.value =
-          timeDelay.openNewTab || initialTimeDelay.openNewTab;
+          timeDelay.time_delay_open_new_tab ||
+          initialTimeDelay.time_delay_open_new_tab;
       }
     }
 
@@ -273,6 +265,7 @@ async function initialData({ anchorElement = document.body }) {
 
     const isDevMode = await getIsDeveloperModeInStorage();
     if (isDevMode) {
+      showElement("#tm_btn-reset-all-data-saved");
       showElement("#tm_btn-test-auto");
       showField({
         selector: "#tm_checkbox-is-test",
@@ -294,9 +287,10 @@ async function initialData({ anchorElement = document.body }) {
         selector: "#tm_checkbox-is-spammed",
         fieldSelector: ".tm_field-container",
       });
+      hideElement("#tm_btn-reset-all-data-saved");
     }
 
-    const isPremium = await getPremiumInStorage();
+    const isPremium = await getPremiumService();
     handleShowOrHideElementPremium(isPremium);
 
     await updateDataSavedInfo();
@@ -308,6 +302,26 @@ async function initialData({ anchorElement = document.body }) {
 
 async function initialFastAndFirst() {
   try {
+    try {
+      let user = null;
+      const auth = await getAuthFromStorage();
+      console.log("auth", auth);
+      if (auth) {
+        user = await getProfile();
+      } else {
+        await setIsUseLocalStorage(true);
+      }
+      await updateAuthUI(user);
+    } catch (error) {
+      handleErrorHelper({
+        name: "initialFastAndFirst",
+        error,
+        isShowNotify: false,
+      });
+    }
+
+    await Promise.all([initialDeviceSetting(), initialSchedulerSetting()]);
+
     const isDarkTheme = (await DB_getValue(KEY_IS_DARK_THEME)) || false;
     const body = document.querySelector(`body`);
     if (isDarkTheme) {
@@ -322,7 +336,7 @@ async function initialFastAndFirst() {
       svg.setAttribute("fill", isDarkTheme ? "white" : "black");
     });
   } catch (error) {
-    logError("Error initialFastAndFirst: " + error);
+    handleErrorHelper({ error, isShowNotify: false });
   }
 }
 

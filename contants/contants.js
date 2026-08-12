@@ -11,6 +11,8 @@ const KEY_MY_SIGNATURE = "my_signature";
 
 const APP_NAME = "FB Tools Helper";
 
+const KEY_DEVICE = "device_in_storage";
+
 /**
  * Area setting input key
  */
@@ -39,6 +41,8 @@ const KEY_IS_SPECIAL_FRAME_HOURS = "is_special_frame_hours";
 const KEY_CHANGE_GROUPS_CHECKED_FLAG = "change_groups_checked_flag";
 
 const KEY_IS_PREMIUM = "is_premium";
+
+const KEY_USED_TO_LOGINED_THIS_DEVICE = "used_to_logined_this_device";
 
 /**
  * Area count key
@@ -101,6 +105,12 @@ const KEY_WINDOW = {
   WINDOW_GET_LIST_GROUP_ID: "window_get_list_group_id",
 };
 
+const KEY_CURRENT_DATA_GROUP_POST = "current_data_group_post";
+
+const KEY_AUTH = "auth_data";
+
+//end key
+
 const STATUS_TASK = {
   PENDING: "pending",
   SELECTING: "selecting",
@@ -110,12 +120,12 @@ const STATUS_TASK = {
 };
 
 const SCHEDULER_TYPE = {
-  EVERY_MINUTES: "custom-every-minutes",
-  EVERY_HOURS: "custom-every-hours",
-  FRAME_HOURS: "custom-frame-hours",
-  DAILY_HOURS: "daily-hours",
-  SCHEDULER_MINUTES: "scheduler-minutes",
-  SCHEDULER_HOURS: "scheduler-hours",
+  EVERY_MINUTES: "EVERY_MINUTES",
+  EVERY_HOURS: "EVERY_HOURS",
+  CUSTOM_DAILY_MINUTES: "CUSTOM_DAILY_MINUTES",
+  CUSTOM_DAILY_HOURS: "CUSTOM_DAILY_HOURS",
+  DAILY_HOURS: "DAILY_HOURS",
+  FRAME_HOURS: "FRAME_HOURS",
 };
 
 const URL_LIST_GROUPS = "https://www.facebook.com/groups/joins/?nav_source=tab";
@@ -125,11 +135,11 @@ const MAX_Z_INDEX = 99;
 const prefix = "tm_";
 
 const initialTimeDelay = {
-  clickToPost: 4,
-  fillContent: 5,
-  fillFile: 7,
-  post: 5,
-  openNewTab: 2,
+  time_delay_click_to_post: 4,
+  time_delay_fill_content: 5,
+  time_delay_fill_file: 7,
+  time_delay_post: 5,
+  time_delay_open_new_tab: 2,
 };
 
 export {
@@ -186,4 +196,8 @@ export {
   KEY_COMMENT_WHEN_POST_SUCCESS,
   KEY_INTERACT_BEFORE_POST,
   KEY_TIME_DELAY_FOR_SCHEDULER,
+  KEY_CURRENT_DATA_GROUP_POST,
+  KEY_AUTH,
+  KEY_USED_TO_LOGINED_THIS_DEVICE,
+  KEY_DEVICE,
 };

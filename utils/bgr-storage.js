@@ -6,11 +6,12 @@ import {
 import {
   getAllGroupPostedsInStorage,
   setAllGroupPostedsInStorage,
-} from "../dashboard/src/services/groupService.js";
+} from "../services/groupService.js";
 import {
   getCurrentCountPostLength,
   setCurrentCountPostLength,
-} from "../dashboard/src/services/storage-service.js";
+} from "../services/storage-service.js";
+import { DB_getValue, DB_setValue } from "./api-helper.js";
 import { logActions, logError } from "./utils.js";
 
 async function BG_setValue(key, value) {
@@ -30,11 +31,11 @@ async function BG_deleteValue(key) {
 }
 
 async function setProgressTool(b) {
-  BG_setValue(KEY_IS_IN_PROGRESS, b);
+  await DB_setValue(KEY_IS_IN_PROGRESS, b);
 }
 
 async function getProgressTool() {
-  return (await BG_getValue(KEY_IS_IN_PROGRESS)) || false;
+  return (await DB_getValue(KEY_IS_IN_PROGRESS)) || false;
 }
 
 /**
@@ -42,7 +43,7 @@ async function getProgressTool() {
  * @param {{task: {id_href: string, status: string}, time: number}} task
  */
 async function saveTask(task) {
-  await BG_setValue(KEY_POST, task);
+  await DB_setValue(KEY_POST, task);
 }
 
 /**
@@ -64,16 +65,16 @@ async function setStatusTask(status) {
 
     const id_href = taskObject?.task?.id_href;
     taskObject.task.status = status;
-    BG_setValue(KEY_POST, taskObject);
+    await DB_setValue(KEY_POST, taskObject);
     if (status === STATUS_TASK.DONE || status === STATUS_TASK.ERROR) {
       if (status === STATUS_TASK.DONE) {
         const currentLengthPost = await getCurrentCountPostLength();
-        setCurrentCountPostLength(currentLengthPost + 1);
+        await setCurrentCountPostLength(currentLengthPost + 1);
       }
       const posteds = await getAllGroupPostedsInStorage();
       if (id_href && !posteds.includes(id_href)) {
         posteds.push(id_href);
-        setAllGroupPostedsInStorage(posteds);
+        await setAllGroupPostedsInStorage(posteds);
       }
     }
   } catch (error) {
@@ -86,7 +87,7 @@ async function setStatusTask(status) {
  * @returns {Promise<{task: {id_href: string, status: string}, time: number}>}
  */
 async function getTask() {
-  return await BG_getValue(KEY_POST);
+  return await DB_getValue(KEY_POST);
 }
 
 export {

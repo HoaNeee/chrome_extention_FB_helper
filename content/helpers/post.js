@@ -1,4 +1,4 @@
-import { KEY_LAST_TIME_POST, STATUS_TASK } from "../../contants/contants.js";
+import { STATUS_TASK } from "../../contants/contants.js";
 import {
   KEY_GET_CURRENT_DATA_GROUP_SAVED_NEED_POST,
   KEY_UPDATE_STATUS_TASK,
@@ -13,12 +13,14 @@ import {
   CL_getIsTest,
   CL_getMetadataComments,
   CL_getProgressTool,
-  CL_getTimeDelayInStorage,
+  CL_getTimeDelayData,
 } from "../utils/storage.js";
 import {
   logError,
   now,
   parseBase64ToFile,
+  parseBlobToFile,
+  parseUrlToBlob,
   random,
   randomRateBoolean,
   sleep,
@@ -35,9 +37,10 @@ import {
   getIsExistDialog,
 } from "./dom.js";
 import {
+  CL_getParseFileRequest,
   CL_getTextWithLang,
   CL_setTimeDelayForScheduler,
-  CL_setValue,
+  updateLastTimePost,
 } from "../utils/utils.js";
 import { SELECTOR_RAW } from "../contants/contants.js";
 
@@ -114,21 +117,25 @@ async function fillFile(files) {
 
       //simulator change image event
       const dt = new DataTransfer();
-      for (const file of files) {
-        const parseFile = parseBase64ToFile(file);
-        dt.items.add(parseFile);
+      const parses = await CL_getParseFileRequest(files);
+
+      if (parses && Array.isArray(parses)) {
+        for await (const item of parses) {
+          const parse = parseBase64ToFile(item);
+          dt.items.add(parse);
+        }
+        input.files = dt.files;
       }
-      input.files = dt.files;
 
       input.dispatchEvent(new Event("change", { bubbles: true }));
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }
   } catch (e) {
     CL_addLogRequest({
-      vi: `Lỗi khi tải tệp lên ô nhập`,
-      en: `Error when uploading files to the input box`,
+      vi: `Lỗi khi tải tệp lên ô nhập: ${e?.message || e}`,
+      en: `Error when uploading files to the input box: ${e?.message || e}`,
     });
-    throw new Error("Error at fill file: " + e);
+    throw e;
   }
 }
 
@@ -142,15 +149,25 @@ async function postHelper(task) {
 
     const isTest = await CL_getIsTest();
 
-    const timeDelay = await CL_getTimeDelayInStorage();
+    const timeDelay = await CL_getTimeDelayData();
 
     const timeClickToPost =
-      timeDelay?.clickToPost || initialTimeDelay.clickToPost;
+      timeDelay?.time_delay_click_to_post || initialTimeDelay.clickToPost;
     const timeFillContent =
-      timeDelay?.fillContent || initialTimeDelay.fillContent;
-    const timeFillFile = timeDelay?.fillFile || initialTimeDelay.fillFile;
-    const timePost = timeDelay?.post || initialTimeDelay.post;
+      timeDelay?.time_delay_fill_content || initialTimeDelay.fillContent;
+    const timeFillFile =
+      timeDelay?.time_delay_fill_file || initialTimeDelay.fillFile;
+    const timePost = timeDelay?.time_delay_post || initialTimeDelay.post;
 
+    /**
+     * Tính thời gian delay
+     * ví dụ với 100 giây thì sẽ random từ 80s đến 120s
+     * với 10 giây thì sẽ là từ 8 đến 12
+     * @param {number} time
+     * @param {number} lower
+     * @param {number} upper
+     * @returns {number}
+     */
     function calculateTimeDelay(time, lower = 1, upper = 3) {
       const space = 20;
       const diff = time / space;
@@ -239,7 +256,7 @@ async function postHelper(task) {
 
       //file
       await sleep(delayFillFile);
-      fillFile(files);
+      await fillFile(files);
 
       //post
       await sleep(delayPost);
@@ -249,7 +266,7 @@ async function postHelper(task) {
           const isProgress = await CL_getProgressTool();
           if (isProgress) {
             await findButtonPostAndClick();
-            CL_setValue(KEY_LAST_TIME_POST, now());
+            await updateLastTimePost(now());
           }
         } else {
           const text = await CL_getTextWithLang({
@@ -323,7 +340,7 @@ async function commentToJustPostedHelper() {
   try {
     const data = await CL_getMetadataComments();
 
-    if (!data.isActive) {
+    if (!data.is_active) {
       return;
     }
 
@@ -347,25 +364,26 @@ async function commentToJustPostedHelper() {
 
     if (getIsExistDialog()) {
       CL_addLogRequest({
-        vi: "Không thể bình luận vào bài viết vừa đăng, bài viết vừa đăng có thể đã bị thất bại",
+        vi: "Không thể bình luận vào bài viết vừa đăng, bài viết vừa đăng không thành công",
         en: "Cannot comment on this post, the post may have failed",
       });
       return;
     }
 
     CL_addLogRequest({
-      vi: `Đã quyết định sẽ bình luận bài viết này, số bình luận ${data.numberComment}`,
-      en: `Decided to comment on this post, number comment ${data.numberComment}`,
+      vi: `Đã quyết định sẽ bình luận bài viết này, số bình luận ${data.max_comment_per_post}`,
+      en: `Decided to comment on this post, number comment ${data.max_comment_per_post}`,
     });
 
     await sleep(random(1000, 4000) + random(100, 1000));
 
     const elementJustPosted = findElementJustPosted();
 
+    const listContent = data.contents;
+
     async function typeAndSubmit(textBox, elementJustPosted) {
       try {
-        const content =
-          data.listContent[random(0, data.listContent.length - 1)];
+        const content = listContent[random(0, listContent.length - 1)];
 
         if (textBox) {
           await simulateTyping(textBox, content, {
@@ -404,7 +422,7 @@ async function commentToJustPostedHelper() {
 
         await sleep(random(1, 3) * 1000);
 
-        for (let i = 0; i < data.numberComment; i++) {
+        for (let i = 0; i < data.max_comment_per_post; i++) {
           await typeAndSubmit(textBox, elementJustPosted);
           await sleep(random(1000, 2000));
         }
@@ -412,7 +430,7 @@ async function commentToJustPostedHelper() {
     }
 
     const timeClick = 3;
-    const timeType = data.numberComment * 8;
+    const timeType = data.max_comment_per_post * 8;
     const timeCheckDialog = cnt * 1;
 
     const timeDelay = timeClick + timeType + timeCheckDialog;

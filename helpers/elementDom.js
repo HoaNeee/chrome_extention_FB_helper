@@ -1,6 +1,6 @@
-import { prefix } from "../../../contants/contants.js";
-import { getTextWithLanguage, logError } from "../../../utils/utils.js";
-import { getTheme } from "../services/storage-service.js";
+import { prefix } from "../contants/contants.js";
+import { getTheme } from "../services/storage-global-service.js";
+import { getTextWithLanguage, logError } from "../utils/utils.js";
 
 function getAllFieldsSetting(root = document) {
   const inputMaxGroup = root.querySelector("#tm_input-max-group-per-time");

@@ -1,48 +1,51 @@
 import {
   KEY_IS_PREMIUM,
-  KEY_IS_SHUFFLE_SCHEDULER_TIME,
-  KEY_IS_SPAMMED,
   prefix,
+  SCHEDULER_TYPE,
 } from "../../../contants/contants.js";
 import {
-  getCurrentGroupNeedPost,
   getTimeToPostOneGroup,
   getTotalGroupsNeedPost,
-} from "../helpers/group.js";
+} from "../../../helpers/group.js";
 import {
   getNextTimePost,
   getNextTimePostWhenSpammed,
-} from "../helpers/scheduler.js";
-import { DB_getValue } from "../utils/api-helper.js";
-import { getTextWithLanguage, logError } from "../../../utils/utils.js";
+} from "../../../helpers/scheduler.js";
+import { getCurrentDataGroupPosting } from "../../../services/data-group-post-service.js";
 import {
   getAllDataGroupsInStorage,
   getAllGroupPostedsInStorage,
   getListGroupsNeedPostInStorage,
-} from "../services/groupService.js";
+} from "../../../services/groupService.js";
 import {
-  getIsSpecialFrameHoursInStore,
-  getObjectIsInSpecialFrameHours,
+  getSchedulerDetail,
   getSchedulerService,
-} from "../services/scheduler-service.js";
+} from "../../../services/scheduler-service.js";
+import {
+  getIsFixStealAllFocusData,
+  getIsFixStealFocusData,
+  getIsRandomBreakBatchData,
+  getIsRandomTimePostData,
+  getIsSchedulerData,
+  getIsShuffleGroupNeedPostData,
+  getIsSpammedData,
+  getIsSpecialFrameHoursData,
+  getLastTimePostData,
+  getMaxGroupPerTimeData,
+} from "../../../services/setting-service.js";
+import { getObjectIsInSpecialFrameHours } from "../../../services/special-frame-hours-service.js";
 import {
   getCountBatchPost,
   getCountResetGroupInStorage,
   getCurrentCountPostLength,
   getIsDeveloperModeInStorage,
-  getIsFixStealAllFocusInStorage,
-  getIsRandomBatchPost,
-  getIsRandomTimePost,
-  getIsShuffleGroupNeedPost,
   getIsShuffleSchedulerTimeInStorage,
-  getIsSpammedInStorage,
-  getIsStealFocusInStorage,
   getIsTestInStorage,
-  getLastTimePostInStorage,
-  getMaxGroupPerTimeInStorage,
   getObjectTaskInStorage,
   getProgress,
-} from "../services/storage-service.js";
+} from "../../../services/storage-service.js";
+import { DB_getValue } from "../../../utils/api-helper.js";
+import { getTextWithLanguage, logError } from "../../../utils/utils.js";
 
 function getStatusString(status) {
   switch (status) {
@@ -268,43 +271,49 @@ async function updateDataSavedInfo() {
     );
     if (dataSavedEl) {
       const { groups: groupsNeedPost } = await getListGroupsNeedPostInStorage();
-      const scheduler = await getSchedulerService();
+
+      const isScheduler = await getIsSchedulerData();
       const allGroups = await getAllDataGroupsInStorage();
       const groupsPosted = await getAllGroupPostedsInStorage();
       const isTesting = await getIsTestInStorage();
       const isProcessing = await getProgress();
-      const currentGroupNeedPost = await getCurrentGroupNeedPost();
-      const maxGroupPerTime = await getMaxGroupPerTimeInStorage();
+      const currentGroupNeedPost = await getCurrentDataGroupPosting();
+      const maxGroupPerTime = await getMaxGroupPerTimeData();
       const isFixStealFocus =
-        (await getIsStealFocusInStorage()) ||
-        (await getIsFixStealAllFocusInStorage()) ||
+        (await getIsFixStealFocusData()) ||
+        (await getIsFixStealAllFocusData()) ||
         false;
 
       const length = await getCurrentCountPostLength();
       const objectTask = await getObjectTaskInStorage();
-      const lastTimePost = await getLastTimePostInStorage();
+      const lastTimePost = await getLastTimePostData();
       const isShuffleTime = await getIsShuffleSchedulerTimeInStorage();
 
       let nextTime = await getNextTimePost();
 
-      function getSpaceTimePost(scheduler) {
-        switch (scheduler.type) {
-          case "custom-every-hours":
-            return scheduler.valueHours * 60 * 60;
-          case "custom-every-minutes":
-            return scheduler.valueMinutes * 60;
-          case "daily-hours":
-            return 1 * 60 * 60;
-          case "custom-frame-hours":
-            return null;
-          default:
-            return null;
+      async function getSpaceTimePost() {
+        const scheduler = await getSchedulerService();
+        const type = scheduler.scheduler_type;
+        const schedulerDetail = await getSchedulerDetail(type);
+        const time = schedulerDetail?.scheduler_time_value || 0;
+        if (
+          type === SCHEDULER_TYPE.CUSTOM_DAILY_HOURS ||
+          type === SCHEDULER_TYPE.EVERY_HOURS ||
+          type === SCHEDULER_TYPE.DAILY_HOURS
+        ) {
+          return time * 60 * 60;
+        } else if (
+          type === SCHEDULER_TYPE.CUSTOM_DAILY_MINUTES ||
+          type === SCHEDULER_TYPE.EVERY_MINUTES
+        ) {
+          return time * 60;
         }
+        return null;
       }
 
       //calulate time estimated total time post
       const timeToPostOneGroup = await getTimeToPostOneGroup();
-      const timeSpacePost = getSpaceTimePost(scheduler);
+      const timeSpacePost = await getSpaceTimePost();
 
       let estimatedTotalTime = null;
 
@@ -317,6 +326,24 @@ async function updateDataSavedInfo() {
             timeSpacePost;
       }
 
+      const isDeveloperMode = await getIsDeveloperModeInStorage();
+      const countResetGroups = await getCountResetGroupInStorage();
+      const nextTimeWhenSpammed = await getNextTimePostWhenSpammed();
+      const countBatch = await getCountBatchPost();
+      const isShuffleGroupsNeedPost = await getIsShuffleGroupNeedPostData();
+      const isSpammed = await getIsSpammedData();
+      const isRandomBatchPost = await getIsRandomBreakBatchData();
+      const isRandomTimePost = await getIsRandomTimePostData();
+      const isSpecialFrameHours = await getIsSpecialFrameHoursData();
+      let maxGroupPerTimeInSpecialFrameHour = 0;
+
+      if (isSpecialFrameHours) {
+        maxGroupPerTimeInSpecialFrameHour =
+          (await getObjectIsInSpecialFrameHours())?.max_group || 0;
+      }
+
+      const isPremium = (await DB_getValue(KEY_IS_PREMIUM)) || false;
+
       const html = getDataSavedHTML({
         allGroups,
         groupsNeedPost,
@@ -324,7 +351,7 @@ async function updateDataSavedInfo() {
         lengthPostedInCurrentTime: length,
         isTesting,
         isProcessing,
-        isScheduler: scheduler?.isScheduler,
+        isScheduler,
         currentGroup: objectTask?.task || {},
         lastTimePost,
         currentGroupNeedPost,
@@ -333,18 +360,17 @@ async function updateDataSavedInfo() {
         estimatedTotalTime,
         isFixStealFocus,
         isShuffleTime,
-        isDeveloperMode: await getIsDeveloperModeInStorage(),
-        countResetGroups: await getCountResetGroupInStorage(),
-        isSpammed: await getIsSpammedInStorage(),
-        nextTimeWhenSpammed: await getNextTimePostWhenSpammed(),
-        countBatch: await getCountBatchPost(),
-        isShuffleGroupsNeedPost: await getIsShuffleGroupNeedPost(),
-        isRandomBatchPost: await getIsRandomBatchPost(),
-        isRandomTimePost: await getIsRandomTimePost(),
-        isSpecialFrameHours: await getIsSpecialFrameHoursInStore(),
-        maxGroupPerTimeInSpecialFrameHour:
-          (await getObjectIsInSpecialFrameHours())?.maxGroup || 0,
-        isPremium: (await DB_getValue(KEY_IS_PREMIUM)) || false,
+        isDeveloperMode,
+        countResetGroups,
+        isSpammed,
+        nextTimeWhenSpammed,
+        countBatch,
+        isShuffleGroupsNeedPost,
+        isRandomBatchPost,
+        isRandomTimePost,
+        isSpecialFrameHours,
+        maxGroupPerTimeInSpecialFrameHour,
+        isPremium,
       });
       dataSavedEl.innerHTML = html;
 
@@ -354,12 +380,12 @@ async function updateDataSavedInfo() {
         groupsPosted,
         lengthPostedInCurrentTime: length,
         isProcessing,
-        isScheduler: scheduler?.isScheduler,
+        isScheduler,
         lastTimePost,
         nextTimePost: nextTime,
         maxGroupPerTime,
-        isSpammed: await getIsSpammedInStorage(),
-        nextTimeWhenSpammed: await getNextTimePostWhenSpammed(),
+        isSpammed,
+        nextTimeWhenSpammed,
       });
       if (dataSavedAtDashboard) {
         dataSavedAtDashboard.innerHTML = htmlAtDashboard;

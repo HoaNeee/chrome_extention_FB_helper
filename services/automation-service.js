@@ -1,48 +1,51 @@
-import { KEY_POST, KEY_TAB, STATUS_TASK } from "../../../contants/contants.js";
-import { showNotify } from "../draw_element/notify.js";
+import { KEY_POST, KEY_TAB, STATUS_TASK } from "../contants/contants.js";
+import { showNotify } from "../dashboard/src/draw_element/notify.js";
+import { addLog } from "../dashboard/src/draw_element/panel-log.js";
+import { DB_openInTab, DB_setValue } from "../utils/api-helper.js";
 import {
   getTextWithLanguage,
   logActions,
   logError,
   now,
   sleep,
-} from "../../../utils/utils.js";
-import { getGroupsMatch } from "../helpers/group.js";
+} from "../utils/utils.js";
+import { getPremiumService } from "./auth-service.js";
 import {
-  getChangeGroupsCheckedFlag,
-  getIndexsGroupChecked,
-  getIsFixStealAllFocusInStorage,
-  getIsStealFocusInStorage,
-  getIsStopTaskInStorage,
-  getIsTestInStorage,
-  getRandomIndexGroupChecked,
-  getStrictlyMatchTitleGroupInStorage,
-  setChangeGroupsCheckedFlag,
-  setCurrentCountPostLength,
-  setCurrentIndexGroupPost,
-  setIsStopTaskInStorage,
-  setIsTestInStorage,
-  setProgress,
-} from "./storage-service.js";
-import { DB_openInTab, DB_setValue } from "../utils/api-helper.js";
+  getListDataGroupPostNeedPost,
+  getListIdDataGroupPostCheckeds,
+  getRandomIdDataGroupPostChecked,
+  setCurrentDataGroupPosting,
+  setCurrentIdDataGroupPost,
+} from "./data-group-post-service.js";
 import {
   getAllDataGroupsInStorage,
   getAllGroupPostedsInStorage,
   getListGroupsNeedPostInStorage,
   setAllGroupPostedsInStorage,
-  setGroupsNeedPost,
+  updateGroupNeedPosts,
 } from "./groupService.js";
-import { getDataGroupsSavedNeedPost } from "./dataSavedService.js";
-import { addLog } from "../draw_element/panel-log.js";
 import {
-  getIsSpecialFrameHoursInStore,
-  getObjectIsInSpecialFrameHours,
-} from "./scheduler-service.js";
+  getIsFixStealAllFocusData,
+  getIsFixStealFocusData,
+  getIsSpecialFrameHoursData,
+} from "./setting-service.js";
+import { getObjectIsInSpecialFrameHours } from "./special-frame-hours-service.js";
+import {
+  getChangeGroupsCheckedFlag,
+  getIsStopTaskInStorage,
+  getIsTestInStorage,
+  setChangeGroupsCheckedFlag,
+  setCurrentCountPostLength,
+  setIsStopTaskInStorage,
+  setIsTestInStorage,
+  setProgress,
+} from "./storage-service.js";
 
 async function checkAndLogSpecialFrameHour() {
   try {
-    const isSpecialFrameHour = await getIsSpecialFrameHoursInStore();
-    if (isSpecialFrameHour) {
+    const isSpecialFrameHour = await getIsSpecialFrameHoursData();
+    const isPremium = await getPremiumService();
+    if (isSpecialFrameHour && isPremium) {
       await sleep(500);
       addLog({
         vi: "Chức năng khung giờ đặc biệt đang được bật, đang kiểm tra có thuộc khung giờ đặc biệt không",
@@ -56,10 +59,10 @@ async function checkAndLogSpecialFrameHour() {
         addLog({
           vi:
             "Khung giờ hiện tại thuộc khung giờ đặc biệt, số nhóm tối đa trong lần này sẽ là: " +
-            object.maxGroup,
+            object.max_group,
           en:
             "Current time belongs to special frame hours, max groups this time will be: " +
-            object.maxGroup,
+            object.max_group,
         });
       } else {
         addLog({
@@ -70,14 +73,6 @@ async function checkAndLogSpecialFrameHour() {
     }
   } catch (error) {
     logError("Error checking special frame hour: ", error);
-    addLog({
-      vi:
-        "Đã xảy ra lỗi khi kiểm tra chức năng khung giờ đặc biệt, " +
-        (error.message || error),
-      en:
-        "Error occurred while checking special frame hour function, " +
-        (error.message || error),
-    });
   }
 }
 
@@ -103,7 +98,7 @@ async function autoWithFirstTask() {
         return;
       }
 
-      const id = await getRandomIndexGroupChecked();
+      const id = await getRandomIdDataGroupPostChecked();
 
       //optional
       if (!id) {
@@ -116,7 +111,14 @@ async function autoWithFirstTask() {
         return;
       }
 
-      setCurrentIndexGroupPost(id);
+      await setCurrentIdDataGroupPost(id);
+      const listDataGroupPostNeedPost = await getListDataGroupPostNeedPost();
+      const dataGroupPostFound = listDataGroupPostNeedPost.find(
+        (i) => i.id === id,
+      );
+      if (dataGroupPostFound) {
+        await setCurrentDataGroupPosting(dataGroupPostFound);
+      }
 
       const need = listGroups.find((gr) => gr.id === id);
       const groups = need?.groups || [];
@@ -174,14 +176,21 @@ async function automationHelper({ isTest = false } = {}) {
     const allGroups = await getAllDataGroupsInStorage();
     if (!allGroups || !Array.isArray(allGroups) || !allGroups.length) {
       showNotify({
-        message: "No group found, please get list group first",
+        message: getTextWithLanguage({
+          vi: "Không có dữ liệu nhóm, hãy lấy danh sách nhóm trước",
+          en: "No group data, please get list group first",
+        }),
         type: "error",
       });
-      setProgress(false);
+      addLog({
+        vi: "Tiện ích đã bị tạm dừng do không có dữ liệu nhóm",
+        en: "The utility has been paused because there is no group data",
+      });
+      await setProgress(false);
       return;
     }
 
-    const indexsChecked = await getIndexsGroupChecked();
+    const indexsChecked = await getListIdDataGroupPostCheckeds();
     if (
       !indexsChecked ||
       !Array.isArray(indexsChecked) ||
@@ -199,7 +208,7 @@ async function automationHelper({ isTest = false } = {}) {
       return;
     }
 
-    const dataSaveds = await getDataGroupsSavedNeedPost();
+    // const listDataGroupNeedPost = await getListDataGroupPostNeedPost();
 
     const listGroups = allGroups;
 
@@ -210,6 +219,7 @@ async function automationHelper({ isTest = false } = {}) {
         vi: "Tiện ích đã bị tạm dừng.",
         en: "The utility has been paused.",
       });
+      await setProgress(false);
       return;
     }
 
@@ -219,44 +229,14 @@ async function automationHelper({ isTest = false } = {}) {
         vi: "Tiện ích đã bị tạm dừng do danh sách nhóm trống, hãy lấy danh sách nhóm trước hoặc tham gia thêm vào các nhóm sau đó lấy lại dữ liệu.",
         en: "The utility has been paused because the list of groups is empty. Please get the list of groups first or join more groups and then get the data again.",
       });
-      setProgress(false);
+      await setProgress(false);
       return;
     }
 
     const changeGroupCheckedFlag = await getChangeGroupsCheckedFlag();
     if (changeGroupCheckedFlag) {
-      const titleStrictlyMatch = await getStrictlyMatchTitleGroupInStorage();
-      let list = [];
-      for (const data of dataSaveds) {
-        const title = data.title;
-        const id = data.id;
-        const name = data.name || "";
-        const priority = data.priority || 1;
-        const listGroupsMatch = getGroupsMatch({
-          title,
-          listGroups,
-          titleStrictlyMatch,
-        });
-
-        list.push({ id, title, name, priority, groups: listGroupsMatch });
-      }
-
-      //sort
-      list = list.sort((a, b) => {
-        if (
-          a.priority !== b.priority &&
-          a.priority !== undefined &&
-          b.priority !== undefined &&
-          a.priority !== null &&
-          b.priority !== null
-        ) {
-          return a.priority - b.priority;
-        }
-        return a.groups.length - b.groups.length;
-      });
-
-      await setGroupsNeedPost(list);
-      setChangeGroupsCheckedFlag(false);
+      await updateGroupNeedPosts();
+      await setChangeGroupsCheckedFlag(false);
     }
 
     autoWithFirstTask();
@@ -277,8 +257,8 @@ async function automationHelper({ isTest = false } = {}) {
  */
 async function openNewTaskHepler(task = {}) {
   try {
-    const isFixStealFocus = await getIsStealFocusInStorage();
-    const isFixStealAllFocus = await getIsFixStealAllFocusInStorage();
+    const isFixStealFocus = await getIsFixStealFocusData();
+    const isFixStealAllFocus = await getIsFixStealAllFocusData();
     if (isFixStealAllFocus) {
       const tabId = await DB_openInTab(task.id_href, {
         active: false,

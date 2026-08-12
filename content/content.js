@@ -20,6 +20,8 @@
     GET_ALL_METADATA: "get_all_metadata_interact_before_post"
   };
   var KEY_ADD_TIME_DELAY_FOR_SCHEDULER = "update_time_delay_for_scheduler";
+  var MAX_LENGTH_FILE_NAME = 15;
+  var KEY_GET_PARSE_FILE = "get_parse_file";
 
   // dist/contants/contants.js
   var KEY_LANGUAGE = "language";
@@ -44,17 +46,25 @@
     POSTING: "posting",
     ERROR: "error"
   };
+  var SCHEDULER_TYPE = {
+    EVERY_MINUTES: "EVERY_MINUTES",
+    EVERY_HOURS: "EVERY_HOURS",
+    CUSTOM_DAILY_MINUTES: "CUSTOM_DAILY_MINUTES",
+    CUSTOM_DAILY_HOURS: "CUSTOM_DAILY_HOURS",
+    DAILY_HOURS: "DAILY_HOURS",
+    FRAME_HOURS: "FRAME_HOURS"
+  };
   var URL_LIST_GROUPS = "https://www.facebook.com/groups/joins/?nav_source=tab";
   var MAX_Z_INDEX = 99;
   var initialTimeDelay = {
-    clickToPost: 4,
-    fillContent: 5,
-    fillFile: 7,
-    post: 5,
-    openNewTab: 2
+    time_delay_click_to_post: 4,
+    time_delay_fill_content: 5,
+    time_delay_fill_file: 7,
+    time_delay_post: 5,
+    time_delay_open_new_tab: 2
   };
 
-  // dist/dashboard/src/utils/api-helper.js
+  // dist/utils/api-helper.js
   async function DB_getValue(key, defaultValue) {
     try {
       const result = await chrome.storage.local.get(key);
@@ -91,7 +101,17 @@
     }
   })();
 
-  // dist/dashboard/src/services/storage-service.js
+  // dist/utils/request.js
+  var DOMAIN = "http://localhost:8080";
+  var BASE_URL = DOMAIN + "/api/v1";
+
+  // dist/services/scheduler-service.js
+  var initScheduler = {
+    scheduler_type: SCHEDULER_TYPE.DAILY_HOURS,
+    is_scheduler: false
+  };
+
+  // dist/services/storage-service.js
   async function getIsDeveloperModeInStorage() {
     return await DB_getValue(KEY_IS_DEVELOPER_MODE) || false;
   }
@@ -114,7 +134,19 @@
   }
   function parseBase64ToFile({ name, base64Data, type }) {
     const blob = parseBase64ToBlob({ name, base64Data, type });
-    return new File([blob], name, { type: blob.type });
+    const split = name?.split(".");
+    let fileName = genID();
+    let ext = "jpg";
+    if (split.length > 1) {
+      fileName = split[0];
+      ext = split[split.length - 1];
+    }
+    if (fileName.length > MAX_LENGTH_FILE_NAME) {
+      fileName = fileName.slice(0, MAX_LENGTH_FILE_NAME);
+    }
+    const newName = fileName + "_" + genID() + "." + ext;
+    const file = new File([blob], newName, { type });
+    return file;
   }
   function parseBase64ToBlob(objectURL) {
     const base64Data = objectURL.base64Data.split(",")[1];
@@ -125,10 +157,7 @@
       uint8Array[i] = binaryData.charCodeAt(i);
     }
     const blob = new Blob([uint8Array], { type: objectURL.type });
-    const split = objectURL.name.split(".");
-    const name = randomID() + "." + split[split.length - 1];
-    const file = new File([blob], name, { type: objectURL.type });
-    return file;
+    return blob;
   }
   function getLanguage() {
     try {
@@ -145,8 +174,8 @@
     }
     return href;
   }
-  function randomID() {
-    return Math.random().toString(36).substring(2, 10);
+  function genID(length = 10) {
+    return Math.random().toString(36).substring(2, length + 2);
   }
   async function logActions(...args) {
     const isDevMode = await getIsDeveloperModeInStorage();
@@ -319,11 +348,9 @@
       return false;
     }
   }
-  async function CL_getTimeDelayInStorage() {
+  async function CL_getTimeDelayData() {
     try {
-      const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
-        key: KEY_TIME_DELAY
-      });
+      const response = await sendMessageWithResponse(KEY_TIME_DELAY);
       return response.data || initialTimeDelay;
     } catch (error) {
       CL_addLogRequest({
@@ -394,13 +421,24 @@
       const response = await sendMessageWithResponse(
         KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST.GET_ALL_METADATA
       );
-      return response.data || { listContent: [], isActive: false, numberComment: 0 };
+      if (response?.data) {
+        return response.data;
+      }
+      return {
+        contents: [],
+        max_comment_per_post: 0,
+        is_active: false
+      };
     } catch (error) {
       CL_addLogRequest({
         vi: error || "L\u1ED7i khi l\u1EA5y d\u1EEF li\u1EC7u b\xECnh lu\u1EADn",
         en: error || "Error getting comment data"
       });
-      return { listContent: [], isActive: false };
+      return {
+        contents: [],
+        is_active: false,
+        max_comment_per_post: 0
+      };
     }
   }
   async function CL_getMetadataInteractBeforePost() {
@@ -408,13 +446,13 @@
       const response = await sendMessageWithResponse(
         KEY_INTERACT_BEFORE_POST_REQUEST.GET_ALL_METADATA
       );
-      return response.data || false;
+      return response.data || null;
     } catch (error) {
       CL_addLogRequest({
         vi: error || "L\u1ED7i khi l\u1EA5y tr\u1EA1ng th\xE1i interact before post",
         en: error || "Error when getting interact before post status"
       });
-      return false;
+      return null;
     }
   }
   async function CL_setDecidedInteractBeforePost(value) {
@@ -867,14 +905,14 @@
   async function interactBeforePost() {
     try {
       const metadataInteractBeforePost = await CL_getMetadataInteractBeforePost();
-      const canInteract = metadataInteractBeforePost?.canInteract || false;
-      const maxPost = metadataInteractBeforePost?.maxPost || 0;
+      const canInteract = metadataInteractBeforePost?.can_interact || false;
+      const maxPost = metadataInteractBeforePost?.max_post_interact_per_batch || 0;
       if (!canInteract) {
         return;
       }
       CL_addLogRequest({
-        vi: "B\u1EAFt \u0111\u1EA7u t\u01B0\u01A1ng t\xE1c b\xE0i vi\u1EBFt tr\u01B0\u1EDBc khi \u0111\u0103ng",
-        en: "Started interacting with posts before posting"
+        vi: "B\u1EAFt \u0111\u1EA7u th\u1EF1c hi\u1EC7n t\xE1c v\u1EE5 t\u01B0\u01A1ng t\xE1c b\xE0i vi\u1EBFt tr\u01B0\u1EDBc khi \u0111\u0103ng",
+        en: "Started performing the task of interacting with posts before posting"
       });
       let divFeed = await findElementFeedInGroup();
       if (divFeed) {
@@ -899,8 +937,8 @@
           }
         }
         CL_addLogRequest({
-          vi: `S\u1ED1 b\xE0i vi\u1EBFt c\u1EA7n t\u01B0\u01A1ng t\xE1c: ${arrayDivNeedReact.length}`,
-          en: `Number of posts to interact: ${arrayDivNeedReact.length}`
+          vi: `S\u1ED1 b\xE0i vi\u1EBFt c\u1EA7n t\u01B0\u01A1ng t\xE1c trong \u0111\u1EE3t n\xE0y: ${arrayDivNeedReact.length}`,
+          en: `Number of posts to interact in this batch: ${arrayDivNeedReact.length}`
         });
         for (const divReact of arrayDivNeedReact) {
           await sleep(random(1, 3) * 1234);
@@ -918,8 +956,8 @@
           await sleep(random(2, 4) * 1234);
         }
         CL_addLogRequest({
-          vi: `\u0110\xE3 t\u01B0\u01A1ng t\xE1c xong, ti\u1EBFp t\u1EE5c th\u1EF1c hi\u1EC7n \u0111\u0103ng b\xE0i`,
-          en: `Already interacted, continuing to post`
+          vi: `T\xE1c v\u1EE5 t\u01B0\u01A1ng t\xE1c \u0111\xE3 \u0111\u01B0\u1EE3c ho\xE0n th\xE0nh, ti\u1EBFp t\u1EE5c th\u1EF1c hi\u1EC7n \u0111\u0103ng b\xE0i`,
+          en: `The interaction task has been completed, continuing to post`
         });
         await CL_setDecidedInteractBeforePost(false);
       }
@@ -987,6 +1025,28 @@
       return false;
     }
   }
+  async function updateLastTimePost(time) {
+    try {
+      await sendMessage(KEY_LAST_TIME_POST, {
+        time
+      });
+      return true;
+    } catch (error) {
+      logError("Error at updateLastTimePost: ", error);
+      return false;
+    }
+  }
+  async function CL_getParseFileRequest(files) {
+    try {
+      const res = await sendMessageWithResponse(KEY_GET_PARSE_FILE, {
+        files
+      });
+      return res?.data;
+    } catch (error) {
+      logError("Error CL_getFileRequest: ", error);
+      throw error;
+    }
+  }
 
   // dist/content/helpers/post.js
   async function pasteContent(content) {
@@ -1040,20 +1100,23 @@
         div.dispatchEvent(mouseEvt);
         await sleep(random(2, 5) * 100);
         const dt = new DataTransfer();
-        for (const file of files) {
-          const parseFile = parseBase64ToFile(file);
-          dt.items.add(parseFile);
+        const parses = await CL_getParseFileRequest(files);
+        if (parses && Array.isArray(parses)) {
+          for await (const item of parses) {
+            const parse = parseBase64ToFile(item);
+            dt.items.add(parse);
+          }
+          input.files = dt.files;
         }
-        input.files = dt.files;
         input.dispatchEvent(new Event("change", { bubbles: true }));
         input.dispatchEvent(new Event("input", { bubbles: true }));
       }
     } catch (e) {
       CL_addLogRequest({
-        vi: `L\u1ED7i khi t\u1EA3i t\u1EC7p l\xEAn \xF4 nh\u1EADp`,
-        en: `Error when uploading files to the input box`
+        vi: `L\u1ED7i khi t\u1EA3i t\u1EC7p l\xEAn \xF4 nh\u1EADp: ${e?.message || e}`,
+        en: `Error when uploading files to the input box: ${e?.message || e}`
       });
-      throw new Error("Error at fill file: " + e);
+      throw e;
     }
   }
   async function postHelper(task) {
@@ -1072,11 +1135,11 @@
       };
       const s = 1e3;
       const isTest = await CL_getIsTest();
-      const timeDelay = await CL_getTimeDelayInStorage();
-      const timeClickToPost = timeDelay?.clickToPost || initialTimeDelay.clickToPost;
-      const timeFillContent = timeDelay?.fillContent || initialTimeDelay.fillContent;
-      const timeFillFile = timeDelay?.fillFile || initialTimeDelay.fillFile;
-      const timePost = timeDelay?.post || initialTimeDelay.post;
+      const timeDelay = await CL_getTimeDelayData();
+      const timeClickToPost = timeDelay?.time_delay_click_to_post || initialTimeDelay.clickToPost;
+      const timeFillContent = timeDelay?.time_delay_fill_content || initialTimeDelay.fillContent;
+      const timeFillFile = timeDelay?.time_delay_fill_file || initialTimeDelay.fillFile;
+      const timePost = timeDelay?.time_delay_post || initialTimeDelay.post;
       let delayClickToPost = calculateTimeDelay(timeClickToPost);
       let delayFillContent = calculateTimeDelay(timeFillContent);
       let delayFillFile = calculateTimeDelay(timeFillFile);
@@ -1131,14 +1194,14 @@
         let content = contents[random(0, contents.length - 1)];
         await pasteContent(content);
         await sleep(delayFillFile);
-        fillFile(files);
+        await fillFile(files);
         await sleep(delayPost);
         if (!isTest) {
           if (getIsExistDialog()) {
             const isProgress = await CL_getProgressTool();
             if (isProgress) {
               await findButtonPostAndClick();
-              CL_setValue(KEY_LAST_TIME_POST, now());
+              await updateLastTimePost(now());
             }
           } else {
             const text2 = await CL_getTextWithLang({
@@ -1197,7 +1260,7 @@
   async function commentToJustPostedHelper() {
     try {
       const data = await CL_getMetadataComments();
-      if (!data.isActive) {
+      if (!data.is_active) {
         return;
       }
       if (!randomRateBoolean(28)) {
@@ -1217,20 +1280,21 @@
       }
       if (getIsExistDialog()) {
         CL_addLogRequest({
-          vi: "Kh\xF4ng th\u1EC3 b\xECnh lu\u1EADn v\xE0o b\xE0i vi\u1EBFt v\u1EEBa \u0111\u0103ng, b\xE0i vi\u1EBFt v\u1EEBa \u0111\u0103ng c\xF3 th\u1EC3 \u0111\xE3 b\u1ECB th\u1EA5t b\u1EA1i",
+          vi: "Kh\xF4ng th\u1EC3 b\xECnh lu\u1EADn v\xE0o b\xE0i vi\u1EBFt v\u1EEBa \u0111\u0103ng, b\xE0i vi\u1EBFt v\u1EEBa \u0111\u0103ng kh\xF4ng th\xE0nh c\xF4ng",
           en: "Cannot comment on this post, the post may have failed"
         });
         return;
       }
       CL_addLogRequest({
-        vi: `\u0110\xE3 quy\u1EBFt \u0111\u1ECBnh s\u1EBD b\xECnh lu\u1EADn b\xE0i vi\u1EBFt n\xE0y, s\u1ED1 b\xECnh lu\u1EADn ${data.numberComment}`,
-        en: `Decided to comment on this post, number comment ${data.numberComment}`
+        vi: `\u0110\xE3 quy\u1EBFt \u0111\u1ECBnh s\u1EBD b\xECnh lu\u1EADn b\xE0i vi\u1EBFt n\xE0y, s\u1ED1 b\xECnh lu\u1EADn ${data.max_comment_per_post}`,
+        en: `Decided to comment on this post, number comment ${data.max_comment_per_post}`
       });
       await sleep(random(1e3, 4e3) + random(100, 1e3));
       const elementJustPosted = findElementJustPosted();
+      const listContent = data.contents;
       async function typeAndSubmit(textBox, elementJustPosted2) {
         try {
-          const content = data.listContent[random(0, data.listContent.length - 1)];
+          const content = listContent[random(0, listContent.length - 1)];
           if (textBox) {
             await simulateTyping(textBox, content, {
               minDelay: 200,
@@ -1262,14 +1326,14 @@
           await sleep(random(1, 5) * 1e3);
           textBox.focus();
           await sleep(random(1, 3) * 1e3);
-          for (let i = 0; i < data.numberComment; i++) {
+          for (let i = 0; i < data.max_comment_per_post; i++) {
             await typeAndSubmit(textBox, elementJustPosted);
             await sleep(random(1e3, 2e3));
           }
         }
       }
       const timeClick = 3;
-      const timeType = data.numberComment * 8;
+      const timeType = data.max_comment_per_post * 8;
       const timeCheckDialog = cnt * 1;
       const timeDelay = timeClick + timeType + timeCheckDialog;
       await CL_setTimeDelayForScheduler(timeDelay * 1e3);
@@ -1296,8 +1360,8 @@
           });
           await sleep(4e3);
           const allGroups = await getListGroups();
-          CL_setValue(KEY_ALL_GROUPS, allGroups);
-          CL_setValue(KEY_IS_SCROLL_DETECT_LIST_GROUP, false);
+          await CL_setValue(KEY_ALL_GROUPS, allGroups);
+          await CL_setValue(KEY_IS_SCROLL_DETECT_LIST_GROUP, false);
           await sleep(2e3);
           sendMessage(KEY_CLOSE_THIS_TAB, {});
         }
@@ -1324,7 +1388,7 @@
           if (isSuccess) {
             await commentToJustPostedHelper();
           }
-          const timeDelay = await CL_getTimeDelayInStorage();
+          const timeDelay = await CL_getTimeDelayData();
           const timeDelayNext = timeDelay.openNewTab % 2 === 0 ? timeDelay.openNewTab / 2 : (timeDelay.openNewTab + 1) / 2;
           await sleep(timeDelayNext * 1e3 + random(500, 2e3));
           sendMessage(KEY_NEXT_POST_GROUP, {});

@@ -4,7 +4,7 @@ import {
   addHistoryLog,
   clearHistoryLogs,
   getHistoryLogsInStorage,
-} from "../services/storage-service.js";
+} from "../../../services/storage-service.js";
 
 function createPanelLog(anchorElem = document.body) {
   const div = document.createElement("div");

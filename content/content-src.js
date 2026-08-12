@@ -25,10 +25,7 @@ import {
   sendMessage,
   sendMessageWithResponse,
 } from "./utils/request.js";
-import {
-  CL_getProgressTool,
-  CL_getTimeDelayInStorage,
-} from "./utils/storage.js";
+import { CL_getProgressTool, CL_getTimeDelayData } from "./utils/storage.js";
 import { CL_getValue, CL_setValue, getIsMatchUrl } from "./utils/utils.js";
 
 async function main() {
@@ -50,8 +47,8 @@ async function main() {
         });
         await sleep(4000);
         const allGroups = await getListGroups();
-        CL_setValue(KEY_ALL_GROUPS, allGroups);
-        CL_setValue(KEY_IS_SCROLL_DETECT_LIST_GROUP, false);
+        await CL_setValue(KEY_ALL_GROUPS, allGroups);
+        await CL_setValue(KEY_IS_SCROLL_DETECT_LIST_GROUP, false);
         await sleep(2000);
         sendMessage(KEY_CLOSE_THIS_TAB, {});
       }
@@ -85,7 +82,7 @@ async function main() {
           await commentToJustPostedHelper();
         }
 
-        const timeDelay = await CL_getTimeDelayInStorage();
+        const timeDelay = await CL_getTimeDelayData();
         const timeDelayNext =
           timeDelay.openNewTab % 2 === 0
             ? timeDelay.openNewTab / 2

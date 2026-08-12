@@ -1,7 +1,8 @@
+import { MAX_LENGTH_FILE_NAME } from "../contants/constant-extention.js";
 import {
   getIsDeveloperModeInStorage,
   getLanguageInStorage,
-} from "../dashboard/src/services/storage-service.js";
+} from "../services/storage-service.js";
 
 async function sleep(duration) {
   return await new Promise((resolve) => {
@@ -46,6 +47,23 @@ function cvString(str) {
     .trim();
 }
 
+/**
+ * @param {File} file
+ * @returns {Promise<{name: string, base64Data: string, type: string}>}
+ */
+async function parseFileToObjectBase64(file) {
+  const base64Data = await fileToBase64(file);
+  return {
+    name: file.name,
+    base64Data,
+    type: file.type,
+  };
+}
+
+/**
+ * @param {File} file
+ * @returns {Promise<string>} base64 data
+ */
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -62,7 +80,25 @@ function fileToBase64(file) {
  */
 function parseBase64ToFile({ name, base64Data, type }) {
   const blob = parseBase64ToBlob({ name, base64Data, type });
-  return new File([blob], name, { type: blob.type });
+
+  const split = name?.split(".");
+
+  let fileName = genID();
+  let ext = "jpg";
+
+  if (split.length > 1) {
+    fileName = split[0];
+    ext = split[split.length - 1];
+  }
+
+  if (fileName.length > MAX_LENGTH_FILE_NAME) {
+    fileName = fileName.slice(0, MAX_LENGTH_FILE_NAME);
+  }
+
+  //convert name again
+  const newName = fileName + "_" + genID() + "." + ext;
+  const file = new File([blob], newName, { type });
+  return file;
 }
 
 /**
@@ -80,12 +116,90 @@ function parseBase64ToBlob(objectURL) {
   }
   const blob = new Blob([uint8Array], { type: objectURL.type });
 
-  const split = objectURL.name.split(".");
+  return blob;
+}
+
+/**
+ *
+ * @param {string} url
+ * @returns {Promise<Blob>}
+ */
+async function parseUrlToBlob(url) {
+  // return new Promise((resolve, reject) => {
+  //   const xhr = new XMLHttpRequest();
+  //   xhr.open("GET", url, true);
+  //   xhr.responseType = "blob";
+  //   xhr.onload = () => {
+  //     if (xhr.status === 200) {
+  //       resolve(xhr.response);
+  //     } else {
+  //       reject(xhr.statusText);
+  //     }
+  //   };
+  //   xhr.send();
+  // });
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.blob();
+  } catch (error) {
+    logError("Error parsing URL to blob: ", error);
+    throw new Error(error?.message || "Error parsing URL to blob");
+  }
+}
+
+/**
+ *
+ * @param {Blob} blob
+ * @param {string} name
+ * @returns {File}
+ */
+function parseBlobToFile(blob, name = null) {
+  let fileName = genID();
+  let ext = getExtensionByMimeType(blob.type);
+
+  if (name) {
+    const split = name?.split(".");
+    if (split.length > 1) {
+      const origin = split[0];
+      if (origin.includes("//")) {
+        fileName = origin.slice(origin.lastIndexOf("/") + 1);
+      } else {
+        fileName = origin;
+      }
+    }
+
+    if (fileName.length > MAX_LENGTH_FILE_NAME) {
+      fileName = fileName.slice(0, MAX_LENGTH_FILE_NAME);
+    }
+  }
+
+  fileName = fileName.replaceAll(/[-_./"]/g, "");
 
   //convert name again
-  const name = randomID() + "." + split[split.length - 1];
-  const file = new File([blob], name, { type: objectURL.type });
-  return file;
+  const newName = fileName + "_" + genID() + "." + ext;
+
+  return new File([blob], newName, { type: blob.type });
+}
+
+function getExtensionByMimeType(mimeType) {
+  const mimeTypes = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "image/bmp": "bmp",
+    "image/svg+xml": "svg",
+    "image/tiff": "tif",
+    "image/vnd.microsoft.icon": "ico",
+    "image/apng": "apng",
+    "image/avif": "avif",
+    "image/x-icon": "ico",
+  };
+
+  return mimeTypes[mimeType?.toLowerCase()] || "jpg";
 }
 
 /**
@@ -143,10 +257,29 @@ function randomID() {
   return Math.random().toString(36).substring(2, 10);
 }
 
+function genID(length = 10) {
+  return Math.random()
+    .toString(36)
+    .substring(2, length + 2);
+}
+
+function genIDNumber(length = 8) {
+  const pat = "0123456789";
+  let id = "";
+  for (let i = 0; i < length; i++) {
+    id += pat.charAt(random(0, pat.length));
+  }
+  if (id.charAt(0) === "0") {
+    id = random(1, pat.length) + id.slice(1);
+  }
+  return Number(id);
+}
+
 async function logActions(...args) {
   const isDevMode = await getIsDeveloperModeInStorage();
   if (isDevMode) {
     console.log(...args);
+    // console.trace();
   }
 }
 
@@ -216,6 +349,18 @@ function getIsCorrectURL() {
   return true;
 }
 
+function cloneData(data) {
+  if (Array.isArray(data)) {
+    return data.map((item) => cloneData(item));
+  }
+  if (typeof data === "object") {
+    return Object.fromEntries(
+      Object.entries(data).map(([key, value]) => [key, cloneData(value)]),
+    );
+  }
+  return data;
+}
+
 export {
   sleep,
   random,
@@ -239,4 +384,10 @@ export {
   getIsDashboardTab,
   getIsCorrectURL,
   randomRateBoolean,
+  parseUrlToBlob,
+  parseBlobToFile,
+  genID,
+  parseFileToObjectBase64,
+  cloneData,
+  genIDNumber,
 };

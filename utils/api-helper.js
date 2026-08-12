@@ -15,8 +15,8 @@ import {
   KEY_XMLHTTP_REQUEST,
   KEY_XMLHTTP_REQUEST_RESPONSE,
   URL_MATCH,
-} from "../../../contants/constant-extention.js";
-import { logError } from "../../../utils/utils.js";
+} from "../contants/constant-extention.js";
+import { logError } from "../utils/utils.js";
 
 // ============================================================
 // STORAGE: DB_getValue, DB_setValue, DB_deleteValue, DB_listValues

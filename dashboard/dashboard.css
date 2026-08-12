@@ -578,3 +578,25 @@ input:checked + .slider:before {
   font-size: 16px;
   cursor: pointer;
 }
+
+.info-user-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-user-item {
+  display: flex;
+  gap: 4px;
+}
+
+.info-user-item .info-user-label {
+  font-size: 13px;
+  color: var(--tm-text-secondary);
+}
+
+.info-user-item .info-user-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tm-text-primary);
+}

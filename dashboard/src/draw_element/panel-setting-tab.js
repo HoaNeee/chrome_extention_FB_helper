@@ -1,59 +1,68 @@
 import {
   initialTimeDelay,
-  KEY_IS_DEVELOPER_MODE,
-  KEY_IS_FIX_STEAL_ALL_FOCUS,
-  KEY_IS_FIX_STEAL_FOCUS,
-  KEY_IS_IN_PROGRESS,
-  KEY_IS_RANDOM_BATCH_POST,
-  KEY_IS_RANDOM_TIME_POST,
-  KEY_IS_SHUFFLE_GROUPS_NEED_POST,
   KEY_IS_SHUFFLE_SCHEDULER_TIME,
-  KEY_IS_SPAMMED,
-  KEY_IS_SPECIAL_FRAME_HOURS,
-  KEY_IS_TEST,
   prefix,
+  SCHEDULER_TYPE,
 } from "../../../contants/contants.js";
-import {
-  getTextWithLanguage,
-  logError,
-  now,
-  randomID,
-} from "../../../utils/utils.js";
 import {
   createSchedulerDailyHours,
   createSchedulerHours,
   createSchedulerMinutes,
-  getCorrectNextTime,
-  getListFrameHours,
   getSchedulerWithType,
   logSchedulerHelper,
-} from "../helpers/scheduler.js";
+} from "../../../helpers/scheduler.js";
 import {
-  getTimeDelayInStorage,
+  genIDNumber,
+  getTextWithLanguage,
+  logError,
+  randomID,
+} from "../../../utils/utils.js";
+import {
+  getSchedulerDetail,
+  getSchedulerService,
+  changeTypeScheduler,
+  clearSchedulerAuto,
+  setSchedulerDetail,
+  clearAndCreateSchedulerAlarm,
+} from "../../../services/scheduler-service.js";
+import {
+  getIsSchedulerData,
+  getTimeDelayData,
+  setIsFixStealAllFocusData,
+  setIsFixStealFocusData,
+  setIsRandomBreakBatchData,
+  setIsRandomTimePostData,
+  setIsSchedulerData,
+  setIsShuffleGroupNeedPostData,
+  setIsSpammedData,
+  setIsSpecialFrameHoursData,
+  setMaxGroupPerTimeData,
+  setStrictlyMatchTitleGroupData,
+  setTimeDelayData,
+} from "../../../services/setting-service.js";
+import {
+  getIsDeveloperModeInStorage,
+  getIsTestInStorage,
   setCountBatchPost,
   setCountResetGroupInStorage,
   setCurrentCountPostLength,
-  setMaxGroupPerTimeInStorage,
-  setStrictlyMatchTitleGroupInStorage,
-  setTimeDelayInStorage,
-} from "../services/storage-service.js";
-import {
-  addSpecialFrameHoursService,
-  clearAndCreateSchedulerAlarm,
-  clearSchedulerAuto,
-  deleteSpecialFrameHoursService,
-  getIsScheduler,
-  getSchedulerService,
-  getSpecialFrameHoursService,
-  setSchedulerService,
-  setSpecialFrameHoursService,
-  updateSpecialFrameHoursService,
-} from "../services/scheduler-service.js";
-import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
+  setIsTestInStorage,
+  setProgress,
+} from "../../../services/storage-service.js";
+import { DB_getValue, DB_setValue } from "../../../utils/api-helper.js";
 import { updateDataSavedInfo } from "./dataSavedInfo.js";
 import { createDialog, dialogViewScheduler } from "./dialog.js";
 import { showNotify } from "./notify.js";
 import { addLog } from "./panel-log.js";
+import {
+  createDialogAddSpecialHours,
+  createDialogViewSpecialFrameHours,
+} from "./special-frame-hours.js";
+import {
+  clearAllSpecialFrameHours,
+  getSpecialFrameHoursService,
+} from "../../../services/special-frame-hours-service.js";
+import { handleErrorHelper } from "../../../utils/exception.js";
 
 async function createPanelSetting(anchorElem = document.body) {
   try {
@@ -137,52 +146,25 @@ async function createPanelSetting(anchorElem = document.body) {
           <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-scheduler">
           <label for="${prefix}checkbox-is-scheduler" style="user-select: none;">${getTextWithLanguage({ vi: "Chế độ lên lịch", en: "Scheduler Mode" })}</label>
         </div>
-        <div id="${prefix}div-scheduler-options" style="padding-left: 16px; max-width: 250px; min-width: 200px;">
+        <div id="${prefix}div-scheduler-options" style="padding-left: 16px; max-width: 300px; min-width: 200px;">
           <div style="margin-bottom: 4px; margin-top: 4px;">
             <button class="not-style" style="padding: 6px; font-size: 12px" id="${prefix}btn-view-scheduler">${getTextWithLanguage({ vi: "Xem lịch", en: "View scheduler" })}</button>
           </div>
           <div id="${prefix}div-scheduler-setting" style="margin-top: 8px;">
             <label for="${prefix}select-scheduler-type" style="margin-bottom: 4px; display: inline-block;">${getTextWithLanguage({ vi: "Chọn loại lịch", en: "Select scheduler type" })}:</label>
             <select id="${prefix}select-scheduler-type" class="custom-select" style="padding: 4px 0; width: 100%;">
-              <option value="daily-hours">${getTextWithLanguage({ vi: "Hàng giờ (1:00,2:00,...)", en: "Daily hours (1:00,2:00,...)" })}</option>
-              <option value="custom-every-minutes">${getTextWithLanguage({ vi: "Mỗi phút", en: "Every minutes" })} (1,5,10,...)</option>
-              <option value="custom-every-hours">${getTextWithLanguage({ vi: "Mỗi giờ", en: "Every hours" })} (1,2,3,...)</option>
-              <option value="custom-frame-hours">${getTextWithLanguage({ vi: "Khung giờ", en: "Frame hours" })} (1:01,2:12,4:20,...)</option>
+              <option value="${SCHEDULER_TYPE.DAILY_HOURS}">${getTextWithLanguage({ vi: "Hàng giờ cố định (1:00,2:00,...)", en: "Daily hours (1:00,2:00,...)" })}</option>
+              <option value="${SCHEDULER_TYPE.EVERY_MINUTES}">${getTextWithLanguage({ vi: "Mỗi phút tùy chỉnh", en: "Every minutes custom" })} (1,5,10,...)</option>
+              <option value="${SCHEDULER_TYPE.EVERY_HOURS}">${getTextWithLanguage({ vi: "Mỗi giờ tùy chỉnh", en: "Every hours custom" })} (1,2,3,...)</option>
+              <option value="${SCHEDULER_TYPE.CUSTOM_DAILY_MINUTES}">${getTextWithLanguage({ vi: "Bộ lịch mỗi phút", en: "Custom scheduler every minutes" })} (1,5,10,...)</option>
+              <option value="${SCHEDULER_TYPE.CUSTOM_DAILY_HOURS}">${getTextWithLanguage({ vi: "Bộ lịch mỗi giờ", en: "Custom scheduler every hours" })} (1,2,3,...)</option>
             </select>
             <div id="${prefix}div-scheduler-daily-hours" style="display: none; padding: 4px; margin-top: 4px;">
               <div style="text-align: right;">
                 <button class="not-style" style="padding: 4px; font-size: 12px; " id="${prefix}btn-reset-daily-hours">${getTextWithLanguage({ vi: "Đặt lại hàng ngày", en: "Reset daily hours" })}</button>
               </div>
             </div>
-            <div id="${prefix}div-scheduler-custom-minutes" style="display: none; padding: 4px; margin-top: 4px;">
-              <div class="${prefix}field-container">
-                <label for="${prefix}input-custom-minutes" style="font-size: 11px">${getTextWithLanguage({ vi: "Nhập tùy chỉnh mỗi phút", en: "Enter custom every minutes" })}: </label>
-                <input min="1"  type="number" id="${prefix}input-custom-minutes" class="${prefix}input-outline not-style" placeholder="Ex: 1,5,10,...">
-                <div style="text-align: right;">
-                  <button class="not-style" style="padding: 6px 12px; font-size: 12px; " id="${prefix}btn-save-custom-minutes">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
-                </div>
-              </div>
-            </div>
-            <div id="${prefix}div-scheduler-custom-hours" style="display: none; padding: 4px; margin-top: 4px;">
-              <div class="${prefix}field-container">
-                <label for="${prefix}input-custom-hours" style="font-size: 11px">${getTextWithLanguage({ vi: "Nhập tùy chỉnh mỗi giờ", en: "Enter custom every hours" })}: </label>
-                <input min="1"  type="number" id="${prefix}input-custom-hours" class="${prefix}input-outline not-style" placeholder="Ex: 1,2,3,...">
-                <div style="text-align: right;">
-                  <button class="not-style" style="padding: 6px 12px; font-size: 12px; " id="${prefix}btn-save-custom-hours">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
-                </div>
-              </div>
-            </div>
-            <div id="${prefix}div-scheduler-custom-frame-hours" style="display: none; padding: 4px; margin-top: 4px;">
-              <div class="${prefix}field-container">
-                <label for="${prefix}input-custom-frame-hours" style="font-size: 11px">${getTextWithLanguage({ vi: "Nhập khung giờ (phân tách bằng dấu phẩy ',')", en: "Enter hours (Sperator with comma ',')" })} <p>${getTextWithLanguage({ vi: "Ví dụ", en: "Example" })}: 1:00, 2:00, 3:00,...</p></label>
-                <input style="width: 100%; font-size: 12px;" type="text" id="${prefix}input-custom-frame-hours" class="${prefix}input-outline not-style" placeholder="Ex: 1:00,2:00,...">
-              </div>
-              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                <button class="not-style" style="padding: 4px; font-size: 10px; " id="${prefix}btn-add-frame-hours">${getTextWithLanguage({ vi: "Thêm khung giờ", en: "Add frame hours" })}</button>
-                <button class="not-style" style="padding: 4px; font-size: 10px; " id="${prefix}btn-remove-frame-hours">${getTextWithLanguage({ vi: "Xóa khung giờ", en: "Remove frame hours" })}</button>
-                <button class="not-style" style="padding: 4px; font-size: 10px; " id="${prefix}btn-reset-frame-hours">${getTextWithLanguage({ vi: "Đặt lại khung giờ", en: "Reset frame hours" })}</button>
-              </div>
-            </div>
+            <div id="${prefix}scheduler-custom" style="margin-left: 12px; margin-top: 6px;"></div>
           </div>
         </div>
         <div class="special-frame-hours-container">
@@ -247,7 +229,7 @@ async function createPanelSetting(anchorElem = document.body) {
       setIsShow: setIsShowViewDialogScheduler,
       changeContent: changeViewSchedulerContent,
     } = createDialog({
-      html: dialogViewScheduler([]),
+      html: dialogViewScheduler(null, []),
       isConfirm: true,
     });
 
@@ -274,33 +256,6 @@ async function createPanelSetting(anchorElem = document.body) {
     let scheduler = await getSchedulerService();
 
     function schedulerEvent() {
-      function setShowSchedulerCustomMinutes(isShow) {
-        const divCustomMinutes = root.querySelector(
-          `#${prefix}div-scheduler-custom-minutes`,
-        );
-        if (divCustomMinutes) {
-          divCustomMinutes.style.display = isShow ? "block" : "none";
-        }
-      }
-
-      function setShowSchedulerCustomHours(isShow) {
-        const divCustomHours = root.querySelector(
-          `#${prefix}div-scheduler-custom-hours`,
-        );
-        if (divCustomHours) {
-          divCustomHours.style.display = isShow ? "block" : "none";
-        }
-      }
-
-      function setShowSchedulerCustomFrameHours(isShow) {
-        const divCustomFrameHours = root.querySelector(
-          `#${prefix}div-scheduler-custom-frame-hours`,
-        );
-        if (divCustomFrameHours) {
-          divCustomFrameHours.style.display = isShow ? "block" : "none";
-        }
-      }
-
       function setShowSchedulerDailyHours(isShow) {
         const divDailyHours = root.querySelector(
           `#${prefix}div-scheduler-daily-hours`,
@@ -311,112 +266,277 @@ async function createPanelSetting(anchorElem = document.body) {
       }
 
       return {
-        setShowSchedulerCustomMinutes,
-        setShowSchedulerCustomHours,
-        setShowSchedulerCustomFrameHours,
         setShowSchedulerDailyHours,
       };
     }
 
-    const {
-      setShowSchedulerCustomFrameHours,
-      setShowSchedulerCustomHours,
-      setShowSchedulerCustomMinutes,
-      setShowSchedulerDailyHours,
-    } = schedulerEvent();
+    const { setShowSchedulerDailyHours } = schedulerEvent();
 
-    async function onChangeSchedulerType(val) {
-      const newSchduler = await getSchedulerService();
-      newSchduler.type = val;
-
-      changeViewSchedulerContent(
-        dialogViewScheduler(await getSchedulerWithType(val)),
-      );
-
-      switch (val) {
-        case "daily-hours":
-          setShowSchedulerCustomHours(false);
-          setShowSchedulerCustomMinutes(false);
-          setShowSchedulerCustomFrameHours(false);
-          setShowSchedulerDailyHours(true);
-          break;
-        case "custom-every-minutes":
-          setShowSchedulerCustomHours(false);
-          setShowSchedulerCustomMinutes(true);
-          setShowSchedulerCustomFrameHours(false);
-          setShowSchedulerDailyHours(false);
-          break;
-        case "custom-every-hours":
-          setShowSchedulerCustomHours(true);
-          setShowSchedulerCustomMinutes(false);
-          setShowSchedulerCustomFrameHours(false);
-          setShowSchedulerDailyHours(false);
-          break;
-        case "custom-frame-hours":
-          setShowSchedulerCustomFrameHours(true);
-          setShowSchedulerCustomHours(false);
-          setShowSchedulerCustomMinutes(false);
-          setShowSchedulerDailyHours(false);
-          break;
-
-        default:
-          break;
-      }
-      scheduler = newSchduler;
-      setSchedulerService(newSchduler);
-    }
-
-    //initial data for panel
-    async function initialDataPanel() {
-      await onChangeSchedulerType(scheduler.type);
-      changeViewSchedulerContent(
-        dialogViewScheduler(await getSchedulerWithType(scheduler.type)),
-      );
-      const selectSchedulerType = root.querySelector(
-        `#${prefix}select-scheduler-type`,
-      );
-      if (selectSchedulerType) {
-        selectSchedulerType.value = scheduler.type;
-      }
-      const inputCustomMinutes = root.querySelector(
-        `#${prefix}input-custom-minutes`,
-      );
-      if (inputCustomMinutes) {
-        inputCustomMinutes.value = scheduler.valueMinutes || "";
-      }
-      const inputCustomHours = root.querySelector(
-        `#${prefix}input-custom-hours`,
-      );
-      if (inputCustomHours) {
-        inputCustomHours.value = scheduler.valueHours || "";
-      }
-    }
-
-    await initialDataPanel();
-
-    function saveCustomHoursEvent() {
+    async function onChangeSchedulerType(val, isSave = true) {
       try {
-        const inputCustomHours = document.querySelector(
-          `#tm_input-custom-hours`,
+        if (isSave) {
+          await changeTypeScheduler(val);
+        }
+
+        const details = await getSchedulerDetail(val);
+
+        const listTime = await getSchedulerWithType(val);
+
+        changeViewSchedulerContent(dialogViewScheduler(val, listTime));
+
+        function createElementSchedulerCustom({
+          label = "",
+          id = "",
+          placeholder = "",
+          value,
+          onSave,
+        }) {
+          const div = document.createElement("div");
+          div.id = `${prefix}div-scheduler-custom-daily-hours`;
+          div.style.padding = "4px";
+          div.style.marginTop = "4px";
+
+          const labelEl = document.createElement("label");
+          labelEl.htmlFor = id;
+          labelEl.style.fontSize = "12px";
+          labelEl.innerText = label;
+
+          const input = document.createElement("input");
+          input.type = "number";
+          input.id = id;
+          input.className = `${prefix}input-outline not-style`;
+          input.placeholder = placeholder;
+          input.value = value || "";
+          input.style.marginTop = "4px";
+
+          const divSave = document.createElement("div");
+          divSave.style.textAlign = "right";
+          divSave.style.marginTop = "8px";
+
+          const buttonSave = document.createElement("button");
+          buttonSave.className = "not-style";
+          buttonSave.style.padding = "6px 12px";
+          buttonSave.style.fontSize = "12px";
+          buttonSave.id = `${prefix}btn-save-scheduler`;
+          buttonSave.innerText = getTextWithLanguage({
+            vi: "Lưu",
+            en: "Save",
+          });
+
+          buttonSave.onclick = () => {
+            const value = input.value;
+            onSave?.(Number(value));
+          };
+
+          divSave.appendChild(buttonSave);
+          div.appendChild(labelEl);
+          div.appendChild(input);
+          div.appendChild(divSave);
+
+          return div;
+        }
+
+        const divSchedulerCustom = document.querySelector(
+          `#${prefix}scheduler-custom`,
         );
+        if (divSchedulerCustom) {
+          divSchedulerCustom.innerHTML = "";
+        }
+
+        setShowSchedulerDailyHours(val === SCHEDULER_TYPE.DAILY_HOURS);
+
+        const timeValue = details?.scheduler_time_value || 5;
+
+        switch (val) {
+          case SCHEDULER_TYPE.EVERY_MINUTES:
+            const divCustomEveryMinutes = createElementSchedulerCustom({
+              label: getTextWithLanguage({
+                vi: "Nhập tùy chỉnh mỗi phút",
+                en: "Enter custom every minutes",
+              }),
+              id: `${prefix}input-${SCHEDULER_TYPE.EVERY_MINUTES}`,
+              placeholder: "Ex: 1,2,3,...",
+              value: timeValue,
+              onSave: async (value) => {
+                try {
+                  await setSchedulerDetail(val, {
+                    scheduler_time_list: null,
+                    scheduler_time_value: Number(value),
+                  });
+                  showNotify({
+                    message: getTextWithLanguage({
+                      vi: "Lưu cài đặt thành công",
+                      en: "Save settings successfully",
+                    }),
+                  });
+                  addLog({
+                    vi:
+                      "Đã cập nhật thời gian cho lịch trình tùy chỉnh: " +
+                      value +
+                      " phút",
+                    en:
+                      "Updated time for custom schedule: " + value + " minutes",
+                  });
+                } catch (error) {
+                  logError("Error at save every minutes: ", error);
+                  showNotify({
+                    message: getTextWithLanguage({
+                      vi: "Lưu cài đặt thất bại",
+                      en: "Save settings failed",
+                    }),
+                    type: "error",
+                  });
+                }
+              },
+            });
+            if (divSchedulerCustom) {
+              divSchedulerCustom.appendChild(divCustomEveryMinutes);
+            }
+            break;
+          case SCHEDULER_TYPE.EVERY_HOURS:
+            const divCustomEveryHours = createElementSchedulerCustom({
+              label: getTextWithLanguage({
+                vi: "Nhập tùy chỉnh mỗi giờ",
+                en: "Enter custom every hours",
+              }),
+              id: `${prefix}input-${SCHEDULER_TYPE.EVERY_HOURS}`,
+              placeholder: "Ex: 1,2,3,...",
+              value: timeValue,
+              onSave: async (value) => {
+                try {
+                  await setSchedulerDetail(val, {
+                    scheduler_time_list: null,
+                    scheduler_time_value: Number(value),
+                  });
+                  showNotify({
+                    message: getTextWithLanguage({
+                      vi: "Lưu cài đặt thành công",
+                      en: "Save settings successfully",
+                    }),
+                  });
+                  addLog({
+                    vi:
+                      "Đã cập nhật thời gian cho lịch trình tùy chỉnh: " +
+                      value +
+                      " giờ",
+                    en: "Updated time for custom schedule: " + value + " hours",
+                  });
+                } catch (error) {
+                  logError("Error at save every hours: ", error);
+                  showNotify({
+                    message: getTextWithLanguage({
+                      vi: "Lưu cài đặt thất bại",
+                      en: "Save settings failed",
+                    }),
+                    type: "error",
+                  });
+                }
+              },
+            });
+            if (divSchedulerCustom) {
+              divSchedulerCustom.appendChild(divCustomEveryHours);
+            }
+
+            break;
+          case SCHEDULER_TYPE.CUSTOM_DAILY_MINUTES:
+            const divCustomDailyMinutes = createElementSchedulerCustom({
+              label: getTextWithLanguage({
+                vi: "Nhập giá trị bộ lịch mỗi phút",
+                en: "Enter value of scheduler every minutes",
+              }),
+              id: `${prefix}input-${SCHEDULER_TYPE.CUSTOM_DAILY_MINUTES}`,
+              placeholder: "Ex: 1,2,3,...",
+              value: timeValue,
+              onSave: async (value) => {
+                await saveCustomDailyMinutesEvent(value, val);
+              },
+            });
+            if (divSchedulerCustom) {
+              divSchedulerCustom.appendChild(divCustomDailyMinutes);
+            }
+
+            break;
+
+          case SCHEDULER_TYPE.CUSTOM_DAILY_HOURS:
+            const divCustomDailyHours = createElementSchedulerCustom({
+              label: getTextWithLanguage({
+                vi: "Nhập giá trị bộ lịch mỗi giờ",
+                en: "Enter value of scheduler every hours",
+              }),
+              id: `${prefix}input-${SCHEDULER_TYPE.CUSTOM_DAILY_HOURS}`,
+              placeholder: "Ex: 1,2,3,...",
+              value: timeValue,
+              onSave: async (value) => {
+                await saveCustomDailyHoursEvent(value, val);
+              },
+            });
+            if (divSchedulerCustom) {
+              divSchedulerCustom.appendChild(divCustomDailyHours);
+            }
+            break;
+
+          case SCHEDULER_TYPE.FRAME_HOURS:
+            break;
+
+          default:
+            break;
+        }
+
+        scheduler.scheduler_type = val;
+
+        return true;
+      } catch (error) {
+        handleErrorHelper({
+          name: "changeSchedulerType",
+          error,
+          isShowNotify: false,
+        });
+        return false;
+      }
+    }
+
+    //initial data for panel setting
+    async function initialDataPanelSetting() {
+      await onChangeSchedulerType(scheduler.scheduler_type, false);
+      changeViewSchedulerContent(
+        dialogViewScheduler(
+          scheduler.scheduler_type,
+          await getSchedulerWithType(scheduler.scheduler_type),
+        ),
+      );
+      const select = document.querySelector(`#${prefix}select-scheduler-type`);
+      if (select) {
+        select.value = scheduler.scheduler_type;
+      }
+    }
+
+    await initialDataPanelSetting();
+
+    async function saveCustomDailyHoursEvent(value, type) {
+      const inputCustomHours = document.querySelector(
+        `#${prefix}input-${SCHEDULER_TYPE.CUSTOM_DAILY_HOURS}`,
+      );
+      const isScheduler = await getIsSchedulerData();
+      try {
         if (inputCustomHours) {
-          const val = inputCustomHours.value;
-          const newSchedulerHours = createSchedulerHours(val);
-          scheduler.schedulerHours = newSchedulerHours;
-          scheduler.valueHours = val;
+          const val = value || inputCustomHours.value;
+          const listTime = createSchedulerHours(val);
           changeViewSchedulerContent(
-            dialogViewScheduler(scheduler.schedulerHours),
+            dialogViewScheduler(scheduler.scheduler_type, listTime),
           );
-          setSchedulerService(scheduler);
+          await setSchedulerDetail(type, {
+            scheduler_time_list: listTime,
+            scheduler_time_value: Number(val),
+          });
           showNotify({
             message: "Save custom every hours successfully",
             type: "success",
           });
           addLog({
-            vi: `Đã cập nhật khoảng thời gian mới: ${val} giờ`,
+            vi: `Đã cập nhật bộ lịch với khoảng thời gian mới: ${val} giờ`,
             en: `Updated new interval: ${val} hours`,
           });
-          if (scheduler.isScheduler) {
+          if (isScheduler) {
             clearAndCreateSchedulerAlarm();
             addLog({
               vi: "Chức năng lên lịch đang được bật, hãy chú ý thời gian đăng bài tiếp theo",
@@ -425,111 +545,70 @@ async function createPanelSetting(anchorElem = document.body) {
           }
         }
       } catch (error) {
+        logError("Error at save custom daily hours: ", error);
         showNotify({
-          message: error.message,
+          message: getTextWithLanguage({
+            vi: "Lỗi khi lưu bộ lịch",
+            en: "Error when saving scheduler",
+          }),
           type: "error",
         });
       }
     }
 
-    async function saveCustomMinutesEvent() {
-      try {
-        const inputCustomMinutes = document.querySelector(
-          `#tm_input-custom-minutes`,
-        );
-        if (inputCustomMinutes) {
-          let val = inputCustomMinutes.value;
-          const isTest = (await DB_getValue(KEY_IS_TEST)) || false;
-          const isDevMode = (await DB_getValue(KEY_IS_DEVELOPER_MODE)) || false;
-          val = Number(val);
-
-          if (val < 5) {
-            if (isTest || isDevMode) val = Math.max(1, val);
-            else val = 5;
-          }
-
-          const newSchedulerMinutes = await createSchedulerMinutes(val);
-          scheduler.schedulerMinutes = newSchedulerMinutes;
-          scheduler.valueMinutes = val;
-          changeViewSchedulerContent(
-            dialogViewScheduler(scheduler.schedulerMinutes),
-          );
-          setSchedulerService(scheduler);
-          showNotify({
-            message: getTextWithLanguage({
-              en: "Save custom every minutes successfully",
-              vi: "Lưu cài đặt khoảng thời gian thành công",
-            }),
-            type: "success",
-          });
-
-          addLog({
-            vi: `Đã cập nhật khoảng thời gian mới: ${val} phút`,
-            en: `Updated new interval: ${val} minutes`,
-          });
-          if (scheduler.isScheduler) {
-            clearAndCreateSchedulerAlarm();
-            addLog({
-              vi: "Chức năng lên lịch đang được bật, hãy chú ý thời gian đăng bài tiếp theo",
-              en: "Scheduler is enabled, please pay attention to the next post time",
-            });
-          }
-        }
-      } catch (error) {
-        showNotify({
-          message: error.message || error,
-          type: "error",
-        });
-      }
-    }
-
-    function addOrRemoveFrameHoursEvent({ cb, isRemove = false }) {
-      const inputCustomFrameHours = document.querySelector(
-        `#tm_input-custom-frame-hours`,
+    async function saveCustomDailyMinutesEvent(value, type) {
+      const inputCustomMinutes = document.querySelector(
+        `#${prefix}input-${SCHEDULER_TYPE.CUSTOM_DAILY_MINUTES}`,
       );
-      if (inputCustomFrameHours) {
-        try {
-          const val = inputCustomFrameHours.value;
-          // const { h, m } = convertFrameHours(val);
-          const list = getListFrameHours(val);
+      value = Number(value);
+      try {
+        const isScheduler = await getIsSchedulerData();
+        const isTest = await getIsTestInStorage();
+        const isDevMode = await getIsDeveloperModeInStorage();
 
-          if (isRemove) {
-            const newList = [];
-            for (const time of scheduler.frameHours) {
-              if (!list.find((t) => t.h === time.h && t.m === time.m)) {
-                newList.push(time);
-              }
-            }
-            scheduler.frameHours = newList;
-            showNotify({
-              message: "Remove frame hours successfully",
-              type: "success",
-            });
-            cb?.();
-            return;
-          }
-
-          const set = new Set(
-            scheduler.frameHours.map((time) => `${time.h}:${time.m}`),
-          );
-
-          for (const time of list) {
-            const { h, m } = time;
-            if (!set.has(`${h}:${m}`)) {
-              set.add(`${h}:${m}`);
-              scheduler.frameHours.push({ h, m });
-            }
-          }
-
-          showNotify({
-            message: "Add frame hours successfully",
-            type: "success",
-          });
-
-          cb?.();
-        } catch (error) {
-          showNotify({ message: error.message, type: "error" });
+        if (value < 5) {
+          if (isTest || isDevMode) value = Math.max(1, value);
+          else value = 5;
+          inputCustomMinutes.value = value;
         }
+
+        const listTime = await createSchedulerMinutes(value);
+
+        await setSchedulerDetail(type, {
+          scheduler_time_value: value,
+          scheduler_time_list: listTime,
+        });
+
+        changeViewSchedulerContent(dialogViewScheduler(type, listTime));
+        showNotify({
+          message: getTextWithLanguage({
+            en: "Save custom every minutes successfully",
+            vi: "Lưu cài đặt khoảng thời gian thành công",
+          }),
+          type: "success",
+        });
+
+        addLog({
+          vi: `Đã cập nhật bộ lịch với khoảng thời gian mới: ${value} phút`,
+          en: `Updated new interval: ${value} minutes`,
+        });
+        if (isScheduler) {
+          clearAndCreateSchedulerAlarm();
+          addLog({
+            vi: "Chức năng lên lịch đang được bật, hãy chú ý thời gian đăng bài tiếp theo",
+            en: "Scheduler is enabled, please pay attention to the next post time",
+          });
+        }
+      } catch (error) {
+        logError("Error at save custom daily minutes: ", error);
+        showNotify({
+          message: getTextWithLanguage({
+            vi: "Lỗi khi cập nhật bộ lịch",
+            en: "Error when updating scheduler",
+          }),
+          type: "error",
+        });
+        inputCustomMinutes.value = value;
       }
     }
 
@@ -539,7 +618,7 @@ async function createPanelSetting(anchorElem = document.body) {
           `#tm_btn-save-max-group-per-time`,
         );
         if (btnSaveMaxGroupPerTime) {
-          btnSaveMaxGroupPerTime.addEventListener("click", () => {
+          btnSaveMaxGroupPerTime.addEventListener("click", async () => {
             try {
               const maxGroupPerTime = document.querySelector(
                 `#tm_input-max-group-per-time`,
@@ -548,9 +627,9 @@ async function createPanelSetting(anchorElem = document.body) {
                 let val = maxGroupPerTime.value;
                 if (!Number.isNaN(Number(val))) {
                   val = Math.max(1, Number(val));
-                  setMaxGroupPerTimeInStorage(Number(val));
+                  await setMaxGroupPerTimeData(Number(val));
                 } else {
-                  setMaxGroupPerTimeInStorage(1);
+                  await setMaxGroupPerTimeData(1);
                 }
               }
               showNotify({
@@ -560,9 +639,11 @@ async function createPanelSetting(anchorElem = document.body) {
                 }),
                 type: "success",
               });
-              setCurrentCountPostLength(0);
-              setCountBatchPost(0);
-              setCountResetGroupInStorage(0);
+              await Promise.all([
+                setCurrentCountPostLength(0),
+                setCountBatchPost(0),
+                setCountResetGroupInStorage(0),
+              ]);
               updateDataSavedInfo();
             } catch (error) {
               logError("Error save max group per time: ", error);
@@ -587,88 +668,31 @@ async function createPanelSetting(anchorElem = document.body) {
           });
         }
 
-        const btnSaveCustomMinutes = document.querySelector(
-          `#tm_btn-save-custom-minutes`,
-        );
-        if (btnSaveCustomMinutes) {
-          btnSaveCustomMinutes.addEventListener(
-            "click",
-            saveCustomMinutesEvent,
-          );
-        }
-
-        const btnSaveCustomHours = document.querySelector(
-          `#tm_btn-save-custom-hours`,
-        );
-        if (btnSaveCustomHours) {
-          btnSaveCustomHours.addEventListener("click", saveCustomHoursEvent);
-        }
-
-        const btnAddFrameHours = document.querySelector(
-          `#tm_btn-add-frame-hours`,
-        );
-        if (btnAddFrameHours) {
-          btnAddFrameHours.addEventListener("click", () => {
-            addOrRemoveFrameHoursEvent({
-              cb: () => {
-                changeViewSchedulerContent(
-                  dialogViewScheduler(scheduler.frameHours),
-                );
-                setSchedulerService(scheduler);
-              },
-            });
-          });
-        }
-
-        const btnRemoveFrameHours = document.querySelector(
-          `#tm_btn-remove-frame-hours`,
-        );
-        if (btnRemoveFrameHours) {
-          btnRemoveFrameHours.addEventListener("click", () => {
-            addOrRemoveFrameHoursEvent({
-              isRemove: true,
-              cb: () => {
-                changeViewSchedulerContent(
-                  dialogViewScheduler(scheduler.frameHours),
-                );
-                setSchedulerService(scheduler);
-              },
-            });
-          });
-        }
-
-        const btnResetFrameHours = document.querySelector(
-          `#tm_btn-reset-frame-hours`,
-        );
-
-        if (btnResetFrameHours) {
-          btnResetFrameHours.addEventListener("click", () => {
-            scheduler.frameHours = [];
-            changeViewSchedulerContent(
-              dialogViewScheduler(scheduler.frameHours),
-            );
-            showNotify({
-              message: "Reset frame hours successfully",
-              type: "success",
-            });
-            setSchedulerService(scheduler);
-          });
-        }
-
         const btnResetDailyHours = document.querySelector(
           `#tm_btn-reset-daily-hours`,
         );
         if (btnResetDailyHours) {
-          btnResetDailyHours.addEventListener("click", () => {
-            scheduler.dailyHours = createSchedulerDailyHours();
-            changeViewSchedulerContent(
-              dialogViewScheduler(scheduler.dailyHours),
-            );
-            showNotify({
-              message: "Reset daily hours successfully",
-              type: "success",
-            });
-            setSchedulerService(scheduler);
+          btnResetDailyHours.addEventListener("click", async () => {
+            try {
+              const listTime = createSchedulerDailyHours();
+              await setSchedulerDetail(SCHEDULER_TYPE.DAILY_HOURS, {
+                scheduler_time_list: listTime,
+                scheduler_time_value: null,
+              });
+              changeViewSchedulerContent(
+                dialogViewScheduler(scheduler.scheduler_type, listTime),
+              );
+              showNotify({
+                message: "Reset daily hours successfully",
+                type: "success",
+              });
+            } catch (error) {
+              logError("Error at reset daily hours", error);
+              showNotify({
+                vi: "Đã có lỗi xảy ra",
+                en: "Some thing went wrong",
+              });
+            }
           });
         }
         //end scheduler
@@ -677,22 +701,23 @@ async function createPanelSetting(anchorElem = document.body) {
           `#${prefix}btn-save-strictly-match-title-group`,
         );
         if (btnSaveStrictlyMatchTitleGroup) {
-          btnSaveStrictlyMatchTitleGroup.addEventListener("click", () => {
+          btnSaveStrictlyMatchTitleGroup.addEventListener("click", async () => {
             try {
               const inputStrictlyMatchTitleGroup = root.querySelector(
                 `#${prefix}input-strictly-match-title-group`,
               );
-              const strictlyMatchTitleGroup = inputStrictlyMatchTitleGroup.value
-                .split(",")
-                .map((item) => item.trim())
-                .filter((item) => item !== "");
-              setStrictlyMatchTitleGroupInStorage(strictlyMatchTitleGroup);
+              const val = inputStrictlyMatchTitleGroup.value;
+              await setStrictlyMatchTitleGroupData(val);
               showNotify({
                 message: "Save keywords successfully",
                 type: "success",
               });
             } catch (error) {
               logError("Error setStrictlyMatchTitleGroupInStorage: ", error);
+              showNotify({
+                message: "Some thing went wrong",
+                type: "error",
+              });
             }
           });
         }
@@ -711,11 +736,22 @@ async function createPanelSetting(anchorElem = document.body) {
         );
         if (btnViewSpecialFrameHours) {
           btnViewSpecialFrameHours.addEventListener("click", async () => {
-            const framesHours = await getSpecialFrameHoursService();
-            changeContentDialogViewSpecialHours(
-              createDialogViewSpecialFrameHours(framesHours),
-            );
-            setIsShowDialogViewSpecialHours(true);
+            try {
+              const framesHours = await getSpecialFrameHoursService();
+              changeContentDialogViewSpecialHours(
+                createDialogViewSpecialFrameHours(framesHours),
+              );
+              setIsShowDialogViewSpecialHours(true);
+            } catch (error) {
+              logError("Error btnViewSpecialFrameHours: ", error);
+              showNotify({
+                message: getTextWithLanguage({
+                  en: "Some thing went wrong",
+                  vi: "Đã có lỗi xảy ra",
+                }),
+                type: "error",
+              });
+            }
           });
         }
 
@@ -729,7 +765,7 @@ async function createPanelSetting(anchorElem = document.body) {
             try {
               if (isConfrimClear) {
                 clearTimeout(timerDelete);
-                await setSpecialFrameHoursService([]);
+                await clearAllSpecialFrameHours();
                 showNotify({
                   message: getTextWithLanguage({
                     vi: "Xóa tất cả khung giờ thành công",
@@ -784,12 +820,6 @@ async function createPanelSetting(anchorElem = document.body) {
     //add event for fields
     async function addFieldsEvent() {
       try {
-        const inputPerTime = root.querySelector(`#tm_input-max-group-per-time`);
-        if (inputPerTime) {
-          //ctrl + shift + D/d to toggle developer mode
-          inputPerTime.addEventListener("keydown", async (e) => {});
-        }
-
         const inputStrictlyMatchGroup = root.querySelector(
           `#${prefix}input-strictly-match-title-group`,
         );
@@ -799,17 +829,24 @@ async function createPanelSetting(anchorElem = document.body) {
             if (e.ctrlKey && (e.key === "S" || e.key === "s")) {
               e.preventDefault();
               try {
-                const strictlyMatchTitleGroup = inputStrictlyMatchGroup.value
-                  .split(",")
-                  .map((item) => item.trim())
-                  .filter((item) => item !== "");
-                setStrictlyMatchTitleGroupInStorage(strictlyMatchTitleGroup);
+                const val = inputStrictlyMatchGroup.value;
+                await setStrictlyMatchTitleGroupData(val);
                 showNotify({
-                  message: "Save keywords successfully",
+                  message: getTextWithLanguage({
+                    vi: "Lưu từ khóa thành công",
+                    en: "Save keywords success!",
+                  }),
                   type: "success",
                 });
               } catch (error) {
                 logError("Error setStrictlyMatchTitleGroupInStorage: ", error);
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Đã có lỗi xảy ra",
+                    en: "Some thing went wrong!",
+                  }),
+                  type: "error",
+                });
               }
             }
           });
@@ -822,24 +859,38 @@ async function createPanelSetting(anchorElem = document.body) {
           checkboxIsProcessing.addEventListener("change", async (e) => {
             try {
               const val = e.target.checked;
-              DB_setValue(KEY_IS_IN_PROGRESS, val);
+              await setProgress(val);
               if (!val) {
-                const isScheduler = await getIsScheduler();
+                const isScheduler = await getIsSchedulerData();
                 if (isScheduler) {
                   clearAndCreateSchedulerAlarm();
                 }
               }
             } catch (error) {
-              logError("Error checkboxIsProcessing change: ", error);
+              handleErrorHelper({
+                name: "checkboxIsProcessing",
+                error,
+                isShowNotify: false,
+              });
             }
           });
         }
 
         const checkboxIsTest = root.querySelector(`#tm_checkbox-is-test`);
         if (checkboxIsTest) {
-          checkboxIsTest.addEventListener("change", (e) => {
+          checkboxIsTest.addEventListener("change", async (e) => {
             const val = e.target.checked;
-            DB_setValue(KEY_IS_TEST, val);
+            try {
+              await setIsTestInStorage(val);
+            } catch (error) {
+              handleErrorHelper({
+                name: "checkboxIsTest",
+                error,
+                isShowNotify: false,
+              });
+              e.target.checked = !val;
+            }
+            // console.log(e);
           });
         }
 
@@ -847,10 +898,19 @@ async function createPanelSetting(anchorElem = document.body) {
           "#tm_checkbox-is-fix-steal-focus",
         );
         if (checkboxIsFixStealFocus) {
-          checkboxIsFixStealFocus.addEventListener("change", (e) => {
+          checkboxIsFixStealFocus.addEventListener("change", async (e) => {
             const val = e.target.checked;
-            DB_setValue(KEY_IS_FIX_STEAL_FOCUS, val);
-            updateDataSavedInfo();
+            try {
+              await setIsFixStealFocusData(val);
+              updateDataSavedInfo();
+            } catch (error) {
+              handleErrorHelper({
+                name: "checkboxIsFixStealFocus",
+                error,
+                isShowNotify: false,
+              });
+              e.target.checked = !val;
+            }
           });
         }
 
@@ -858,10 +918,20 @@ async function createPanelSetting(anchorElem = document.body) {
           "#tm_checkbox-is-fix-steal-all-focus",
         );
         if (checkboxIsFixStealAllFocus) {
-          checkboxIsFixStealAllFocus.addEventListener("change", (e) => {
+          checkboxIsFixStealAllFocus.addEventListener("change", async (e) => {
             const val = e.target.checked;
-            DB_setValue(KEY_IS_FIX_STEAL_ALL_FOCUS, val);
-            updateDataSavedInfo();
+            try {
+              // DB_setValue(KEY_IS_FIX_STEAL_ALL_FOCUS, val);
+              await setIsFixStealAllFocusData(val);
+              updateDataSavedInfo();
+            } catch (error) {
+              handleErrorHelper({
+                name: "checkboxIsFixStealAllFocus",
+                error,
+                isShowNotify: false,
+              });
+              e.target.checked = !val;
+            }
           });
         }
 
@@ -871,6 +941,7 @@ async function createPanelSetting(anchorElem = document.body) {
         if (checboxIsShuffleSchedulerTime) {
           checboxIsShuffleSchedulerTime.addEventListener("change", (e) => {
             const val = e.target.checked;
+            //DO THEN
             DB_setValue(KEY_IS_SHUFFLE_SCHEDULER_TIME, val);
             updateDataSavedInfo();
           });
@@ -880,21 +951,44 @@ async function createPanelSetting(anchorElem = document.body) {
           `#${prefix}checkbox-is-shuffle-groups-need-post`,
         );
         if (checboxIsShuffleGroupsNeedPost) {
-          checboxIsShuffleGroupsNeedPost.addEventListener("change", (e) => {
-            const val = e.target.checked;
-            DB_setValue(KEY_IS_SHUFFLE_GROUPS_NEED_POST, val);
-            updateDataSavedInfo();
-          });
+          checboxIsShuffleGroupsNeedPost.addEventListener(
+            "change",
+            async (e) => {
+              const val = e.target.checked;
+              try {
+                // DB_setValue(KEY_IS_SHUFFLE_GROUPS_NEED_POST, val);
+                await setIsShuffleGroupNeedPostData(val);
+                updateDataSavedInfo();
+              } catch (error) {
+                handleErrorHelper({
+                  name: "checboxIsShuffleGroupsNeedPost",
+                  error,
+                  isShowNotify: false,
+                });
+                e.target.checked = !val;
+              }
+            },
+          );
         }
 
         const checkboxIsSpammed = root.querySelector(
           `#${prefix}checkbox-is-spammed`,
         );
         if (checkboxIsSpammed) {
-          checkboxIsSpammed.addEventListener("change", (e) => {
+          checkboxIsSpammed.addEventListener("change", async (e) => {
             const val = e.target.checked;
-            DB_setValue(KEY_IS_SPAMMED, val);
-            updateDataSavedInfo();
+            // DB_setValue(KEY_IS_SPAMMED, val);
+            try {
+              await setIsSpammedData(val);
+              updateDataSavedInfo();
+            } catch (error) {
+              handleErrorHelper({
+                name: "checkboxIsSpammed",
+                error,
+                isShowNotify: false,
+              });
+              e.target.checked = !val;
+            }
           });
         }
 
@@ -902,10 +996,20 @@ async function createPanelSetting(anchorElem = document.body) {
           `#${prefix}checkbox-is-random-batch-post`,
         );
         if (checkboxIsRandomBatchPost) {
-          checkboxIsRandomBatchPost.addEventListener("change", (e) => {
+          checkboxIsRandomBatchPost.addEventListener("change", async (e) => {
             const val = e.target.checked;
-            DB_setValue(KEY_IS_RANDOM_BATCH_POST, val);
-            updateDataSavedInfo();
+            // DB_setValue(KEY_IS_RANDOM_BATCH_POST, val);
+            try {
+              await setIsRandomBreakBatchData(val);
+              updateDataSavedInfo();
+            } catch (error) {
+              handleErrorHelper({
+                name: "checkboxIsRandomBatchPost",
+                error,
+                isShowNotify: false,
+              });
+              e.target.checked = !val;
+            }
           });
         }
 
@@ -913,10 +1017,20 @@ async function createPanelSetting(anchorElem = document.body) {
           `#${prefix}checkbox-is-random-time-post`,
         );
         if (checkboxIsRandomTimePost) {
-          checkboxIsRandomTimePost.addEventListener("change", (e) => {
+          checkboxIsRandomTimePost.addEventListener("change", async (e) => {
             const val = e.target.checked;
-            DB_setValue(KEY_IS_RANDOM_TIME_POST, val);
-            updateDataSavedInfo();
+            // DB_setValue(KEY_IS_RANDOM_TIME_POST, val);
+            try {
+              await setIsRandomTimePostData(val);
+              updateDataSavedInfo();
+            } catch (error) {
+              handleErrorHelper({
+                name: "checkboxIsRandomTimePost",
+                error,
+                isShowNotify: false,
+              });
+              e.target.checked = !val;
+            }
           });
         }
 
@@ -925,10 +1039,9 @@ async function createPanelSetting(anchorElem = document.body) {
         );
         if (checkboxIsScheduler) {
           checkboxIsScheduler.addEventListener("change", async (e) => {
+            const val = e.target.checked;
             try {
-              const val = e.target.checked;
-              scheduler.isScheduler = val;
-              setSchedulerService({ ...scheduler, time: now() });
+              await setIsSchedulerData(val);
               if (!val) {
                 clearSchedulerAuto();
                 addLog({
@@ -940,7 +1053,12 @@ async function createPanelSetting(anchorElem = document.body) {
                 await logSchedulerHelper();
               }
             } catch (error) {
-              logError("Error at checkboxIsScheduler: ", error);
+              handleErrorHelper({
+                name: "checkboxIsScheduler",
+                error,
+                isShowNotify: false,
+              });
+              e.target.checked = !val;
             }
           });
         }
@@ -949,10 +1067,20 @@ async function createPanelSetting(anchorElem = document.body) {
           `#${prefix}checkbox-is-special-frame-hours`,
         );
         if (checkboxIsSpecialFrameHours) {
-          checkboxIsSpecialFrameHours.addEventListener("change", (e) => {
+          checkboxIsSpecialFrameHours.addEventListener("change", async (e) => {
             const val = e.target.checked;
-            DB_setValue(KEY_IS_SPECIAL_FRAME_HOURS, val);
-            updateDataSavedInfo();
+            try {
+              // DB_setValue(KEY_IS_SPECIAL_FRAME_HOURS, val);
+              await setIsSpecialFrameHoursData(val);
+              updateDataSavedInfo();
+            } catch (error) {
+              handleErrorHelper({
+                name: "checkboxIsSpecialFrameHours",
+                error,
+                isShowNotify: false,
+              });
+              e.target.checked = !val;
+            }
           });
         }
 
@@ -962,12 +1090,15 @@ async function createPanelSetting(anchorElem = document.body) {
         if (selectSchedulerType) {
           selectSchedulerType.addEventListener("change", async (e) => {
             const val = e.target.value;
-            await onChangeSchedulerType(val);
+            const success = await onChangeSchedulerType(val);
+            if (!success) {
+              e.target.value = scheduler.scheduler_type;
+            }
           });
         }
 
         //Delay time for each step when posting
-        const timeDelay = await getTimeDelayInStorage();
+        const timeDelay = await getTimeDelayData();
 
         const inputClickToPost = root.querySelector(
           `#tm_input-delay-click-to-post`,
@@ -982,42 +1113,62 @@ async function createPanelSetting(anchorElem = document.body) {
         const inputDelayPost = root.querySelector(`#tm_input-delay-post`);
 
         if (inputClickToPost) {
-          inputClickToPost.addEventListener("change", (e) => {
+          inputClickToPost.addEventListener("change", async (e) => {
             const val = Number.isNaN(Number(e.target.value))
               ? 1
               : Number(e.target.value || 1);
-            timeDelay.clickToPost = val || initialTimeDelay.clickToPost;
-            setTimeDelayInStorage(timeDelay);
+            timeDelay.time_delay_click_to_post =
+              val || initialTimeDelay.time_delay_click_to_post;
+            try {
+              await setTimeDelayData(timeDelay);
+            } catch (error) {
+              logError("Error inputClickToPost change: ", error);
+            }
           });
         }
 
         if (inputFillContent) {
-          inputFillContent.addEventListener("change", (e) => {
+          inputFillContent.addEventListener("change", async (e) => {
             const val = Number.isNaN(Number(e.target.value))
               ? 1
               : Number(e.target.value || 1);
-            timeDelay.fillContent = val || initialTimeDelay.fillContent;
-            setTimeDelayInStorage(timeDelay);
+            timeDelay.time_delay_fill_content =
+              val || initialTimeDelay.time_delay_fill_content;
+            try {
+              await setTimeDelayData(timeDelay);
+            } catch (error) {
+              logError("Error inputFillContent change: ", error);
+            }
           });
         }
 
         if (inputFillFile) {
-          inputFillFile.addEventListener("change", (e) => {
+          inputFillFile.addEventListener("change", async (e) => {
             const val = Number.isNaN(Number(e.target.value))
               ? 1
               : Number(e.target.value || 1);
-            timeDelay.fillFile = val || initialTimeDelay.fillFile;
-            setTimeDelayInStorage(timeDelay);
+            timeDelay.time_delay_fill_file =
+              val || initialTimeDelay.time_delay_fill_file;
+            try {
+              await setTimeDelayData(timeDelay);
+            } catch (error) {
+              logError("Error inputFillFile change: ", error);
+            }
           });
         }
 
         if (inputOpenNewTab) {
-          inputOpenNewTab.addEventListener("change", (e) => {
+          inputOpenNewTab.addEventListener("change", async (e) => {
             const val = Number.isNaN(Number(e.target.value))
               ? 1
               : Number(e.target.value || 1);
-            timeDelay.openNewTab = val || initialTimeDelay.openNewTab;
-            setTimeDelayInStorage(timeDelay);
+            timeDelay.time_delay_open_new_tab =
+              val || initialTimeDelay.time_delay_open_new_tab;
+            try {
+              await setTimeDelayData(timeDelay);
+            } catch (error) {
+              logError("Error inputOpenNewTab change: ", error);
+            }
           });
         }
 
@@ -1026,762 +1177,22 @@ async function createPanelSetting(anchorElem = document.body) {
             const val = Number.isNaN(Number(e.target.value))
               ? 1
               : Number(e.target.value || 1);
-            timeDelay.post = val || initialTimeDelay.post;
-            setTimeDelayInStorage(timeDelay);
+            timeDelay.time_delay_post = val || initialTimeDelay.time_delay_post;
+            try {
+              setTimeDelayData(timeDelay);
+            } catch (error) {
+              logError("Error inputDelayPost change: ", error);
+            }
           });
         }
       } catch (error) {
         logError("Error at addFieldsEvent: ", error);
-        throw new Error("Error at addFieldsEvent: " + error);
       }
     }
 
     await addFieldsEvent();
   } catch (error) {
     logError("Error at createPanelSetting: ", error);
-  }
-}
-
-function createDialogAddSpecialHours() {
-  const divContainer = document.createElement("div");
-  divContainer.style.paddingTop = "12px";
-  divContainer.style.width = "300px";
-
-  const { fieldElement: fieldFromTime, inputElement: inputFromTime } =
-    createFieldElement({
-      id: `${prefix}input-from-time`,
-      label: getTextWithLanguage({
-        vi: "Thời gian bắt đầu (giờ): ",
-        en: "Start time (hour): ",
-      }),
-      inputOptions: {
-        min: 0,
-        max: 23,
-      },
-      placeholder: "EX: 2",
-      typeInput: "number",
-    });
-
-  const { fieldElement: fieldToTime, inputElement: inputToTime } =
-    createFieldElement({
-      id: `${prefix}select-to-time`,
-      label: getTextWithLanguage({
-        vi: "Thời gian kết thúc (giờ): ",
-        en: "End time (hour): ",
-      }),
-      inputOptions: {
-        min: 0,
-        max: 23,
-      },
-      placeholder: "EX: 4",
-      typeInput: "number",
-    });
-
-  const { fieldElement: fieldMaxGroup, inputElement: inputMaxGroup } =
-    createFieldElement({
-      id: `${prefix}max-group`,
-      label: getTextWithLanguage({
-        vi: "Số nhóm tối đa: ",
-        en: "Max groups: ",
-      }),
-      inputOptions: {
-        min: 1,
-      },
-      placeholder: "EX: 10",
-      typeInput: "number",
-    });
-
-  const divBtnChange = document.createElement("div");
-  divBtnChange.style.marginTop = "12px";
-  divBtnChange.style.marginBottom = "12px";
-  divBtnChange.style.width = "100%";
-
-  const btnChangeDayOfWeek = document.createElement("button");
-  btnChangeDayOfWeek.textContent = getTextWithLanguage({
-    vi: "Thay đổi ngày trong tuần",
-    en: "Change day of week",
-  });
-  btnChangeDayOfWeek.className = `${prefix}btn-change-day-of-week not-style`;
-
-  let listDate = LIST_DATE;
-  let divListDate = getListDateElement(listDate);
-
-  btnChangeDayOfWeek.addEventListener("click", () => {
-    Swal.fire({
-      title: getTextWithLanguage({
-        vi: "Chọn ngày",
-        en: "Select day",
-      }),
-      html: divListDate,
-      background: "var(--tm-bg-dialog)",
-      color: "var(--tm-text-primary)",
-      heightAuto: false,
-      showCancelButton: true,
-      showCloseButton: true,
-      allowOutsideClick: true,
-      width: `${divContainer.offsetWidth}px`,
-      customClass: {
-        container: "swal-container-custom",
-      },
-      confirmButtonText: getTextWithLanguage({
-        vi: "Đồng ý",
-        en: "Confirm",
-      }),
-      cancelButtonText: getTextWithLanguage({
-        vi: "Hủy",
-        en: "Cancel",
-      }),
-    }).then((res) => {
-      if (res.isConfirmed) {
-        listDate = getCheckboxDateSpecial();
-        changeListDateElement(listDate);
-      } else {
-        resetCheckboxDateSpecial(listDate);
-      }
-    });
-  });
-
-  divBtnChange.appendChild(btnChangeDayOfWeek);
-
-  const fieldDayOfWeek = document.createElement("div");
-
-  fieldDayOfWeek.style.marginTop = "12px";
-  fieldDayOfWeek.style.padding = "12px 0";
-
-  const lblDayOfWeek = document.createElement("label");
-  lblDayOfWeek.textContent = getTextWithLanguage({
-    vi: "Áp dụng các ngày:",
-    en: "Apply dates:",
-  });
-  lblDayOfWeek.style.width = "100%";
-  lblDayOfWeek.style.marginBottom = "6px";
-  lblDayOfWeek.style.display = "inline-block";
-
-  fieldDayOfWeek.appendChild(lblDayOfWeek);
-
-  const listDateElement = document.createElement("div");
-  listDateElement.style.minHeight = "50px";
-  listDateElement.style.border = "1px solid #ddd";
-  listDateElement.style.padding = "8px";
-  listDateElement.style.borderRadius = "4px";
-  listDateElement.style.backgroundColor = "var(--tm-bg-primary)";
-
-  function changeListDateElement(listDate = []) {
-    listDateElement.innerHTML = listDate
-      .map((item) => `<span>${getTextDate(item)}</span>`)
-      .join(", ");
-  }
-
-  changeListDateElement(listDate);
-
-  fieldDayOfWeek.appendChild(listDateElement);
-  fieldDayOfWeek.appendChild(divBtnChange);
-
-  divContainer.appendChild(fieldFromTime);
-  divContainer.appendChild(fieldToTime);
-  divContainer.appendChild(fieldMaxGroup);
-
-  divContainer.appendChild(fieldDayOfWeek);
-
-  const divFooter = document.createElement("div");
-  divFooter.style.display = "flex";
-  divFooter.style.justifyContent = "flex-end";
-  divFooter.style.marginTop = "12px";
-
-  const btnAdd = document.createElement("button");
-  btnAdd.id = `${prefix}btn-add-special-hours`;
-  btnAdd.textContent = getTextWithLanguage({
-    vi: "Lưu",
-    en: "Save",
-  });
-  btnAdd.className = `${prefix}btn-add-special-hours`;
-
-  divFooter.appendChild(btnAdd);
-
-  const divError = document.createElement("div");
-  divError.style.color = "var(--tm-text-danger)";
-
-  function handleError(msg) {
-    divError.textContent = msg || "";
-  }
-  divContainer.appendChild(divError);
-
-  divContainer.appendChild(divFooter);
-
-  btnAdd.addEventListener("click", () => {
-    try {
-      const fromTime = inputFromTime.value;
-      const toTime = inputToTime.value;
-      const maxGroup = inputMaxGroup.value;
-
-      const id = randomID();
-
-      const payload = {
-        fromTime,
-        toTime,
-        maxGroup,
-        id,
-        dates: listDate,
-      };
-
-      addSpecialFrameHoursService(payload)
-        .then(() => {
-          showNotify({
-            message: "Thêm thành công",
-          });
-          handleError("");
-          inputFromTime.value = "";
-          inputToTime.value = "";
-          inputMaxGroup.value = "";
-          listDate = LIST_DATE;
-          changeListDateElement(listDate);
-          divListDate = getListDateElement(listDate);
-        })
-        .catch((error) => handleError(error.message || error));
-    } catch (error) {
-      handleError(error.message || error);
-      logError("Error at btnAdd click: ", error);
-    }
-  });
-
-  return divContainer;
-}
-
-function createDialogViewSpecialFrameHours(framesHours = []) {
-  try {
-    const divContainer = document.createElement("div");
-    divContainer.style.paddingTop = "12px";
-    divContainer.style.display = "flex";
-    divContainer.style.flexDirection = "column";
-    divContainer.style.gap = "12px";
-    divContainer.style.height = "100%";
-    divContainer.style.overflow = "hidden";
-    divContainer.style.overflowY = "auto";
-    divContainer.className = "custom-scrollbar";
-    divContainer.style.paddingRight = "14px";
-    divContainer.style.paddingBottom = "16px";
-
-    if (!framesHours.length) {
-      const divEmpty = document.createElement("div");
-      divEmpty.style.padding = "12px";
-      divEmpty.textContent = "Chưa có khung giờ nào";
-      divEmpty.style.textAlign = "center";
-      divContainer.appendChild(divEmpty);
-      return divContainer;
-    }
-
-    framesHours.forEach((item) => {
-      const key = item.id;
-
-      const divItem = document.createElement("div");
-      divItem.style.display = "flex";
-      divItem.style.gap = "12px";
-      divItem.style.padding = "6px";
-      divItem.style.border = "1px solid var(--tm-border-color)";
-      divItem.style.borderRadius = "4px";
-      divItem.style.flexDirection = "column";
-
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.className = "custom-checkbox";
-      checkbox.checked = item.checked;
-
-      checkbox.addEventListener("change", (e) => {
-        updateSpecialFrameHoursService({
-          ...item,
-          checked: e.target.checked || false,
-        })
-          .then()
-          .catch((error) => {
-            showNotify({
-              message: error.message || error,
-              type: "error",
-            });
-
-            checkbox.checked = item.checked;
-          });
-      });
-
-      const divInfo = document.createElement("div");
-      divInfo.style.display = "flex";
-
-      const divCoverInfoAndCheckbox = document.createElement("div");
-      divCoverInfoAndCheckbox.style.display = "flex";
-      divCoverInfoAndCheckbox.style.alignItems = "center";
-      divCoverInfoAndCheckbox.style.gap = "12px";
-
-      divCoverInfoAndCheckbox.appendChild(checkbox);
-      divCoverInfoAndCheckbox.appendChild(divInfo);
-
-      const divAction = document.createElement("div");
-      divAction.style.display = "flex";
-      divAction.style.gap = "12px";
-      divAction.style.alignItems = "center";
-      divAction.style.paddingLeft = "30px";
-
-      const btnEdit = document.createElement("button");
-      btnEdit.className = `${prefix}btn-edit-special-hours not-style`;
-
-      const btnDelete = document.createElement("button");
-      btnDelete.className = `${prefix}btn-delete-special-hours not-style`;
-
-      const btnEditDates = document.createElement("button");
-      btnEditDates.textContent = getTextWithLanguage({
-        vi: "Sửa ngày",
-        en: "Edit dates",
-      });
-      btnEditDates.className = "not-style";
-
-      let isEditMode = false;
-
-      divAction.appendChild(btnEdit);
-      divAction.appendChild(btnDelete);
-
-      function changeMode(mode = "view") {
-        if (mode === "view") {
-          const dates = item.dates || [];
-          isEditMode = false;
-          btnEdit.textContent = getTextWithLanguage({
-            vi: "Sửa",
-            en: "Edit",
-          });
-          btnDelete.textContent = getTextWithLanguage({
-            vi: "Xóa",
-            en: "Delete",
-          });
-          divInfo.style.gap = "2px";
-          divInfo.style.flexDirection = "column";
-          divInfo.style.alignItems = "start";
-          divInfo.innerHTML = `
-          <div style="display: flex; gap: 12px; align-items: center;">
-            <p>${getTextWithLanguage({
-              vi: "Giờ bắt đầu",
-              en: "Start time",
-            })}: ${item.fromTime}</p>
-            <p>${getTextWithLanguage({
-              vi: "Giờ kết thúc",
-              en: "End time",
-            })}: ${item.toTime}</p>
-            <p>${getTextWithLanguage({
-              vi: "Số nhóm tối đa",
-              en: "Max group",
-            })}: ${item.maxGroup}</p>
-          </div>
-          <div style="display: flex; gap: 12px; align-items: center;">
-            <p>${getTextWithLanguage({
-              vi: "Ngày áp dụng",
-              en: "Dates",
-            })}: ${
-              dates.length
-                ? dates.map((date) => getTextDate(date)).join(", ")
-                : getTextWithLanguage({
-                    vi: "Không áp dụng",
-                    en: "Not apply",
-                  })
-            }</p>
-          </div>
-          `;
-          divAction.insertBefore(btnEditDates, btnDelete);
-          return;
-        }
-
-        if (mode === "edit") {
-          divAction.removeChild(btnEditDates);
-          isEditMode = true;
-          btnEdit.textContent = getTextWithLanguage({
-            vi: "Lưu",
-            en: "Save",
-          });
-          btnDelete.textContent = getTextWithLanguage({
-            vi: "Hủy",
-            en: "Cancel",
-          });
-          const { fieldElement: fieldFromTime } = createFieldElement({
-            id: `${prefix}from-time-${key}`,
-            label: getTextWithLanguage({
-              vi: "Bắt đầu: ",
-              en: "Start: ",
-            }),
-            placeholder: "EX: 9",
-            typeInput: "number",
-            inputOptions: {
-              min: 0,
-              max: 23,
-            },
-            isRow: true,
-            isSmaller: true,
-            initialValue: item.fromTime,
-          });
-
-          const { fieldElement: fieldToTime } = createFieldElement({
-            id: `${prefix}to-time-${key}`,
-            label: getTextWithLanguage({
-              vi: "Kết thúc: ",
-              en: "End: ",
-            }),
-            placeholder: "EX: 17",
-            typeInput: "number",
-            inputOptions: {
-              min: 0,
-              max: 23,
-            },
-            isRow: true,
-            isSmaller: true,
-            initialValue: item.toTime,
-          });
-
-          const { fieldElement: fieldMaxGroup } = createFieldElement({
-            id: `${prefix}max-group-${key}`,
-            label: getTextWithLanguage({
-              vi: "Nhóm: ",
-              en: "Group: ",
-            }),
-            placeholder: "EX: 5",
-            typeInput: "number",
-            inputOptions: {
-              min: 1,
-              max: 100,
-            },
-            isRow: true,
-            isSmaller: true,
-            initialValue: item.maxGroup,
-          });
-
-          divInfo.innerHTML = "";
-          divInfo.style.gap = "0px";
-          divInfo.style.flexDirection = "row";
-          divInfo.style.alignItems = "center";
-          divInfo.appendChild(fieldFromTime);
-          divInfo.appendChild(fieldToTime);
-          divInfo.appendChild(fieldMaxGroup);
-        }
-      }
-
-      changeMode("view");
-
-      btnEdit.addEventListener("click", () => {
-        if (isEditMode) {
-          const fromTime = document.getElementById(
-            `${prefix}from-time-${key}`,
-          ).value;
-          const toTime = document.getElementById(
-            `${prefix}to-time-${key}`,
-          ).value;
-          const maxGroup = document.getElementById(
-            `${prefix}max-group-${key}`,
-          ).value;
-
-          const payload = {
-            ...item,
-            fromTime,
-            toTime,
-            maxGroup,
-            checked: checkbox.checked,
-          };
-
-          updateSpecialFrameHoursService(payload)
-            .then(() => {
-              showNotify({
-                message: getTextWithLanguage({
-                  vi: "Cập nhật thành công",
-                  en: "Update success!",
-                }),
-              });
-              item = { ...payload };
-              changeMode("view");
-            })
-            .catch((error) => {
-              showNotify({
-                message: error.message || error,
-                type: "error",
-              });
-            });
-          return;
-        }
-        changeMode("edit");
-      });
-
-      btnEditDates.addEventListener("click", () => {
-        let listDates = item.dates || [];
-        const elements = getListDateElement(listDates);
-        Swal.fire({
-          title: getTextWithLanguage({
-            vi: "Sửa ngày",
-            en: "Edit dates",
-          }),
-          color: "var(--tm-text-primary)",
-          html: elements,
-          heightAuto: false,
-          customClass: {
-            container: "swal-container-custom",
-          },
-          width: 260,
-          showCloseButton: true,
-          showCancelButton: true,
-          cancelButtonText: getTextWithLanguage({
-            vi: "Hủy",
-            en: "Cancel",
-          }),
-          showConfirmButton: true,
-          confirmButtonText: getTextWithLanguage({
-            vi: "Lưu",
-            en: "Save",
-          }),
-          background: "var(--tm-bg-dialog)",
-          preConfirm: () => {
-            try {
-              listDates = getCheckboxDateSpecial();
-              updateSpecialFrameHoursService({
-                ...item,
-                dates: listDates,
-              })
-                .then(() => {
-                  item.dates = listDates;
-                  changeMode("view");
-                  showNotify({
-                    message: getTextWithLanguage({
-                      vi: "Cập nhật thành công",
-                      en: "Update success!",
-                    }),
-                  });
-                  return true;
-                })
-                .catch((error) => {
-                  showNotify({
-                    message: error.message || error,
-                    type: "error",
-                  });
-                  return false;
-                });
-            } catch (error) {
-              logError(error);
-              showNotify({
-                message: getTextWithLanguage({
-                  vi: "Đã có lỗi xảy ra",
-                  en: "Update date fail!",
-                }),
-                type: "error",
-              });
-              return false;
-            }
-          },
-        });
-      });
-
-      let isConfrimDelete = false;
-      let timerDelete = null;
-      btnDelete.addEventListener("click", () => {
-        if (isEditMode) {
-          changeMode("view");
-          return;
-        }
-
-        if (isConfrimDelete) {
-          clearTimeout(timerDelete);
-          deleteSpecialFrameHoursService(key)
-            .then(() => {
-              showNotify({
-                message: getTextWithLanguage({
-                  vi: "Xóa thành công",
-                  en: "Delete success!",
-                }),
-                duration: 2000,
-              });
-
-              divItem.remove();
-            })
-            .catch((error) => {
-              isConfrimDelete = false;
-              btnDelete.textContent = getTextWithLanguage({
-                vi: "Xóa",
-                en: "Delete",
-              });
-              btnDelete.style.background = "";
-              showNotify({
-                message: error.message || error,
-                type: "error",
-              });
-            });
-
-          return;
-        }
-
-        isConfrimDelete = true;
-        btnDelete.textContent = getTextWithLanguage({
-          vi: "Xác nhận",
-          en: "Confirm",
-        });
-        btnDelete.style.background = "var(--tm-text-danger)";
-
-        timerDelete = setTimeout(() => {
-          isConfrimDelete = false;
-          btnDelete.textContent = getTextWithLanguage({
-            vi: "Xóa",
-            en: "Delete",
-          });
-          btnDelete.style.background = "";
-        }, 2000);
-      });
-
-      divItem.appendChild(divCoverInfoAndCheckbox);
-      divItem.appendChild(divAction);
-
-      divContainer.appendChild(divItem);
-    });
-
-    return divContainer;
-  } catch (error) {
-    logError("Error at createDialogViewSpecialFrameHours: ", error);
-  }
-}
-
-/**
- * Create field element helper
- * @param {{
- *   id: string,
- *   label: string,
- *   placeholder: string,
- *   typeInput: string,
- *   inputOptions: HTMLInputElement,
- *   isRow: boolean,
- *   isSmaller: boolean,
- *   initialValue: string | number | boolean,
- * }} object
- * @returns {{fieldElement: HTMLElement, inputElement: HTMLInputElement}} - Object chứa field
- */
-function createFieldElement({
-  id = "",
-  label = "",
-  placeholder,
-  typeInput = "text",
-  inputOptions = {},
-  className = `${prefix}input-outline not-style`,
-  isRow = false,
-  isSmaller = false,
-  initialValue = null,
-} = {}) {
-  const divContainer = document.createElement("div");
-  divContainer.className = `${prefix}field-container ${isRow ? "field-row" : ""} ${isSmaller ? "field-smaller" : ""}`;
-
-  const labelElement = document.createElement("label");
-  labelElement.htmlFor = id;
-  labelElement.textContent = label;
-
-  const inputElement = document.createElement("input");
-  inputElement.id = id;
-  inputElement.className = className || `${prefix}input-outline not-style`;
-  inputElement.placeholder = placeholder;
-  inputElement.type = typeInput;
-  if (initialValue !== null && initialValue !== undefined) {
-    inputElement.value = initialValue;
-  }
-
-  if (inputOptions) {
-    Object.keys(inputOptions).forEach((key) => {
-      inputElement.setAttribute(key, inputOptions[key]);
-    });
-  }
-
-  divContainer.appendChild(labelElement);
-  divContainer.appendChild(inputElement);
-
-  return { fieldElement: divContainer, inputElement };
-}
-
-function getCheckboxDateSpecial(anchorElem = document.body) {
-  const listDate = [];
-  const checkboxChecked = anchorElem.querySelectorAll(".checkbox-special-date");
-
-  for (const ch of checkboxChecked) {
-    const val = ch.getAttribute("data-value");
-    if (ch.checked) {
-      listDate.push(Number(val));
-    }
-  }
-
-  return listDate;
-}
-
-const LIST_DATE = [0, 1, 2, 3, 4, 5, 6];
-
-function getTextDate(date) {
-  if (date == 0)
-    return getTextWithLanguage({
-      vi: "Chủ nhật",
-      en: "Sunday",
-    });
-  if (date == 1)
-    return getTextWithLanguage({
-      vi: "Thứ 2",
-      en: "Monday",
-    });
-  if (date == 2)
-    return getTextWithLanguage({
-      vi: "Thứ 3",
-      en: "Tuesday",
-    });
-  if (date == 3)
-    return getTextWithLanguage({
-      vi: "Thứ 4",
-      en: "Wednesday",
-    });
-  if (date == 4)
-    return getTextWithLanguage({
-      vi: "Thứ 5",
-      en: "Thursday",
-    });
-  if (date == 5)
-    return getTextWithLanguage({
-      vi: "Thứ 6",
-      en: "Friday",
-    });
-  if (date == 6)
-    return getTextWithLanguage({
-      vi: "Thứ 7",
-      en: "Saturday",
-    });
-  return "";
-}
-
-function getListDateElement(list = []) {
-  const listElement = document.createElement("div");
-  listElement.style.display = "flex";
-  listElement.style.flexDirection = "column";
-  listElement.style.gap = "4px";
-
-  LIST_DATE.forEach((item) => {
-    const divItem = document.createElement("div");
-    divItem.style.display = "flex";
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = list.includes(item);
-    checkbox.className = "checkbox-special-date custom-checkbox";
-    checkbox.setAttribute("data-value", item);
-
-    const id = `${prefix}checkbox-special-date-${item}`;
-    checkbox.id = id;
-
-    const text = getTextDate(item);
-    const label = document.createElement("label");
-    label.htmlFor = id;
-    label.textContent = text;
-    label.style.fontSize = "14px";
-
-    divItem.appendChild(checkbox);
-    divItem.appendChild(label);
-    listElement.appendChild(divItem);
-  });
-
-  return listElement;
-}
-
-function resetCheckboxDateSpecial(listDate = [], anchorElem = document.body) {
-  const checkboxChecked = anchorElem.querySelectorAll(".checkbox-special-date");
-
-  for (const ch of checkboxChecked) {
-    const val = ch.getAttribute("data-value");
-    ch.checked = listDate.includes(Number(val));
   }
 }
 

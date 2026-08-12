@@ -1,16 +1,20 @@
 import {
-  getDataSavedInStorage,
-  setDataSavedInStorage,
-} from "../services/dataSavedService.js";
+  addDataGroupPost,
+  exportDataGroupPost,
+  upadateDataGroupPost,
+} from "../../../services/data-group-post-service.js";
 import {
-  fileToBase64,
+  genID,
   getTextWithLanguage,
-  parseBase64ToBlob,
-  randomID,
+  logError,
+  parseBase64ToFile,
+  parseBlobToFile,
+  parseUrlToBlob,
 } from "../../../utils/utils.js";
 import { drawEditor } from "./editor.js";
-import { addLog } from "./panel-log.js";
-import { findLabelSetedUpAndAddTippy } from "../helpers/elementDom.js";
+import { findLabelSetedUpAndAddTippy } from "../../../helpers/elementDom.js";
+import { getIsUseLocalStorage } from "../../../services/storage-global-service.js";
+import { prefix } from "../../../contants/contants.js";
 
 /**
  *
@@ -56,9 +60,10 @@ function drawPanelGroup({
   initPriority = 1,
 }) {
   try {
-    const id = initialData?.id || randomID();
+    const id = initialData?.id || genID();
 
-    const prefix = "tm_";
+    let isEditFile = false;
+
     const divContainer = document.createElement("div");
     divContainer.style.display = "flex";
     divContainer.style.flexDirection = "column";
@@ -237,6 +242,7 @@ function drawPanelGroup({
     inputFile.setAttribute("type", "file");
     inputFile.setAttribute("multiple", "");
     inputFile.setAttribute("id", `${prefix}upload-multiple-image`);
+    inputFile.setAttribute("accept", "image/*");
 
     const divContainerPreviewImage = document.createElement("div");
     divContainerPreviewImage.setAttribute(
@@ -246,25 +252,17 @@ function drawPanelGroup({
 
     inputFile.addEventListener("change", (e) => {
       const files = e.target.files;
-      const divPreview = drawPreviewImage(files);
-      divContainerPreviewImage.innerHTML = "";
-      divContainerPreviewImage.appendChild(divPreview);
+      if (files && files.length) {
+        const divPreview = drawPreviewImage(files);
+        divContainerPreviewImage.innerHTML = "";
+        divContainerPreviewImage.appendChild(divPreview);
+        isEditFile = true;
+      }
     });
 
     //File initial
-    if (initialData && initialData.files && Array.isArray(initialData.files)) {
-      if (initialData.files && Array.isArray(initialData.files) && inputFile) {
-        const parseFiles = initialData.files.map((objectURL) =>
-          parseBase64ToBlob(objectURL),
-        );
-
-        const newDataTranfer = new DataTransfer();
-        parseFiles.forEach((file) => newDataTranfer.items.add(file));
-        inputFile.files = newDataTranfer.files;
-        const divPreview = drawPreviewImage(inputFile.files);
-        divContainerPreviewImage.innerHTML = "";
-        divContainerPreviewImage.appendChild(divPreview);
-      }
+    if (initialData) {
+      initialFile(initialData.files, inputFile, divContainerPreviewImage);
     }
 
     divFieldFile.appendChild(labelFile);
@@ -350,54 +348,51 @@ function drawPanelGroup({
     divBtn.appendChild(btnSave);
 
     btnSave.addEventListener("click", async () => {
-      let blobs = await Promise.all(
-        Array.from(inputFile?.files || []).map(async (file) => ({
-          name: file.name,
-          type: file.type,
-          base64Data: await fileToBase64(file),
-        })),
-      );
-      const dataSave = {
-        id: initialData?.id || randomID(),
-        title: inputTitle.value,
-        name: inputName.value,
-        contents: quillEditors.map((quill) => quill.root.innerHTML),
-        files: blobs,
-        priority: Number(inputPriority.value || 1),
-      };
+      try {
+        const files = Array.from(inputFile.files);
+        const payload = {
+          id: id || genID(),
+          title: inputTitle.value,
+          name: inputName.value,
+          contents: quillEditors.map((quill) => quill.root.innerHTML),
+          files: files,
+          priority: Number(inputPriority.value || 1),
+        };
 
-      if (!dataSave.title) {
+        if (!payload.title) {
+          handleError(
+            getTextWithLanguage({
+              vi: "Vui lòng nhập tiêu đề",
+              en: "Please enter title",
+            }),
+          );
+          return;
+        }
+        handleError(null);
+
+        //Add new
+        if (type === "add") {
+          const result = await addDataGroupPost(payload);
+          onSave?.(result);
+        }
+
+        //Edit
+        if (type === "edit") {
+          payload.files = initialData.files;
+          if (isEditFile) {
+            payload.files = files;
+          }
+
+          const res = await upadateDataGroupPost(id, isEditFile, payload);
+          onSave?.(res);
+        }
+      } catch (error) {
         handleError(
           getTextWithLanguage({
-            vi: "Vui lòng nhập tiêu đề",
-            en: "Please enter title",
+            vi: "Lỗi: " + error,
+            en: "Error: " + error,
           }),
         );
-        return;
-      }
-      handleError(null);
-
-      const dataSaveds = (await getDataSavedInStorage()) || [];
-
-      //Add new
-      if (type === "add") {
-        dataSaveds.push(dataSave);
-        setDataSavedInStorage(dataSaveds);
-        onSave?.();
-        addLog({
-          vi: `Bạn vừa thêm dữ liệu nhóm "${dataSave.name || dataSave.title}"`,
-          en: `You just added data of group "${dataSave.name || dataSave.title}"`,
-        });
-      }
-
-      //Edit
-      if (type === "edit") {
-        const index = dataSaveds.findIndex((item) => item.id === dataSave.id);
-        if (index !== -1) {
-          dataSaveds[index] = dataSave;
-        }
-        setDataSavedInStorage(dataSaveds);
-        onSave?.();
       }
     });
 
@@ -446,15 +441,8 @@ function drawPanelGroup({
 
       divBtn.insertBefore(btnExport, btnDelete);
 
-      btnExport.addEventListener("click", () => {
-        const dataStr = JSON.stringify(initialData);
-        const blob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `group_for_${initialData.name}.json`;
-        a.click();
-        URL.revokeObjectURL(url); // Clean up the URL object
+      btnExport.addEventListener("click", async () => {
+        await exportDataGroupPost(initialData);
       });
     }
 
@@ -487,7 +475,38 @@ function drawPanelGroup({
 
     return divContainer;
   } catch (error) {
-    throw new Error("Error drawPanelGroup: " + error);
+    // throw new Error("Error drawPanelGroup: " + error);
+    logError(error);
+  }
+}
+
+async function initialFile(files, input, container) {
+  try {
+    if (!Array.isArray(files)) {
+      return;
+    }
+    const isUseLocalStorage = getIsUseLocalStorage();
+
+    const newDataTranfer = new DataTransfer();
+    if (isUseLocalStorage) {
+      const parseFiles = files.map((objectURL) => parseBase64ToFile(objectURL));
+      parseFiles.forEach((file) => newDataTranfer.items.add(file));
+    } else {
+      for await (const url of files) {
+        if (typeof url === "string") {
+          const blob = await parseUrlToBlob(url);
+          const fileName = url.slice(url.lastIndexOf("/") + 1);
+          newDataTranfer.items.add(parseBlobToFile(blob, fileName));
+        }
+      }
+    }
+
+    input.files = newDataTranfer.files;
+    const divPreview = drawPreviewImage(input.files);
+    container.innerHTML = "";
+    container.appendChild(divPreview);
+  } catch (error) {
+    logError("Error initialFile: " + error);
   }
 }
 

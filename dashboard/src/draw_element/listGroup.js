@@ -1,9 +1,9 @@
-import { getTextWithLanguage, randomID } from "../../../utils/utils.js";
+import { prefix } from "../../../contants/contants.js";
+import { genID, getTextWithLanguage } from "../../../utils/utils.js";
 import {
-  getIndexsGroupChecked,
-  setChangeGroupsCheckedFlag,
-  setIndexsGroupChecked,
-} from "../services/storage-service.js";
+  getListIdDataGroupPostCheckeds,
+  updateDataGroupPostChecked,
+} from "../../../services/data-group-post-service.js";
 
 /**
  *
@@ -14,13 +14,14 @@ async function createDivListGroups(groups = []) {
   if (!groups || !Array.isArray(groups)) {
     groups = [];
   }
+
   try {
-    const prefix = "tm_";
     const divs = [];
-    const indexsChecked = await getIndexsGroupChecked();
+    const listIdsCheckeds = await getListIdDataGroupPostCheckeds();
 
     for (const group of groups) {
-      const id = group.id || randomID();
+      const id = group.id || genID();
+
       const div = document.createElement("div");
       div.style.display = "flex";
       div.style.gap = "4px";
@@ -37,7 +38,7 @@ async function createDivListGroups(groups = []) {
       checkbox.setAttribute("id", `${prefix}checkbox-${convertTitle}`);
       checkbox.classList.add("custom-checkbox");
 
-      if (indexsChecked.includes(group.id)) {
+      if (listIdsCheckeds.includes(id)) {
         checkbox.checked = true;
       }
 
@@ -46,7 +47,7 @@ async function createDivListGroups(groups = []) {
       label.innerText = name;
 
       const btnView = document.createElement("span");
-      btnView.setAttribute("id", `${prefix}btn-view-data-group`);
+      btnView.classList.add(`${prefix}btn-view-data-group`);
       btnView.classList.add(`${prefix}btn-fake`);
       btnView.classList.add("not-style");
       btnView.style.fontSize = "18px";
@@ -63,15 +64,7 @@ async function createDivListGroups(groups = []) {
 
       checkbox.addEventListener("change", async (e) => {
         const checked = e.target.checked;
-        const indexs = await getIndexsGroupChecked();
-        const set = new Set(indexs);
-        if (checked) {
-          set.add(group.id);
-        } else {
-          set.delete(group.id);
-        }
-        setIndexsGroupChecked(Array.from(set));
-        setChangeGroupsCheckedFlag(true);
+        await updateDataGroupPostChecked(id, checked);
       });
 
       divs.push(div);

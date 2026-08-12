@@ -1,9 +1,10 @@
 import {
   KEY_ADD_TIME_DELAY_FOR_SCHEDULER,
   KEY_GET_KEY_SAVED,
+  KEY_GET_PARSE_FILE,
   KEY_SET_KEY_SAVED,
 } from "../../contants/constant-extention.js";
-import { KEY_LANGUAGE } from "../../contants/contants.js";
+import { KEY_LANGUAGE, KEY_LAST_TIME_POST } from "../../contants/contants.js";
 import { logError } from "../../utils/utils.js";
 import { sendMessage, sendMessageWithResponse } from "./request.js";
 
@@ -76,10 +77,41 @@ async function CL_setTimeDelayForScheduler(timeDelay) {
   }
 }
 
+/**
+ * Update last time post
+ * @param {number} time
+ */
+async function updateLastTimePost(time) {
+  try {
+    await sendMessage(KEY_LAST_TIME_POST, {
+      time,
+    });
+    return true;
+  } catch (error) {
+    logError("Error at updateLastTimePost: ", error);
+    return false;
+  }
+}
+
+async function CL_getParseFileRequest(files) {
+  try {
+    const res = await sendMessageWithResponse(KEY_GET_PARSE_FILE, {
+      files: files,
+    });
+
+    return res?.data;
+  } catch (error) {
+    logError("Error CL_getFileRequest: ", error);
+    throw error;
+  }
+}
+
 export {
   getIsMatchUrl,
   CL_getValue,
   CL_setValue,
   CL_getTextWithLang,
   CL_setTimeDelayForScheduler,
+  updateLastTimePost,
+  CL_getParseFileRequest,
 };
