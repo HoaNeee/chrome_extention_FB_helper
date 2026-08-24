@@ -29,6 +29,8 @@ const STATUS_RESPONSE = {
 
 const URL_MATCH = "https://www.facebook.com/*";
 
+const URL_SEARCH_PAGE = "facebook.com/search/top";
+
 const KEY_GET_CURRENT_DATA_GROUP_SAVED_NEED_POST =
   "get_current_data_group_saved_need_post";
 
@@ -72,6 +74,27 @@ const DEFAULT_VALUE = {
 
 const KEY_GET_PARSE_FILE = "get_parse_file";
 
+const KEY_SET_PROCESSING_COMMENT_WALK = "set_processing_comment_walk";
+
+const KEY_CAN_COMMENT_WALK_THIS_TAB = "can_comment_walk_this_tab";
+
+const KEY_GET_ALL_METADATA_COMMENT_WALK = "get_all_metadata_comment_walk";
+
+const KEY_CAN_COMMENT_WALK_THIS_POST = "can_comment_this_post";
+
+const KEY_ADD_URL_COMMENTED = "add_url_commented";
+
+const KEY_COMPLETED_COMMENT_WALK_THIS_BATCH =
+  "completed_comment_walk_this_batch";
+
+const KEY_COMMENT_WALK_REQUEST = {
+  UPDATE_LAST_TIME_COMMENT: "update_last_time_comment",
+};
+
+const KEY_STOP_TASK_REQUEST = {
+  GET_IS_STOP_TASK: "get_is_stop_task",
+};
+
 const KEY_SAVED_TEMP = {
   SCHEDULER: "scheduler_temp",
   SETTING: "setting_temp",
@@ -102,6 +125,25 @@ const API_RESPONSE_CODE = {
 const ERROR_CODE = {
   SELF: "SELF",
   SYSTEM: "SYSTEM",
+};
+
+const KEY_INDEXED_DB_TABLE_NAME = {
+  DATA_GROUP_POST: "dataGroupPost",
+  COMMENT_WALK: "commentWalk",
+};
+
+const KEY_IMPORT_EXPORT_TYPE = {
+  COMMENT_WALK: "COMMENT_WALK",
+  DATA_GROUP_POST: "DATA_GROUP_POST",
+  KEY_FIELD_OBJECT_TYPE: "data_object_type",
+};
+
+const KEY_MESSAGE_FROM_BACKGROUND = {
+  AUTOMATION: {
+    POST: "automation_post",
+    COMMENT_WALK: "automation_comment_walk",
+    POST_CONTINUE: "automation_post_continue",
+  },
 };
 
 export {
@@ -146,4 +188,16 @@ export {
   KEY_USER_ROLE,
   API_RESPONSE_CODE,
   ERROR_CODE,
+  KEY_INDEXED_DB_TABLE_NAME,
+  URL_SEARCH_PAGE,
+  KEY_CAN_COMMENT_WALK_THIS_TAB,
+  KEY_GET_ALL_METADATA_COMMENT_WALK,
+  KEY_SET_PROCESSING_COMMENT_WALK,
+  KEY_CAN_COMMENT_WALK_THIS_POST,
+  KEY_ADD_URL_COMMENTED,
+  KEY_COMPLETED_COMMENT_WALK_THIS_BATCH,
+  KEY_IMPORT_EXPORT_TYPE,
+  KEY_STOP_TASK_REQUEST,
+  KEY_COMMENT_WALK_REQUEST,
+  KEY_MESSAGE_FROM_BACKGROUND,
 };

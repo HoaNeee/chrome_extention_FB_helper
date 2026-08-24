@@ -117,7 +117,7 @@ function createDialog({
     if (titleAlign === "center") {
       h3Title.style.left = "50%";
       h3Title.style.transform = "translateX(-50%)";
-    } else if ((titleAlign = "left")) {
+    } else if (titleAlign === "left") {
       h3Title.style.left = "10px";
     }
 

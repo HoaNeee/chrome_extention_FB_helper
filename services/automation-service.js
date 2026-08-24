@@ -1,15 +1,18 @@
 import { KEY_POST, KEY_TAB, STATUS_TASK } from "../contants/contants.js";
 import { showNotify } from "../dashboard/src/draw_element/notify.js";
 import { addLog } from "../dashboard/src/draw_element/panel-log.js";
+import { commentWalkHelper } from "../helpers/comment-walk.js";
 import { DB_openInTab, DB_setValue } from "../utils/api-helper.js";
 import {
   getTextWithLanguage,
   logActions,
   logError,
   now,
+  random,
   sleep,
 } from "../utils/utils.js";
 import { getPremiumService } from "./auth-service.js";
+import { commentWalkService } from "./comment-walk-service.js";
 import {
   getListDataGroupPostNeedPost,
   getListIdDataGroupPostCheckeds,
@@ -24,19 +27,19 @@ import {
   setAllGroupPostedsInStorage,
   updateGroupNeedPosts,
 } from "./groupService.js";
+import { clearAndCreateSchedulerAlarm } from "./scheduler-service.js";
 import {
   getIsFixStealAllFocusData,
   getIsFixStealFocusData,
   getIsSpecialFrameHoursData,
+  getIsStopTaskData,
 } from "./setting-service.js";
 import { getObjectIsInSpecialFrameHours } from "./special-frame-hours-service.js";
 import {
   getChangeGroupsCheckedFlag,
-  getIsStopTaskInStorage,
   getIsTestInStorage,
   setChangeGroupsCheckedFlag,
   setCurrentCountPostLength,
-  setIsStopTaskInStorage,
   setIsTestInStorage,
   setProgress,
 } from "./storage-service.js";
@@ -104,8 +107,8 @@ async function autoWithFirstTask() {
       if (!id) {
         logActions("Reset all groups need post to pending");
         addLog({
-          vi: "Tiện ích đã bị tạm dừng do đợt đăng bài này không có dữ liệu nào được chọn, hãy chọn ít nhất 1 dữ liệu để đăng.",
-          en: "The utility has been paused because no data was selected for this batch, please select at least 1 data to post.",
+          vi: "Tác vụ đã bị tạm dừng do đợt đăng bài này không có dữ liệu nào được chọn, hãy chọn ít nhất 1 dữ liệu để đăng.",
+          en: "The task has been paused because no data was selected for this batch, please select at least 1 data to post.",
         });
         setProgress(false);
         return;
@@ -168,8 +171,25 @@ async function autoWithFirstTask() {
 
 async function automationHelper({ isTest = false } = {}) {
   try {
+    const isStop = await getIsStopTaskData();
+    if (isStop) {
+      showNotify({
+        message: getTextWithLanguage({
+          vi: "Tiện ích đang trong trạng thái tắt, hãy bật lại",
+          en: "Extension is in off state, please turn it on again",
+        }),
+        type: "error",
+      });
+      addLog({
+        vi: "Tiện ích đang trong trạng thái không hoạt động",
+        en: "Extension is in off state",
+      });
+      setProgress(false);
+      clearAndCreateSchedulerAlarm();
+      return;
+    }
+
     await setIsTestInStorage(isTest || false);
-    await setIsStopTaskInStorage(false);
     setProgress(true);
 
     //check have all groups
@@ -183,8 +203,8 @@ async function automationHelper({ isTest = false } = {}) {
         type: "error",
       });
       addLog({
-        vi: "Tiện ích đã bị tạm dừng do không có dữ liệu nhóm",
-        en: "The utility has been paused because there is no group data",
+        vi: "Tác vụ đã bị tạm dừng do không có dữ liệu nhóm",
+        en: "The task has been paused because there is no group data",
       });
       await setProgress(false);
       return;
@@ -202,32 +222,19 @@ async function automationHelper({ isTest = false } = {}) {
       });
       setProgress(false);
       addLog({
-        vi: "Tiện ích đã bị tạm dừng do đợt đăng bài này không có dữ liệu nào được chọn, hãy chọn ít nhất 1 dữ liệu để đăng.",
-        en: "The utility has been paused because no data was selected for this batch, please select at least 1 data to post.",
+        vi: "Tác vụ đã bị tạm dừng do đợt đăng bài này không có dữ liệu nào được chọn, hãy chọn ít nhất 1 dữ liệu để đăng.",
+        en: "The task has been paused because no data was selected for this batch, please select at least 1 data to post.",
       });
       return;
     }
-
-    // const listDataGroupNeedPost = await getListDataGroupPostNeedPost();
 
     const listGroups = allGroups;
-
-    const isStop = await getIsStopTaskInStorage();
-    if (isStop) {
-      showNotify({ message: "The task has been stopped", type: "error" });
-      addLog({
-        vi: "Tiện ích đã bị tạm dừng.",
-        en: "The utility has been paused.",
-      });
-      await setProgress(false);
-      return;
-    }
 
     if (!listGroups.length) {
       showNotify({ message: "No group found", type: "error" });
       addLog({
-        vi: "Tiện ích đã bị tạm dừng do danh sách nhóm trống, hãy lấy danh sách nhóm trước hoặc tham gia thêm vào các nhóm sau đó lấy lại dữ liệu.",
-        en: "The utility has been paused because the list of groups is empty. Please get the list of groups first or join more groups and then get the data again.",
+        vi: "Tác vụ đã bị tạm dừng do danh sách nhóm trống, hãy lấy danh sách nhóm trước hoặc tham gia thêm vào các nhóm sau đó lấy lại dữ liệu.",
+        en: "The task has been paused because the list of groups is empty. Please get the list of groups first or join more groups and then get the data again.",
       });
       await setProgress(false);
       return;
@@ -257,20 +264,42 @@ async function automationHelper({ isTest = false } = {}) {
  */
 async function openNewTaskHepler(task = {}) {
   try {
+    const isStop = await getIsStopTaskData();
+    if (isStop) {
+      showNotify({
+        message: getTextWithLanguage({
+          vi: "Tiện ích đang trong trạng thái tắt, dừng tác vụ",
+          en: "Extension is in off state, stopping task",
+        }),
+        type: "error",
+      });
+      return;
+    }
+    await openNewTabHelper(task.id_href, async (tabId) => {
+      await DB_setValue(KEY_TAB.LAST_POST_TAB_OPEN_ID, tabId);
+    });
+  } catch (error) {
+    logError("Error at openNewTaskHepler: " + error);
+    throw error;
+  }
+}
+
+async function openNewTabHelper(href = "", cb = async () => {}) {
+  try {
     const isFixStealFocus = await getIsFixStealFocusData();
     const isFixStealAllFocus = await getIsFixStealAllFocusData();
     if (isFixStealAllFocus) {
-      const tabId = await DB_openInTab(task.id_href, {
+      const tabId = await DB_openInTab(href, {
         active: false,
         insert: true,
       });
-      await DB_setValue(KEY_TAB.LAST_POST_TAB_OPEN_ID, tabId);
+      await cb?.(tabId);
     } else if (isFixStealFocus) {
-      const tabId = await DB_openInTab(task.id_href, {
+      const tabId = await DB_openInTab(href, {
         active: false,
         insert: true,
       });
-      await DB_setValue(KEY_TAB.LAST_POST_TAB_OPEN_ID, tabId);
+      await cb?.(tabId);
       setTimeout(async () => {
         const tabs = await chrome.tabs.query({ currentWindow: true });
         if (tabs.find((t) => t.id === tabId)) {
@@ -278,11 +307,11 @@ async function openNewTaskHepler(task = {}) {
         }
       }, 4000);
     } else {
-      const tabId = await DB_openInTab(task.id_href, { active: true });
-      await DB_setValue(KEY_TAB.LAST_POST_TAB_OPEN_ID, tabId);
+      const tabId = await DB_openInTab(href, { active: true });
+      await cb?.(tabId);
     }
   } catch (error) {
-    logError("Error at openNewTaskHepler: " + error);
+    logError("Error at openNewTabHelper: " + error);
     throw error;
   }
 }
@@ -291,6 +320,7 @@ async function automation() {
   try {
     setAllGroupPostedsInStorage([]);
     setCurrentCountPostLength(0);
+
     await automationHelper({ isTest: false });
   } catch (error) {
     logError("Error at automation: " + error);
@@ -320,4 +350,87 @@ async function automationContinue() {
   }
 }
 
-export { automation, automationContinue, automationTest, openNewTaskHepler };
+async function automationCommentWalk() {
+  try {
+    const isStop = await getIsStopTaskData();
+    if (isStop) {
+      showNotify({
+        message: getTextWithLanguage({
+          vi: "Tiện ích đang trong trạng thái tắt, hãy bật lại",
+          en: "Extension is in off state, please turn it on again",
+        }),
+        type: "error",
+      });
+      return;
+    }
+    // const queryTest = "Tìm phòng trọ mễ trì, tài chính";
+    const id = await commentWalkService.getRandomIdCommentWalkActive();
+    if (!id) {
+      showNotify({
+        message: getTextWithLanguage({
+          vi: "Không có dữ liệu bình luận dạo",
+          en: "No comment walk data",
+        }),
+        type: "error",
+      });
+      addLog({
+        vi: "Tiện ích đã bị tạm dừng do không có dữ liệu bình luận dạo",
+        en: "The utility has been paused because there is no comment walk data",
+      });
+      clearAndCreateSchedulerAlarm();
+      return;
+    }
+
+    addLog({
+      vi: "Bắt đầu tác vụ bình luận dạo",
+      en: "Start task comment walk",
+    });
+
+    const commentWalk = await commentWalkService.getCommentWalkById(id);
+
+    if (
+      !commentWalk ||
+      !commentWalk?.title_query_searchs ||
+      !commentWalk?.title_query_searchs.length
+    ) {
+      showNotify({
+        message: getTextWithLanguage({
+          vi: "Không có dữ liệu tiêu đề tìm kiếm, hãy thêm vào trước",
+          en: "No search title data, please add it first",
+        }),
+        type: "error",
+      });
+      addLog({
+        vi: "Tiện ích đã bị tạm dừng do không có dữ liệu tiêu đề tìm kiếm",
+        en: "The utility has been paused because there is no search title data",
+      });
+
+      await commentWalkService.setIsCommentWalkProcessing(false);
+      clearAndCreateSchedulerAlarm();
+      return;
+    }
+
+    await commentWalkService.setCurrentIdCommentWalkActive(id);
+    await commentWalkService.setIsCommentWalkProcessing(true);
+
+    const queryRandom =
+      commentWalk.title_query_searchs[
+        random(0, commentWalk.title_query_searchs.length - 1)
+      ];
+
+    await commentWalkHelper.goToPageSearch(queryRandom);
+  } catch (error) {
+    logError("Error at automationCommentWalk: " + error);
+    await commentWalkService.setIsCommentWalkProcessing(false);
+    throw error;
+  }
+}
+
+export {
+  automation,
+  automationContinue,
+  automationTest,
+  openNewTaskHepler,
+  automationCommentWalk,
+  openNewTabHelper,
+};

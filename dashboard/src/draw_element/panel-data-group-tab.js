@@ -282,10 +282,7 @@ async function createPanelTabGroup(anchorElem = document.body) {
         if (btnImportGroups) {
           btnImportGroups.addEventListener("click", async () => {
             await importGroupsEvent(async (listDataGroupImported) => {
-              listDataGroupPost = [
-                ...listDataGroupPost,
-                ...listDataGroupImported,
-              ];
+              listDataGroupPost = listDataGroupImported;
               await drawListGroups(listDataGroupPost);
             });
           });
@@ -303,15 +300,8 @@ async function exportGroupsEvent(listDataGroupPost) {
   try {
     const list = cloneData(listDataGroupPost);
     await exportDataGroupPost(list);
-    showNotify({
-      message: getTextWithLanguage({
-        vi: "Xuất dữ liệu nhóm thành công",
-        en: "Export data group successfully",
-      }),
-      type: "success",
-    });
     addLog({
-      vi: `Bạn vừa xuất ${listDataGroupPost.length} dữ liệu nhóm vào file json`,
+      vi: `Bạn vừa xuất ${listDataGroupPost.length} dữ liệu nhóm vào file JSON`,
       en: `You just exported ${listDataGroupPost.length} data groups to a JSON file`,
     });
   } catch (error) {
@@ -357,31 +347,12 @@ async function importGroupsEvent(cb) {
               });
             }
           } catch (err) {
-            showNotify({
-              message: getTextWithLanguage({
-                vi: "Nhập dữ liệu nhóm thất bại",
-                en: "Import data group failed",
-              }),
-              type: "error",
-            });
-            logError("Error at importGroupsEvent: ", err);
-            return;
+            handleErrorHelper({ name: "importDataGroupPost", error: err });
           }
         };
         reader.readAsText(file);
       } catch (error) {
         logError("Error at importGroupsEvent: ", error);
-        addLog({
-          vi: `Nhập dữ liệu nhóm thất bại, ${error?.message || error}`,
-          en: `Import data group failed, ${error?.message || error}`,
-        });
-        showNotify({
-          message: getTextWithLanguage({
-            vi: "Nhập dữ liệu nhóm thất bại",
-            en: "Import data group failed",
-          }),
-          type: "error",
-        });
       }
     };
   }

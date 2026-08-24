@@ -8,6 +8,6 @@ npx esbuild dist/content/content-src.js --bundle --outfile=dist/content/content.
 
 # How to install, update quickly and easier later
 
-## Update later
+- Inbox admin to get file
 
-- Reload extension in [chrome://extensions/](chrome://extensions/)
+## Update later

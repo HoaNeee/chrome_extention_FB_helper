@@ -16,16 +16,14 @@ import {
   CL_getTimeDelayData,
 } from "../utils/storage.js";
 import {
-  logError,
   now,
   parseBase64ToFile,
-  parseBlobToFile,
-  parseUrlToBlob,
   random,
   randomRateBoolean,
   sleep,
 } from "../../utils/utils.js";
 import {
+  checkDivInputTextboxIsEmpty,
   checkIsSpammed,
   eventClickElement,
   findButtonPostAndClick,
@@ -40,9 +38,12 @@ import {
   CL_getParseFileRequest,
   CL_getTextWithLang,
   CL_setTimeDelayForScheduler,
+  logContent,
+  logErrorContent,
   updateLastTimePost,
 } from "../utils/utils.js";
 import { SELECTOR_RAW } from "../contants/contants.js";
+import { getTextLanguageContent } from "../utils/global.js";
 
 /**
  * @param {string} content
@@ -84,6 +85,7 @@ async function pasteContent(content) {
     CL_addLogRequest({
       vi: `Lỗi khi dán nội dung vào ô nhập`,
       en: `Error when pasting content into the input box`,
+      type: "error",
     });
     throw new Error("Error at paste content: " + e);
   }
@@ -134,8 +136,9 @@ async function fillFile(files) {
     CL_addLogRequest({
       vi: `Lỗi khi tải tệp lên ô nhập: ${e?.message || e}`,
       en: `Error when uploading files to the input box: ${e?.message || e}`,
+      type: "error",
     });
-    throw e;
+    throw new Error("Error at fill file: " + e);
   }
 }
 
@@ -216,6 +219,7 @@ async function postHelper(task) {
         CL_addLogRequest({
           vi: `Ô nhập nội dung không tìm thấy, đang thử lại lần ${retryTime}`,
           en: `Content input box not found, try again ${retryTime}`,
+          type: "error",
         });
 
         const node = await findDivToPost();
@@ -229,6 +233,7 @@ async function postHelper(task) {
         CL_addLogRequest({
           vi: `Ô nhập nội dung không tìm thấy, đang thử lại lần ${retryTime}`,
           en: `Content input box not found, try again ${retryTime}`,
+          type: "error",
         });
 
         const node2 = await findDivToPost();
@@ -238,12 +243,20 @@ async function postHelper(task) {
       }
 
       if (!getIsExistDialog()) {
-        const text = await CL_getTextWithLang({
-          viText: "Không tìm thấy ô nhập nội dung",
-          enText: "Not found content input box",
-        });
-        throw new Error(text);
+        throw new Error(
+          getTextLanguageContent({
+            vi: "Ô nhập nội dung không tìm thấy, dừng quá trình",
+            en: "Content input box not found, stop process",
+          }),
+        );
       }
+
+      logContent(
+        getTextLanguageContent({
+          vi: "Nhập nội dung đăng bài...",
+          en: "Filling content post to input...",
+        }),
+      );
 
       await sleep(delayFillContent);
       task.status = STATUS_TASK.POSTING;
@@ -252,19 +265,51 @@ async function postHelper(task) {
       //content
       let content = contents[random(0, contents.length - 1)];
 
+      if (checkContentIsEmpty(content)) {
+        const text = await CL_getTextWithLang({
+          viText: "Nội dung trong bộ dữ liệu trống",
+          enText: "Content in data group post is empty",
+        });
+
+        throw new Error(text);
+      }
+
       await pasteContent(content);
 
       //file
+      logContent(
+        getTextLanguageContent({
+          vi: "Đang tải ảnh và nhập...",
+          en: "Uploading files and fill...",
+        }),
+      );
+
       await sleep(delayFillFile);
       await fillFile(files);
 
       //post
+      logContent(
+        getTextLanguageContent({
+          vi: "Đang đăng bài...",
+          en: "Posting...",
+        }),
+      );
+
       await sleep(delayPost);
       if (!isTest) {
         //exist dialog -> post success
         if (getIsExistDialog()) {
           const isProgress = await CL_getProgressTool();
           if (isProgress) {
+            const checkFillContentSuccess = await checkDivInputTextboxIsEmpty();
+            if (checkFillContentSuccess) {
+              throw new Error(
+                getTextLanguageContent({
+                  vi: "Ô nhập nội dung không tìm thấy hoặc nội dung không được tự động điền",
+                  en: "Content input box not found or content is not automatically filled",
+                }),
+              );
+            }
             await findButtonPostAndClick();
             await updateLastTimePost(now());
           }
@@ -280,6 +325,7 @@ async function postHelper(task) {
       //complete task
       task.status = STATUS_TASK.DONE;
       sendMessage(KEY_UPDATE_STATUS_TASK, { status: task.status });
+
       CL_addLogRequest({
         vi: "Đã thực hiện xong việc đăng bài trong nhóm, chuyển sang nhóm tiếp theo.",
         en: "Done posting in this group, switch to next group.",
@@ -296,6 +342,7 @@ async function postHelper(task) {
     CL_addLogRequest({
       vi: `Lỗi khi đăng bài trong nhóm này, ${error?.message || error}`,
       en: `Error when posting in this group, ${error?.message || error}`,
+      type: "error",
     });
     task.status = STATUS_TASK.ERROR;
     sendMessage(KEY_UPDATE_STATUS_TASK, { status: task.status });
@@ -309,30 +356,71 @@ async function simulateTyping(
   { minDelay = 30, maxDelay = 100 } = {},
 ) {
   // Đảm bảo có caret trong element (đặt ở cuối nội dung hiện có)
-  const selection = window.getSelection();
-  const range = document.createRange();
-  range.selectNodeContents(element);
-  range.collapse(false); // false = về cuối
-  selection.removeAllRanges();
-  selection.addRange(range);
+  try {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false); // false = về cuối
+    selection.removeAllRanges();
+    selection.addRange(range);
 
-  for (let char of text) {
-    element.focus();
+    for (let char of text) {
+      element.focus();
 
-    const keyDown = new KeyboardEvent("keydown", {
-      key: char,
-      bubbles: true,
-    });
-    element.dispatchEvent(keyDown);
+      if (char === "\n") {
+        const enterLineEvt = new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "Enter",
+          code: "Enter",
+          which: 13,
+          ctrlKey: false,
+          shiftKey: true,
+          altKey: false,
+          metaKey: false,
+          repeat: false,
+        });
 
-    document.execCommand("insertText", false, char);
+        element.dispatchEvent(enterLineEvt);
 
-    const keyUp = new KeyboardEvent("keyup", {
-      key: char,
-      bubbles: true,
-    });
-    element.dispatchEvent(keyUp);
-    await sleep(minDelay + Math.random() * (maxDelay - minDelay));
+        const enterLineUpEvt = new KeyboardEvent("keyup", {
+          bubbles: true,
+          cancelable: true,
+          key: "Enter",
+          code: "Enter",
+          which: 13,
+          ctrlKey: false,
+          shiftKey: true,
+          altKey: false,
+          metaKey: false,
+          repeat: false,
+        });
+
+        element.dispatchEvent(enterLineUpEvt);
+
+        await sleep(random(1000, 3000));
+        continue;
+      }
+
+      const keyDown = new KeyboardEvent("keydown", {
+        key: char,
+        bubbles: true,
+      });
+      element.dispatchEvent(keyDown);
+
+      document.execCommand("insertText", false, char);
+
+      const keyUp = new KeyboardEvent("keyup", {
+        key: char,
+        bubbles: true,
+      });
+      element.dispatchEvent(keyUp);
+      await sleep(minDelay + Math.random() * (maxDelay - minDelay));
+    }
+    return true;
+  } catch (error) {
+    logErrorContent("Error when typing: ", error);
+    return false;
   }
 }
 
@@ -382,30 +470,26 @@ async function commentToJustPostedHelper() {
     const listContent = data.contents;
 
     async function typeAndSubmit(textBox, elementJustPosted) {
-      try {
-        const content = listContent[random(0, listContent.length - 1)];
+      const content = listContent[random(0, listContent.length - 1)];
 
-        if (textBox) {
-          await simulateTyping(textBox, content, {
-            minDelay: 200,
-            maxDelay: 1000,
-          });
-          const btn = findButtonPostCommentJustPosted(elementJustPosted);
-          await sleep(random(1000, 3000) + random(100, 1000));
-          if (btn) {
-            btn.click();
-          } else {
-            textBox.dispatchEvent(
-              new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-            );
-            textBox.dispatchEvent(
-              new KeyboardEvent("keyup", { key: "Enter", bubbles: true }),
-            );
-          }
-          await sleep(random(2000, 4000) + random(100, 1000));
+      if (textBox) {
+        await simulateTyping(textBox, content, {
+          minDelay: 200,
+          maxDelay: 1000,
+        });
+        const btn = findButtonPostCommentJustPosted(elementJustPosted);
+        await sleep(random(1000, 3000) + random(100, 1000));
+        if (btn) {
+          btn.click();
+        } else {
+          textBox.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+          );
+          textBox.dispatchEvent(
+            new KeyboardEvent("keyup", { key: "Enter", bubbles: true }),
+          );
         }
-      } catch (error) {
-        throw error;
+        await sleep(random(2000, 4000) + random(100, 1000));
       }
     }
 
@@ -437,7 +521,6 @@ async function commentToJustPostedHelper() {
 
     await CL_setTimeDelayForScheduler(timeDelay * 1000);
   } catch (error) {
-    logError("Error at commentToJustPostedHelper: ", error);
     CL_addLogRequest({
       vi: `Lỗi khi bình luận vào bài viết vừa đăng, ${error?.message || error}`,
       en: `Error when commenting on this post, ${error?.message || error}`,
@@ -473,9 +556,18 @@ function findLinkJustPosted(elementContainerPosted) {
       return null;
     }
   } catch (error) {
-    logError("Error at findLinkJustPosted", error);
+    logErrorContent("Error at findLinkJustPosted", error);
     return null;
   }
+}
+
+function checkContentIsEmpty(content) {
+  return (
+    !content ||
+    !(typeof content === "string") ||
+    !content.trim().length ||
+    content === "<p></p>"
+  );
 }
 
 export {
@@ -484,4 +576,5 @@ export {
   postHelper,
   findLinkJustPosted,
   commentToJustPostedHelper,
+  simulateTyping,
 };

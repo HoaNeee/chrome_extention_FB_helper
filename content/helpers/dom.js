@@ -6,9 +6,15 @@ function checkIsUseEvaluate(selector = "") {
   return selector.includes(`//`);
 }
 
+/**
+ *
+ * @param {string} selector
+ * @param {HTMLElement} anchorElement
+ * @param {number} time
+ * @returns {Promise<HTMLElement|null>}
+ */
 async function waitForElement(selector, anchorElement = document, time = 0) {
-  const isStopTask = await CL_getStopTool();
-  if (time >= 50 || isStopTask) {
+  if (time >= 50) {
     return null;
   }
 
@@ -35,6 +41,7 @@ async function waitForElement(selector, anchorElement = document, time = 0) {
 /**
  * Find element by selector with evaluate or querySelector
  * @param {string} selector
+ * @param {HTMLElement | undefined} anchorElem
  * @returns {HTMLElement|null}
  */
 function findElement(selector, anchorElem = document) {
@@ -51,16 +58,20 @@ function findElement(selector, anchorElem = document) {
     )?.singleNodeValue;
     if (node) return node;
   } else {
-    const el = document.querySelector(selector);
+    const el = anchorElem.querySelector(selector);
     if (el) return el;
   }
 
   return null;
 }
 
-function getIsExistDialog() {
+function getIsExistDialog(label = "") {
   for (const selector of SELECTOR.dialog) {
-    const dialog = document.querySelector(selector);
+    let newSelector = selector;
+    if (label) {
+      newSelector = selector + `[aria-label^="${label}"]`;
+    }
+    let dialog = document.querySelector(newSelector);
     if (dialog) return true;
   }
   return false;
@@ -101,7 +112,8 @@ async function findDivCreatePostContainer() {
     for (const selector of selectors) {
       const div = await waitForElement(selector);
       if (div) {
-        return div?.parentElement?.parentElement || div?.parentElement || div;
+        const form = div.closest("form");
+        return form;
       }
     }
     return null;
@@ -117,19 +129,22 @@ async function findDivInputTextbox() {
     if (div) {
       const selectorEditors = SELECTOR.elementsTextBoxEditor;
       for await (const selector of selectorEditors) {
-        const input = await waitForElement(
-          selector,
-          div.children?.[1] ||
-            div?.children?.[0] ||
-            div?.firstElementChild ||
-            div,
-        );
+        const input = await waitForElement(selector, div);
         if (input) return input;
       }
     }
     return null;
   } catch (error) {
     throw new Error("Error at findDivInputTextbox: " + error);
+  }
+}
+
+async function checkDivInputTextboxIsEmpty() {
+  try {
+    const div = await findDivInputTextbox();
+    return div ? div.textContent.trim() === "" : true;
+  } catch (error) {
+    throw new Error("Error at checkDivInputTextboxIsEmpty: " + error);
   }
 }
 
@@ -143,10 +158,7 @@ async function findButtonPostAndClick() {
         lang === "vi" ? SELECTOR_VI.elementsPost : SELECTOR.elementsPost;
 
       for await (const selector of selectors) {
-        const div = await waitForElement(
-          selector,
-          divContainer.lastElementChild,
-        );
+        const div = findElement(selector, divContainer);
         if (div) {
           await sleep(random(2, 5) * 100);
 
@@ -173,16 +185,15 @@ async function findButtonPostAndClick() {
 
 function clickOutSideHideDialog() {
   const isExist = getIsExistDialog();
-  if (!isExist) return;
 
   const selectorsDialog = SELECTOR.dialog;
 
   let isExistDialog = isExist;
   for (const selector of selectorsDialog) {
-    if (isExistDialog) break;
     const dialog = findElement(selector);
     if (dialog) {
       isExistDialog = true;
+      break;
     }
   }
 
@@ -468,6 +479,42 @@ async function eventClickElement(element, isDispatch = false) {
   }
 }
 
+async function mouseHoverElement(element, isDispatch = false) {
+  await sleep(random(100, 500));
+
+  await scrollElementIntoView(element);
+
+  await sleep(random(100, 500));
+
+  const overEvt = new MouseEvent("mouseover", {
+    bubbles: true,
+    cancelable: true,
+  });
+  element.dispatchEvent(overEvt);
+
+  await sleep(random(2, 4) * 200);
+}
+
+function checkLoading() {
+  try {
+    const lang = getLanguage();
+    const selectors =
+      lang === "vi" ? SELECTOR_VI.loadingElements : SELECTOR.loadingElements;
+
+    for (const selector of selectors) {
+      const element = findElement(selector);
+      if (element) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    logError("Error at checkLoading: ", error);
+    return false;
+  }
+}
+
 export {
   waitForElement,
   findDivToPost,
@@ -488,4 +535,7 @@ export {
   findElementFeedInGroup,
   scrollElementIntoView,
   eventClickElement,
+  checkDivInputTextboxIsEmpty,
+  checkLoading,
+  mouseHoverElement,
 };

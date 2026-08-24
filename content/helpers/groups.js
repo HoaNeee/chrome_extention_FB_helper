@@ -19,6 +19,8 @@ import {
   CL_getStopTool,
   CL_setDecidedInteractBeforePost,
 } from "../utils/storage";
+import { logContent } from "../utils/utils";
+import { getTextLanguageContent } from "../utils/global";
 
 async function getListElementContainer() {
   try {
@@ -129,6 +131,7 @@ async function getListGroups() {
     CL_addLogRequest({
       vi: `Lỗi khi lấy danh sách nhóm của người dùng, ${e?.message || e}`,
       en: `Error when getting list groups of user, ${e?.message || e}`,
+      type: "error",
     });
     throw new Error("Error get list group: " + e);
   }
@@ -179,7 +182,12 @@ async function scrollDetectListGroups(listContainer) {
     while (i < 10 && currentGroup < maxGroup - 10) {
       let isStopTask = await CL_getStopTool();
       if (isStopTask) {
-        logActions("Stop task -> stop scroll detect list groups");
+        logContent(
+          getTextLanguageContent({
+            vi: "Tiện ích đã tắt -> tạm dừng lấy danh sách nhóm",
+            en: "Stop tool -> pause getting list groups",
+          }),
+        );
         break;
       }
 
@@ -196,7 +204,12 @@ async function scrollDetectListGroups(listContainer) {
       await sleep(duration + random(100, 1000));
 
       //log
-      logActions(currentGroup, maxGroup);
+      logContent(
+        getTextLanguageContent({
+          vi: `Đang cuộn danh sách nhóm: ${currentGroup}/${maxGroup}`,
+          en: `Scrolling list groups: ${currentGroup}/${maxGroup}`,
+        }),
+      );
       window.dispatchEvent(new Event("scroll"));
       ++i;
     }
@@ -352,6 +365,7 @@ async function interactBeforePost() {
     CL_addLogRequest({
       vi: `Lỗi khi tương tác trước khi đăng bài, ${error?.message || error}`,
       en: `Error when interacting before posting, ${error?.message || error}`,
+      type: "error",
     });
   }
 }

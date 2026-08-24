@@ -55,7 +55,7 @@ function drawHistoryLogItem(msgObject = {}) {
 }
 
 /**
- * @param {{vi: string, en: string}|string} msg
+ * @param {{vi: string, en: string, type?: 'info'|'success'|'error'|'warning'}|string} msg
  */
 async function addLog(msg) {
   try {
@@ -73,18 +73,10 @@ async function initHistoryLogs() {
       ".history-logs-at-dashboard",
     );
 
-    // if (!histories.length) {
-    //   await addLog({ vi: "Bắt đầu sử dụng", en: "Start using" });
-    //   histories = await getHistoryLogsInStorage();
-    //   return;
-    // }
-
     let html = "";
 
     histories.forEach((msgObject) => {
       const div = drawHistoryLogItem(msgObject);
-      // historyLogsAtDashboard.appendChild(div);
-      // historyLogs.appendChild(div);
       html += div.outerHTML;
     });
 
@@ -98,7 +90,7 @@ async function initHistoryLogs() {
 
     setTimeout(() => {
       scrollHistoryLogs();
-    }, 0);
+    }, 10);
 
     const btnClearHistory = document.querySelector("#tm_btn-clear-history");
     if (btnClearHistory) {
@@ -153,6 +145,7 @@ function scrollHistoryLogs() {
   const historyLogsAtDashboard = document.querySelector(
     ".history-logs-at-dashboard",
   );
+
   if (historyLogs) {
     historyLogs.scrollTo({
       top: historyLogs.scrollHeight,

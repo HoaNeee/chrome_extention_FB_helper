@@ -1,9 +1,4 @@
-import {
-  KEY_IS_FIX_STEAL_ALL_FOCUS,
-  KEY_IS_RANDOM_BATCH_POST,
-  KEY_IS_RANDOM_TIME_POST,
-  KEY_IS_SHUFFLE_SCHEDULER_TIME,
-} from "../contants/contants.js";
+import { KEY_IS_SHUFFLE_SCHEDULER_TIME, prefix } from "../contants/contants.js";
 import { logError } from "../utils/utils.js";
 import { DB_setValue } from "../utils/api-helper.js";
 import {
@@ -12,9 +7,15 @@ import {
   showElement,
   showField,
 } from "./elementDom.js";
+import {
+  setIsCommentWalkData,
+  setIsExecutePriorityTaskData,
+  setIsFixStealAllFocusData,
+  setIsRandomBreakBatchData,
+  setIsRandomTimePostData,
+} from "../services/setting-service.js";
 
 /**
- *
  * @param {boolean} isPremium
  */
 async function handleShowOrHideElementPremium(isPremium) {
@@ -37,7 +38,18 @@ async function handleShowOrHideElementPremium(isPremium) {
         selector: "#tm_checkbox-is-random-time-post",
         fieldSelector: ".tm_field-container",
       });
+      showElement(`div.${prefix}comment-walk-tab`);
+      showElement(`li.tab-item[data-tab-value="comment-walk"]`);
+      showElement(".comment-walk-setting");
+      showElement(`#${prefix}btn-reset-commented-walk`);
+      showField({
+        selector: "#tm_checkbox-is-execute-priority-task",
+        fieldSelector: ".tm_field-container",
+      });
+      showElement(`.${prefix}div-priority-task`);
     } else {
+      hideElement(`div.${prefix}comment-walk-tab`);
+      hideElement(`li.tab-item[data-tab-value="comment-walk"]`);
       hideField({
         selector: "#tm_checkbox-is-random-batch-post",
         fieldSelector: ".tm_field-container",
@@ -50,16 +62,25 @@ async function handleShowOrHideElementPremium(isPremium) {
         selector: "#tm_checkbox-is-shuffle-scheduler-time",
         fieldSelector: ".tm_field-container",
       });
+      hideField({
+        selector: "#tm_checkbox-is-execute-priority-task",
+        fieldSelector: ".tm_field-container",
+      });
       hideElement(".special-frame-hours-container");
+      hideElement(`.${prefix}div-priority-task`);
       hideField({
         selector: "#tm_checkbox-is-random-time-post",
         fieldSelector: ".tm_field-container",
       });
-      Promise.all([
-        DB_setValue(KEY_IS_RANDOM_BATCH_POST, false),
-        DB_setValue(KEY_IS_FIX_STEAL_ALL_FOCUS, false),
+      hideElement(".comment-walk-setting");
+      hideElement(`#${prefix}btn-reset-commented-walk`);
+      await Promise.all([
+        setIsRandomBreakBatchData(false),
+        setIsFixStealAllFocusData(false),
+        setIsRandomTimePostData(false),
+        setIsCommentWalkData(false),
+        setIsExecutePriorityTaskData(false),
         DB_setValue(KEY_IS_SHUFFLE_SCHEDULER_TIME, false),
-        DB_setValue(KEY_IS_RANDOM_TIME_POST, false),
       ]);
     }
   } catch (error) {
@@ -70,4 +91,6 @@ async function handleShowOrHideElementPremium(isPremium) {
   }
 }
 
-export { handleShowOrHideElementPremium };
+const LIST_TAB_WITH_PREMIUM = ["comment-walk"];
+
+export { handleShowOrHideElementPremium, LIST_TAB_WITH_PREMIUM };

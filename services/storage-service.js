@@ -1,50 +1,27 @@
+import { KEY_FIRST_TIME_USE } from "../contants/constant-extention.js";
 import {
-  KEY_IS_IN_PROGRESS,
-  KEY_INDEX_GROUP_POST,
-  KEY_STOP_TASK,
   initialTimeDelay,
-  KEY_TIME_DELAY,
-  KEY_IS_FIX_STEAL_FOCUS,
-  KEY_QUEUE,
-  KEY_TITLE_STRICTLY_MATCH_GROUP,
-  KEY_LANGUAGE,
-  KEY_IS_FIX_STEAL_ALL_FOCUS,
-  KEY_IS_DEVELOPER_MODE,
-  KEY_HISTORY_LOGS,
-  KEY_IS_SHUFFLE_GROUPS_NEED_POST,
-  KEY_IS_PREMIUM,
-  KEY_IS_DARK_THEME,
   KEY_CHANGE_GROUPS_CHECKED_FLAG,
-  KEY_INDEXS_GROUP_CHECKED,
-  KEY_IS_TEST,
-  KEY_MAX_GROUP_PER_TIME,
-  KEY_COUNT_RESET_GROUPS,
-  KEY_POST,
-  KEY_IS_RANDOM_BATCH_POST,
-  KEY_IS_RANDOM_TIME_POST,
-  KEY_IS_SPAMMED,
-  KEY_LAST_TIME_POST,
-  KEY_IS_SHUFFLE_SCHEDULER_TIME,
-  MAX_GROUP_PER_TIME_INITIAL,
-  KEY_CURRENT_COUNT_POSTED,
   KEY_COUNT_BATCH_POST,
-  KEY_TIME_DELAY_FOR_SCHEDULER,
+  KEY_COUNT_RESET_GROUPS,
+  KEY_CURRENT_COUNT_POSTED,
+  KEY_HISTORY_LOGS,
   KEY_INTERACT_BEFORE_POST,
+  KEY_IS_DEVELOPER_MODE,
+  KEY_IS_IN_PROGRESS,
   KEY_IS_SCROLL_DETECT_LIST_GROUP,
-  KEY_USED_TO_LOGINED_THIS_DEVICE,
+  KEY_IS_SHUFFLE_SCHEDULER_TIME,
+  KEY_IS_TEST,
+  KEY_LANGUAGE,
+  KEY_NEXT_TIME_POST_WHEN_SPAMMED,
+  KEY_POST,
+  KEY_QUEUE,
+  KEY_TIME_DELAY,
+  KEY_TIME_DELAY_FOR_SCHEDULER,
 } from "../contants/contants.js";
-import {
-  KEY_FIRST_TIME_USE,
-  KEY_IS_USE_LOCAL_STORAGE,
-} from "../contants/constant-extention.js";
-import {
-  getAllGroupPostedsInStorage,
-  getListGroupsNeedPostInStorage,
-} from "./groupService.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import Queue from "../utils/queue.js";
-import { logActions, logError, now, random } from "../utils/utils.js";
-import { getIsShuffleGroupNeedPostData } from "./setting-service.js";
+import { logError, now } from "../utils/utils.js";
 
 async function setProgress(b) {
   await DB_setValue(KEY_IS_IN_PROGRESS, b);
@@ -52,18 +29,6 @@ async function setProgress(b) {
 
 async function getProgress() {
   return (await DB_getValue(KEY_IS_IN_PROGRESS)) || false;
-}
-
-async function getIsStopTaskInStorage() {
-  return (await DB_getValue(KEY_STOP_TASK)) || false;
-}
-
-/**
- *
- * @param {boolean} b
- */
-async function setIsStopTaskInStorage(b = false) {
-  DB_setValue(KEY_STOP_TASK, b);
 }
 
 /**
@@ -167,7 +132,7 @@ async function getIsTestInStorage() {
 
 /**
  *
- * @param {{vi: string, en: string}} msg log to add to history
+ * @param {{vi: string, en: string, type?: "info" | "success" | "error" | "warning"}} msg log to add to history
  */
 async function addHistoryLog(msg = {}) {
   if (!msg) {
@@ -237,7 +202,13 @@ async function setCountBatchPost(count) {
  * @returns {Promise<number>} The current count of post, defaulting to 1 if not set
  */
 async function getCountBatchPost() {
-  return (await DB_getValue(KEY_COUNT_BATCH_POST)) || 1;
+  try {
+    const count = await DB_getValue(KEY_COUNT_BATCH_POST);
+    return Number(count || 0);
+  } catch (err) {
+    logError("Error getCountBatchPost", err);
+    return 0;
+  }
 }
 
 /**
@@ -302,7 +273,7 @@ async function getDecidedInteractBeforePostInStorage() {
  * @returns {Promise<number>} The time delay for scheduler
  */
 async function getTimeDelayForScheduler() {
-  return (await DB_getValue(KEY_TIME_DELAY_FOR_SCHEDULER)) || 0;
+  return await DB_getValue(KEY_TIME_DELAY_FOR_SCHEDULER, 0);
 }
 
 /**
@@ -326,41 +297,54 @@ async function getIsScrollDetectListGroupInStorage() {
   return (await DB_getValue(KEY_IS_SCROLL_DETECT_LIST_GROUP)) || false;
 }
 
+async function getNextTimePostWhenSpammed() {
+  let nextTime = await DB_getValue(KEY_NEXT_TIME_POST_WHEN_SPAMMED);
+  if (!nextTime) {
+    nextTime = new Date().getTime() + 1000 * 60 * 60 * 24 * 2;
+    await setNextTimePostWhenSpammed(nextTime);
+  }
+  return nextTime;
+}
+
+async function setNextTimePostWhenSpammed(time) {
+  await DB_setValue(KEY_NEXT_TIME_POST_WHEN_SPAMMED, time);
+}
+
 export {
-  setProgress,
-  getProgress,
-  getIsStopTaskInStorage,
-  setTimeDelayInStorage,
-  getTimeDelayInStorage,
-  setQueueInStorage,
-  getQueueInStorage,
-  getLanguageInStorage,
-  getIsDeveloperModeInStorage,
   addHistoryLog,
-  getHistoryLogsInStorage,
   clearHistoryLogs,
   getChangeGroupsCheckedFlag,
-  setChangeGroupsCheckedFlag,
-  setIsTestInStorage,
-  getIsTestInStorage,
-  setIsStopTaskInStorage,
-  getCountResetGroupInStorage,
-  setCountResetGroupInStorage,
-  getCurrentCountPostLength,
-  setCurrentCountPostLength,
-  getObjectTaskInStorage,
-  setObjectTaskInStorage,
-  setCountBatchPost,
   getCountBatchPost,
-  getIsShuffleSchedulerTimeInStorage,
-  setIsShuffleSchedulerTimeInStorage,
+  getCountResetGroupInStorage,
+  getCurrentCountPostLength,
   getDecidedInteractBeforePostInStorage,
-  setDecidedInteractBeforePostInStorage,
-  getTimeDelayForScheduler,
-  setTimeDelayForScheduler,
-  setIsFirstTimeUseToolInStorage,
+  getHistoryLogsInStorage,
+  getIsDeveloperModeInStorage,
   getIsFirstTimeUseToolInStorage,
-  setIsScrollDetectListGroupInStorage,
   getIsScrollDetectListGroupInStorage,
+  getIsShuffleSchedulerTimeInStorage,
+  getIsTestInStorage,
+  getLanguageInStorage,
+  getNextTimePostWhenSpammed,
+  getObjectTaskInStorage,
+  getProgress,
+  getQueueInStorage,
+  getTimeDelayForScheduler,
+  getTimeDelayInStorage,
+  setChangeGroupsCheckedFlag,
+  setCountBatchPost,
+  setCountResetGroupInStorage,
+  setCurrentCountPostLength,
+  setDecidedInteractBeforePostInStorage,
   setIsDeveloperModeInStorage,
+  setIsFirstTimeUseToolInStorage,
+  setIsScrollDetectListGroupInStorage,
+  setIsShuffleSchedulerTimeInStorage,
+  setIsTestInStorage,
+  setNextTimePostWhenSpammed,
+  setObjectTaskInStorage,
+  setProgress,
+  setQueueInStorage,
+  setTimeDelayForScheduler,
+  setTimeDelayInStorage,
 };

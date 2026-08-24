@@ -14,17 +14,15 @@ import {
   DB_sendMessage,
   DB_setValue,
 } from "../utils/api-helper.js";
-import { logActions, logError, now } from "../utils/utils.js";
+import { logActions, logError, now, shuffleArray } from "../utils/utils.js";
 import { getListDataGroupPostNeedPost } from "./data-group-post-service.js";
 import { getStrictlyMatchTitleGroupData } from "./setting-service.js";
-import { setIsStopTaskInStorage } from "./storage-service.js";
 
 /**
  * @description This function will be redirect to list group page and scroll detect list group
  */
 async function getListGroupsService() {
   try {
-    setIsStopTaskInStorage(false);
     DB_sendMessage(KEY_GET_LIST_GROUPS, { url: URL_LIST_GROUPS });
   } catch (error) {
     logError("Error at get list group service", error);
@@ -155,7 +153,7 @@ async function updateGroupNeedPosts(forceChange = false) {
         title,
         name,
         priority,
-        groups: listGroupsMatch,
+        groups: shuffleArray(listGroupsMatch),
       });
     }
 
@@ -175,6 +173,7 @@ async function updateGroupNeedPosts(forceChange = false) {
     logActions("update group need posts", list);
 
     await setGroupsNeedPost(list);
+    await setAllGroupPostedsInStorage([]);
     await updateUIDataGroupPostCheckeds(null, forceChange);
     return true;
   } catch (error) {

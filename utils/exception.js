@@ -8,8 +8,10 @@ import { getTextWithLanguage, logError } from "./utils.js";
 
 export class CustomError extends Error {
   code;
-  constructor(code = ERROR_CODE.SYSTEM, message, name = "CustomError") {
-    super(message);
+  msg;
+  constructor(code = ERROR_CODE.SYSTEM, msg, name = "CustomError") {
+    super(msg);
+    this.msg = msg;
     this.code = code;
     this.name = name;
   }
@@ -27,7 +29,7 @@ export function handleErrorHelper({
     code = error.code || ERROR_CODE.SYSTEM;
   }
   logError(name, error);
-  handleCaseError(code, msg, isShowNotify);
+  handleCaseError(code, msg || error.msg, isShowNotify);
   callback?.();
 }
 
@@ -68,14 +70,14 @@ async function handleCaseError(code, msg, isShowNotify) {
       }
       break;
 
-    case ERROR_CODE.SYSTEM:
-      if (isShowNotify) {
-        showNotify({
-          message: msg || defaultMsg,
-          type: "error",
-        });
-      }
-      break;
+    // case ERROR_CODE.SYSTEM:
+    //   if (isShowNotify) {
+    //     showNotify({
+    //       message: msg || defaultMsg,
+    //       type: "error",
+    //     });
+    //   }
+    //   break;
     default:
       if (isShowNotify) {
         showNotify({

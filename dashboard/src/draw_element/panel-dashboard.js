@@ -1,39 +1,23 @@
 import {
   KEY_ALL_GROUPS,
   KEY_COUNT_RESET_GROUPS,
-  KEY_CURRENT_COUNT_POSTED,
   KEY_GROUPS_NEED_POST,
   KEY_GROUPS_POSTED,
-  KEY_IS_DARK_THEME,
-  KEY_IS_DEVELOPER_MODE,
-  KEY_IS_IN_PROGRESS,
-  KEY_IS_PREMIUM,
-  KEY_IS_SCROLL_DETECT_LIST_GROUP,
-  KEY_IS_TEST,
-  KEY_LANGUAGE,
-  KEY_POST,
-  KEY_RETRY_CALL,
-  KEY_STOP_TASK,
   prefix,
 } from "../../../contants/contants.js";
 import { resetPostedGroupAndSave } from "../../../helpers/group.js";
 import {
-  getAuthFromStorage,
   getPremiumService,
   setPremiumService,
 } from "../../../services/auth-service.js";
 import {
   automation,
+  automationCommentWalk,
   automationContinue,
   automationTest,
 } from "../../../services/automation-service.js";
-import {
-  createNewDevice,
-  createNewDeviceRequest,
-  getDeviceFromStorage,
-  getDeviceTypeByBrowser,
-  setDeviceInStorage,
-} from "../../../services/device-service.js";
+import { commentWalkService } from "../../../services/comment-walk-service.js";
+import { getRandomTaskNameWithPriority } from "../../../services/device-service.js";
 import {
   getListGroupsService,
   updateGroupNeedPosts,
@@ -41,33 +25,23 @@ import {
 import {
   clearAndCreateSchedulerAlarm,
   clearSchedulerAuto,
-  getSchedulerDetail,
-  getSchedulerService,
 } from "../../../services/scheduler-service.js";
 import {
-  getDeviceSetting,
   getIsSchedulerData,
   getIsSpammedData,
-  logSettingHelper,
   setIsSpammedData,
+  setIsStopTaskData,
 } from "../../../services/setting-service.js";
-import {
-  getIsUseLocalStorage,
-  setTheme,
-} from "../../../services/storage-global-service.js";
+import { getIsUseLocalStorage } from "../../../services/storage-global-service.js";
 import {
   getIsDeveloperModeInStorage,
-  getProgress,
   setCountResetGroupInStorage,
   setIsDeveloperModeInStorage,
   setProgress,
 } from "../../../services/storage-service.js";
-import {
-  DB_deleteValue,
-  DB_getValue,
-  DB_setValue,
-} from "../../../utils/api-helper.js";
+import { DB_deleteValue, DB_setValue } from "../../../utils/api-helper.js";
 import { getTextWithLanguage, logError, sleep } from "../../../utils/utils.js";
+import { createButtonConfirm } from "./button.js";
 import { updateDataSavedInfo } from "./dataSavedInfo.js";
 import { createDialog, dialogConfirm } from "./dialog.js";
 import { showNotify } from "./notify.js";
@@ -87,17 +61,20 @@ function drawInnerRoot() {
               <button button id="${prefix}btn-stop-task" style="width: 100%;">${getTextWithLanguage({ vi: "Dừng", en: "Stop All" })}</button>
             </div>
             <div style="display: flex; gap: 4px;">
-            <button button id="${prefix}btn-get-list-groups-of-user" style="width: 100%;">${getTextWithLanguage({ vi: "Lấy danh sách nhóm", en: "Get List Groups" })}</button>
+              <button button id="${prefix}btn-get-list-groups-of-user" style="width: 100%;">${getTextWithLanguage({ vi: "Lấy danh sách nhóm", en: "Get List Groups" })}</button>
               <button button id="${prefix}btn-continue-post" style="width: 100%;">${getTextWithLanguage({ vi: "Tiếp tục", en: "Continue" })}</button>
-            </div>
-            <button button id="${prefix}btn-update-groups-need-post" style="width: 100%; padding: 16px;">${getTextWithLanguage({ vi: "Cập nhật danh sách nhóm cần đăng", en: "Update groups need post" })}</button>
-            <button button id="${prefix}btn-reset-groups-posted" style="width: 100%; padding: 16px;">${getTextWithLanguage({ vi: "Đặt lại nhóm đã đăng", en: "Reset Groups Posted" })}</button>
-            <button button id="${prefix}btn-reset-groups" style="width: 100%; padding: 16px;">${getTextWithLanguage({ vi: "Đặt lại tất cả nhóm", en: "Reset All Groups" })}</button>
+              </div>
+              <button button id="${prefix}btn-auto-comment-walk" style="width: 100%; padding: 16px;">${getTextWithLanguage({ vi: "Tự động bình luận dạo", en: "Auto Comment Walk" })}</button>
+              <button button id="${prefix}btn-update-groups-need-post" style="width: 100%; padding: 16px;">${getTextWithLanguage({ vi: "Cập nhật danh sách nhóm cần đăng", en: "Update groups need post" })}</button>
+            <div id="${prefix}div-btn-reset-groups-posted" style="width: 100%;"></div>
+            <div id="${prefix}div-btn-reset-comment-walk" style="width: 100%;"></div>
+            <div id="${prefix}div-btn-reset-groups" style="width: 100%;"></div>
             <button button id="${prefix}btn-reset-is-spammed" style="width: 100%; padding: 16px;">${getTextWithLanguage({ vi: "Đặt lại trạng thái bị spam", en: "Reset is spammed" })}</button>
             <button button id="${prefix}btn-reset" style="width: 100%; padding: 16px;">${getTextWithLanguage({ vi: "Đặt lại tất cả", en: "Reset All" })}</button>
             <button button id="${prefix}btn-test-auto" style="width: 100%; padding: 16px;">${getTextWithLanguage({ vi: "Kiểm thử (dev)", en: "Test Auto" })}</button>
             <button button id="${prefix}btn-reset-all-data-saved" style="width: 100%; padding: 16px;">${getTextWithLanguage({ vi: "Đặt lại tất cả dữ liệu đã lưu", en: "Reset all data saved" })}</button>
             <button button id="${prefix}btn-click" style="width: 100%; padding: 16px;">${getTextWithLanguage({ vi: "Click", en: "Click" })}</button>
+            <button button id="${prefix}btn-click-2" style="width: 100%; padding: 16px;">${getTextWithLanguage({ vi: "Click 2", en: "Click 2" })}</button>
         </div>
       </div>
     `;
@@ -146,10 +123,13 @@ async function createPanel(doc = document.body) {
           vi: "Bạn có chắc chắn muốn xóa tất cả dữ liệu?",
         }),
         onConfirm: async () => {
-          resetAllEvent();
+          await resetAllEvent();
           setIsShowConfirmDialogReset(false);
           showNotify({
-            message: "Reset all data successfully",
+            message: getTextWithLanguage({
+              vi: "Đặt lại tất cả dữ liệu thành công",
+              en: "Reset all data successfully",
+            }),
             type: "success",
           });
           await sleep(500);
@@ -169,22 +149,16 @@ async function createPanel(doc = document.body) {
         isConfirm: true,
       });
 
-      function resetAllEvent() {
+      async function resetAllEvent() {
         try {
-          DB_deleteValue(KEY_CURRENT_COUNT_POSTED);
-          DB_deleteValue(KEY_STOP_TASK);
-          DB_deleteValue(KEY_RETRY_CALL);
-          DB_deleteValue(KEY_POST);
-          DB_deleteValue(KEY_GROUPS_NEED_POST);
-          DB_deleteValue(KEY_GROUPS_POSTED);
-          DB_deleteValue(KEY_ALL_GROUPS);
-          DB_deleteValue(KEY_IS_IN_PROGRESS);
-          DB_deleteValue(KEY_IS_TEST);
-          DB_setValue(KEY_IS_SCROLL_DETECT_LIST_GROUP, true);
-          DB_setValue(KEY_COUNT_RESET_GROUPS, 0);
+          await chrome.storage.local.clear();
         } catch (error) {
+          logError("Error at reset all event: ", error);
           showNotify({
-            message: error.message,
+            message: getTextWithLanguage({
+              vi: "Đặt lại tất cả dữ liệu thất bại",
+              en: "Reset all data failed",
+            }),
             type: "error",
           });
         }
@@ -203,104 +177,109 @@ async function createPanel(doc = document.body) {
         });
       }
 
-      const btnResetGroups = document.querySelector(`#tm_btn-reset-groups`);
-      if (btnResetGroups) {
-        let isConfirmingResetAllGroups = false;
-        let timeOutIdResetAllGroups = null;
-        btnResetGroups.addEventListener("click", async () => {
-          if (isConfirmingResetAllGroups) {
-            if (timeOutIdResetAllGroups) {
-              clearTimeout(timeOutIdResetAllGroups);
-              timeOutIdResetAllGroups = null;
-            }
-            await Promise.all([
-              DB_deleteValue(KEY_GROUPS_NEED_POST),
-              DB_deleteValue(KEY_GROUPS_POSTED),
-              DB_deleteValue(KEY_ALL_GROUPS),
-            ]);
-            showNotify({
-              message: getTextWithLanguage({
-                en: "Reset all groups successfully",
-                vi: "Đặt lại tất cả nhóm thành công",
-              }),
-              type: "success",
-            });
-            isConfirmingResetAllGroups = false;
-            btnResetGroups.innerText = getTextWithLanguage({
+      const divBtnResetGroups = document.querySelector(
+        `#tm_div-btn-reset-groups`,
+      );
+      if (divBtnResetGroups) {
+        divBtnResetGroups.appendChild(
+          createButtonConfirm({
+            id: `${prefix}btn-reset-groups`,
+            title: getTextWithLanguage({
               en: "Reset All Groups",
               vi: "Đặt lại tất cả nhóm",
-            });
-            btnResetGroups.style.background = "";
-            DB_setValue(KEY_COUNT_RESET_GROUPS, 0);
-            addLog({
-              vi: "Bạn đã xóa danh sách nhóm đã lấy, danh sách nhóm đã đăng, danh sách nhóm cần đăng",
-              en: "You reset list groups gotten, list groups posted, list groups need post",
-            });
-          } else {
-            isConfirmingResetAllGroups = true;
-            btnResetGroups.innerText = getTextWithLanguage({
-              en: "Click again to confirm",
+            }),
+            titleConfirm: getTextWithLanguage({
+              en: "Confirm",
               vi: "Xác nhận lại",
-            });
-            btnResetGroups.style.background = "var(--tm-text-danger)";
-            timeOutIdResetAllGroups = setTimeout(() => {
-              isConfirmingResetAllGroups = false;
-              btnResetGroups.innerText = getTextWithLanguage({
-                en: "Reset All Groups",
-                vi: "Đặt lại tất cả nhóm",
-              });
-              btnResetGroups.style.background = "";
-            }, 3000);
-          }
-        });
+            }),
+            className: "w-full",
+            style: {
+              padding: "16px 8px",
+            },
+            onConfirm: async () => {
+              try {
+                await Promise.all([
+                  DB_deleteValue(KEY_GROUPS_NEED_POST),
+                  DB_deleteValue(KEY_GROUPS_POSTED),
+                  DB_deleteValue(KEY_ALL_GROUPS),
+                ]);
+                DB_setValue(KEY_COUNT_RESET_GROUPS, 0);
+
+                showNotify({
+                  message: getTextWithLanguage({
+                    en: "Reset all groups successfully",
+                    vi: "Đặt lại tất cả nhóm thành công",
+                  }),
+                  type: "success",
+                });
+                addLog({
+                  vi: "Bạn đã xóa danh sách nhóm đã lấy, danh sách nhóm đã đăng, danh sách nhóm cần đăng",
+                  en: "You reset list groups gotten, list groups posted, list groups need post",
+                });
+              } catch (error) {
+                logError("Error at btnResetGroups click event: ", error);
+                showNotify({
+                  message: getTextWithLanguage({
+                    en: "Reset all group failed",
+                    vi: "Đặt lại tất cả nhóm thất bại",
+                  }),
+                  type: "error",
+                });
+              }
+            },
+          }),
+        );
       }
 
-      const btnResetGroupsPosted = document.querySelector(
-        `#tm_btn-reset-groups-posted`,
+      const divBtnResetGroupPosted = document.querySelector(
+        `#tm_div-btn-reset-groups-posted`,
       );
-      if (btnResetGroupsPosted) {
-        let isConfirmingResetGroupsPosted = false;
-        let timeOutIdResetGroupsPosted = null;
-        btnResetGroupsPosted.addEventListener("click", async () => {
-          if (isConfirmingResetGroupsPosted) {
-            if (timeOutIdResetGroupsPosted) {
-              clearTimeout(timeOutIdResetGroupsPosted);
-              timeOutIdResetGroupsPosted = null;
-            }
-
-            await resetPostedGroupAndSave();
-            showNotify({
-              message: "Reset groups posted successfully",
-              type: "success",
-            });
-            isConfirmingResetGroupsPosted = false;
-            btnResetGroupsPosted.innerText = getTextWithLanguage({
+      if (divBtnResetGroupPosted) {
+        divBtnResetGroupPosted.appendChild(
+          createButtonConfirm({
+            id: `${prefix}btn-reset-groups-posted`,
+            title: getTextWithLanguage({
               en: "Reset Groups Posted",
               vi: "Đặt lại nhóm đã đăng",
-            });
-            btnResetGroupsPosted.style.background = "";
-            await setCountResetGroupInStorage(0);
-            addLog({
-              vi: "Đặt lại tất cả nhóm thành chờ",
-              en: "Set all groups to pending",
-            });
-          } else {
-            isConfirmingResetGroupsPosted = true;
-            btnResetGroupsPosted.innerText = getTextWithLanguage({
-              en: "Click again to confirm",
+            }),
+            titleConfirm: getTextWithLanguage({
+              en: "Confirm",
               vi: "Xác nhận lại",
-            });
-            btnResetGroupsPosted.style.background = "var(--tm-text-danger)";
-            timeOutIdResetGroupsPosted = setTimeout(() => {
-              isConfirmingResetGroupsPosted = false;
-              btnResetGroupsPosted.innerText = getTextWithLanguage({
-                en: "Reset Groups Posted",
-                vi: "Đặt lại nhóm đã đăng",
-              });
-              btnResetGroupsPosted.style.background = "";
-            }, 3000);
-          }
-        });
+            }),
+            className: "w-full",
+            style: {
+              padding: "16px 8px",
+            },
+            onConfirm: async () => {
+              try {
+                await resetPostedGroupAndSave();
+                await setCountResetGroupInStorage(0);
+
+                showNotify({
+                  message: getTextWithLanguage({
+                    en: "Reset groups posted successfully",
+                    vi: "Đặt lại nhóm đã đăng thành công",
+                  }),
+                  type: "success",
+                });
+
+                addLog({
+                  vi: "Đặt lại tất cả nhóm thành chờ",
+                  en: "Set all groups to pending",
+                });
+              } catch (error) {
+                logError("Error at btnResetGroups click event: ", error);
+                showNotify({
+                  message: getTextWithLanguage({
+                    en: "Reset all group failed",
+                    vi: "Đặt lại tất cả nhóm thất bại",
+                  }),
+                  type: "error",
+                });
+              }
+            },
+          }),
+        );
       }
 
       const btnContinue = document.querySelector(`#tm_btn-continue-post`);
@@ -332,7 +311,8 @@ async function createPanel(doc = document.body) {
       const btnStop = document.querySelector(`#tm_btn-stop-task`);
       if (btnStop) {
         btnStop.addEventListener("click", async () => {
-          if (await getProgress()) {
+          try {
+            await setIsStopTaskData(true);
             showNotify({
               message: getTextWithLanguage({
                 en: "Auto was be stopped",
@@ -340,9 +320,9 @@ async function createPanel(doc = document.body) {
               }),
               type: "error",
             });
+          } catch (error) {
+            logError("Error at btnStop click event: ", error);
           }
-          setProgress(false);
-          DB_setValue(KEY_STOP_TASK, true);
         });
       }
 
@@ -371,50 +351,60 @@ async function createPanel(doc = document.body) {
         });
       }
 
+      const btnAutoCommentWalk = document.querySelector(
+        `#tm_btn-auto-comment-walk`,
+      );
+      if (btnAutoCommentWalk) {
+        btnAutoCommentWalk.addEventListener("click", async () => {
+          try {
+            await commentWalkService.setCountCommentWalkPostedPerBatch(0);
+            await automationCommentWalk();
+          } catch (error) {
+            setProgress(false);
+            logError("Error at btnAutoCommentWalk click event: ", error);
+          }
+        });
+      }
+
       const btnClick = document.querySelector(`#tm_btn-click`);
       if (btnClick) {
         btnClick.addEventListener("click", async () => {
           try {
-            // chrome.tabs.query({}, function (tabs) {
-            //   tabs.forEach((tab) => {
-            //     chrome.tabs.reload(tab.id, {
-            //       bypassCache: true,
-            //     });
-            //   });
-            // });
-            // setInterval(() => {
-            //   addLog({
-            //     en: "test log 1",
-            //     vi: "test log 1 tieng viet",
-            //   });
-            // }, 1000);
-            // console.log(await getRandomIndexGroupChecked());
-            // console.log(await chrome.alarms.get(KEY_SCHEDULER_ALARMS));
-            // console.log(await DB_getValue(KEY_IS_PREMIUM));
-            // console.log(await DB_getValue(KEY_TAB.LAST_POST_TAB_OPEN_ID));
-            // console.log(await DB_getValue(KEY_CURRENT_WINDOW_ID));
-            // console.log(await chrome.windows.getCurrent());
-            // const win = await chrome.windows.create({
-            //   url: "https://www.facebook.com/groups/joins/?nav_source=tab",
-            //   type: "popup",
-            //   width: 900,
-            //   height: 800,
-            //   left: 500,
-            // });
-            // console.log(win);
-            // const windows = await chrome.windows.getAll({});
-            // console.log("Windows: ", windows);
-            // console.log(await getSpecialFrameHoursService());
-            // await getDeviceSetting();
-            // await logSettingHelper();
-            // const scheduler = await getSchedulerService();
-            // console.log(scheduler);
-            // console.log(await getSchedulerDetail(scheduler.scheduler_type));
-            // console.log(await getAuthFromStorage());
-            // console.log(await getDeviceFromStorage());
-            const device = await getDeviceFromStorage();
-            const res = await createNewDeviceRequest(device);
-            console.log(res);
+            // await commentWalkService.setCountCommentWalkPostedPerBatch(0);
+            // // await commentWalkService.setListUrlCommented([]);
+            // await automationCommentWalk();
+            // const arr = [2, 3];
+            // const total = arr.reduce((acc, val) => acc + val, 0);
+            // for (const num of arr) {
+            //   console.log(num, randomRateBoolean(total - num, total));
+            // }
+            // console.log(randomNumberValue(arr));
+            console.log(await getRandomTaskNameWithPriority());
+          } catch (error) {
+            logError("Error at btnClick click event: ", error);
+          }
+        });
+      }
+
+      const btnClick2 = document.querySelector(`#tm_btn-click-2`);
+      if (btnClick2) {
+        btnClick2.addEventListener("click", async () => {
+          try {
+            // const id = await commentWalkService.getRandomIdCommentWalkActive();
+            // const commentWalk = await commentWalkService.getCommentWalkById(id);
+            // const keywords = commentWalk.keyword_query_includes;
+            // console.log(keywords);
+            // for (const key of keywords) {
+            //   console.log(cvString(key));
+            // }
+            // const array = await getContentQueryExcludesCommonData();
+            // for (const item of array) {
+            //   console.log(cvString(item));
+            // }
+            // const strTest =
+            //   "Em cần tìm trọ tài chính dưới 5tr ạ. Mng cmt sdt + ảnh em tự liên hệ ạ.";
+            // console.log(cvStringHigher(strTest));
+            // DB_setValue(KEY_STOP_TASK, false);
           } catch (error) {
             logError("Error at btnClick click event: ", error);
           }
@@ -476,40 +466,52 @@ async function createPanel(doc = document.body) {
         });
       }
 
-      const btnChangeTheme = document.body.querySelector(
-        `#${prefix}btn-change-theme`,
+      const divBtnResetCommentWalk = document.querySelector(
+        `#${prefix}div-btn-reset-comment-walk`,
       );
-      if (btnChangeTheme) {
-        btnChangeTheme.addEventListener("click", async () => {
-          const isDarkTheme = (await DB_getValue(KEY_IS_DARK_THEME)) || false;
-          const newIsDarkTheme = !isDarkTheme;
-          await setTheme(newIsDarkTheme);
-          if (newIsDarkTheme) {
-            document.body.classList.add("dark");
-            document.body.classList.remove("light");
-          } else {
-            document.body.classList.remove("dark");
-            document.body.classList.add("light");
-          }
-
-          const svgs = document.querySelectorAll(".tm_svg");
-          svgs.forEach((svg) => {
-            svg.setAttribute("fill", newIsDarkTheme ? "white" : "black");
-          });
+      if (divBtnResetCommentWalk) {
+        const buttonConfirmResetCommentWalk = createButtonConfirm({
+          id: `${prefix}btn-reset-comment-walk`,
+          title: getTextWithLanguage({
+            vi: "Đặt lại danh sách đã bình luận",
+            en: "Reset list url commented",
+          }),
+          titleConfirm: getTextWithLanguage({
+            vi: "Xác nhận",
+            en: "Confirm",
+          }),
+          className: "w-full",
+          style: {
+            padding: "16px 8px",
+          },
+          onConfirm: async () => {
+            try {
+              await commentWalkService.setListUrlCommented([]);
+              showNotify({
+                message: getTextWithLanguage({
+                  vi: "Đặt lại danh sách URL đã bình luận thành công",
+                  en: "Reset list url commented successfully",
+                }),
+                type: "success",
+              });
+              addLog({
+                vi: "Bạn vừa đặt lại danh sách URL đã bình luận",
+                en: "You just reset list url commented",
+              });
+              updateDataSavedInfo();
+            } catch (error) {
+              logError("Error at btnResetCommentedWalk click event: ", error);
+              showNotify({
+                message: getTextWithLanguage({
+                  vi: "Đặt lại danh sách URL đã bình luận thất bại",
+                  en: "Reset list url commented failed",
+                }),
+                type: "error",
+              });
+            }
+          },
         });
-      }
-
-      const btnResetAllDataSaved = document.body.querySelector(
-        `#${prefix}btn-reset-all-data-saved`,
-      );
-      if (btnResetAllDataSaved) {
-        btnResetAllDataSaved.addEventListener("click", async () => {
-          try {
-            await chrome.storage.local.clear();
-          } catch (error) {
-            logError("Error at btnResetIsSpammed click event: ", error);
-          }
-        });
+        divBtnResetCommentWalk.appendChild(buttonConfirmResetCommentWalk);
       }
     }
 

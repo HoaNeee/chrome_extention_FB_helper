@@ -1,4 +1,7 @@
-import { MAX_LENGTH_FILE_NAME } from "../contants/constant-extention.js";
+import {
+  MAX_LENGTH_FILE_NAME,
+  URL_SEARCH_PAGE,
+} from "../contants/constant-extention.js";
 import {
   getIsDeveloperModeInStorage,
   getLanguageInStorage,
@@ -23,6 +26,22 @@ function random(min, max) {
 function randomRateBoolean(win = 0, total = 100) {
   const randomNumber = Math.random() * total;
   return randomNumber <= win;
+}
+
+function randomNumberValue(list = []) {
+  const total = list.reduce((acc, val) => acc + val, 0);
+  let rand = Math.random() * total;
+
+  let newList = [...list];
+
+  newList = newList.sort((a, b) => b - a); //sort descending
+
+  for (const num of newList) {
+    if (rand < num) return num;
+    rand -= num;
+  }
+
+  return list.length ? list[0] : 0;
 }
 
 function now() {
@@ -81,7 +100,7 @@ function fileToBase64(file) {
 function parseBase64ToFile({ name, base64Data, type }) {
   const blob = parseBase64ToBlob({ name, base64Data, type });
 
-  const split = name?.split(".");
+  const split = name ? name?.split(".") : [];
 
   let fileName = genID();
   let ext = "jpg";
@@ -107,7 +126,8 @@ function parseBase64ToFile({ name, base64Data, type }) {
  * @returns
  */
 function parseBase64ToBlob(objectURL) {
-  const base64Data = objectURL.base64Data.split(",")[1];
+  const base64Data = objectURL.base64Data?.split(",")[1];
+  if (!base64Data) return null;
   const binaryData = atob(base64Data);
   const len = binaryData.length;
   const uint8Array = new Uint8Array(len);
@@ -322,7 +342,7 @@ async function initLanguage() {
  * @param {{vi?: string, en?: string}} obj
  * @returns {string}
  */
-function getTextWithLanguage({ vi = "", en = "" } = obj) {
+function getTextWithLanguage({ vi = "", en = "" } = {}) {
   if (language === "vi") {
     return vi;
   }
@@ -361,6 +381,55 @@ function cloneData(data) {
   return data;
 }
 
+function checkIsFacebookUrl(url) {
+  if (typeof url !== "string") return false;
+  return url.includes("facebook.com");
+}
+
+function checkIsSearchPageUrl(url) {
+  if (typeof url !== "string") return false;
+  return url.includes(URL_SEARCH_PAGE);
+}
+
+function checkIsSearchPagePostUrl(url) {
+  if (typeof url !== "string") return false;
+  // https://www.facebook.com/groups/phongtrocaugiaymydinhmetri/permalink/3342506675944081/
+  // https://www.facebook.com/groups/phongtrocaugiaymydinhmetri/permalink/3342506675944081
+  const pattern =
+    /^https:\/\/www\.facebook\.com\/groups\/[a-zA-Z0-9._-]+\/permalink\/[A-Za-z0-9_.-\\/]+(\/?)$/;
+  return pattern.test(url);
+}
+
+/**
+ *
+ * @param {string} str - string to split
+ * @param {string} key - key to split
+ * @returns {Array<string>}
+ */
+function splitString(str, key = ",") {
+  if (!str || typeof str !== "string" || !str.trim()) return [];
+  return str
+    .split(key)
+    .map((item) => item.trim())
+    .filter((item) => item.trim());
+}
+
+/**
+ * @param {string} str - string to convert
+ * @returns {string}
+ */
+function cvStringHigher(str) {
+  return str
+    .normalize("NFD") // Tách dấu ra khỏi chữ cái (ví dụ: á -> a + ´)
+    .replace(/[̀-ͯ]/g, "") // Xóa các ký tự dấu
+    .replace(/đ/g, "d") // Xử lý riêng chữ đ
+    .replace(/Đ/g, "D") // Xử lý riêng chữ Đ
+    .replace(/[^a-zA-Z0-9\s]/g, " ") // Loại bỏ ký tự đặc biệt, chỉ giữ lại chữ cái, số, khoảng trắng (kể cả dấu cách) thành khoảng trắng
+    .replace(/\s+/g, " ") // Thay thế nhiều khoảng trắng bằng một khoảng trắng duy nhất
+    .toLocaleLowerCase()
+    .trim();
+}
+
 export {
   sleep,
   random,
@@ -390,4 +459,10 @@ export {
   parseFileToObjectBase64,
   cloneData,
   genIDNumber,
+  checkIsFacebookUrl,
+  checkIsSearchPageUrl,
+  checkIsSearchPagePostUrl,
+  splitString,
+  cvStringHigher,
+  randomNumberValue,
 };

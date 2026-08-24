@@ -15,6 +15,8 @@ function getTitleByTabValue(tabValue) {
         vi: "Cài đặt nâng cao",
         en: "Advanced Settings",
       });
+    case "comment-walk":
+      return getTextWithLanguage({ vi: "Bình luận dạo", en: "Comment Walk" });
 
     default:
       return "";
@@ -58,9 +60,10 @@ function drawTab() {
     <ul class="tabs-list">
       <li class="tab-item" data-tab-value="dashboard">${getTextWithLanguage({ vi: "Bảng điểu khiển", en: "Dashboard" })}</li>
       <li class="tab-item" data-tab-value="settings">${getTextWithLanguage({ vi: "Cài đặt", en: "Settings" })}</li>
-      <li class="tab-item" data-tab-value="groups">${getTextWithLanguage({ vi: "Dữ liệu nhóm", en: "Group's data" })}</li>
-      <li class="tab-item" data-tab-value="logs">${getTextWithLanguage({ vi: "Nhật ký", en: "Logs" })}</li>
       <li class="tab-item" data-tab-value="settings-advanced">${getTextWithLanguage({ vi: "Cài đặt nâng cao", en: "Advanced Settings" })}</li>
+      <li class="tab-item" data-tab-value="groups">${getTextWithLanguage({ vi: "Dữ liệu nhóm", en: "Group's data" })}</li>
+      <li class="tab-item" data-tab-value="comment-walk">${getTextWithLanguage({ vi: "Bình luận dạo", en: "Comment Walk" })}</li>
+      <li class="tab-item" data-tab-value="logs">${getTextWithLanguage({ vi: "Nhật ký", en: "Logs" })}</li>
     </ul>
   `;
   return div;

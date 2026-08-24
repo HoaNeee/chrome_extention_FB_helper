@@ -39,6 +39,7 @@ const KEY_IS_RANDOM_BATCH_POST = "is_random_batch_post";
 const KEY_IS_RANDOM_TIME_POST = "is_random_time_post";
 const KEY_IS_SPECIAL_FRAME_HOURS = "is_special_frame_hours";
 const KEY_CHANGE_GROUPS_CHECKED_FLAG = "change_groups_checked_flag";
+const KEY_IS_EXECUTE_PRIORITY_TASK = "is_execute_priority_task";
 
 const KEY_IS_PREMIUM = "is_premium";
 
@@ -76,6 +77,7 @@ const KEY_CAN_POST_THIS_TAB = "can_post_this_tab";
 const KEY_NEXT_TIME_POST_WHEN_SPAMMED = "next_time_post_when_spammed";
 const KEY_SPECIAL_FRAME_HOURS = "special_frame_hours";
 const KEY_TIME_DELAY_FOR_SCHEDULER = "time_delay_for_scheduler";
+const KEY_CURRENT_TASK = "current_task";
 
 const KEY_HISTORY_LOGS = "history_logs";
 const KEY_HISTORY_SYSTEM_LOGS = "history_system_logs";
@@ -95,6 +97,17 @@ const KEY_TAB = {
   TAB_DASHBOARD_ID: "tab_dashboard_id",
 };
 
+const KEY_PRIORITY_TASK = {
+  POST: "priority_task_post",
+  COMMENT_WALK: "priority_task_comment_walk",
+};
+
+const KEY_TASK_NAME = {
+  POST: "task_post",
+  COMMENT_WALK: "task_comment_walk",
+  UNKNOWN: "unknown",
+};
+
 const KEY_INTERACT_BEFORE_POST = {
   IS_ACTIVE: "is_interact_before_post",
   MAX_POST_INTERACT: "max_post_interact",
@@ -105,7 +118,27 @@ const KEY_WINDOW = {
   WINDOW_GET_LIST_GROUP_ID: "window_get_list_group_id",
 };
 
+const KEY_COMMENT_WALK = {
+  IS_ACTIVE: "is_comment_walk",
+  COMMENT_WALK_SETTING_MAX_COMMENT_PER_BATCH: "max_comment_walk_per_batch",
+  CURRENT_COMMENT_WALK_OBJECT: "current_comment_walk_object",
+  COMMENT_WALK_SETTING_TIME_DELAY: "comment_walk_setting_time_delay",
+  LIST_ID_COMMENT_WALK_ACTIVE: "list_ids_comment_walk_active",
+  IS_COMMENT_WALK_PROCESSING: "is_comment_walk_processing",
+  TAB_ID_COMMENT_WALK: "tab_id_comment_walk",
+  CURRENT_ID_COMMENT_WALK: "current_id_comment_walk",
+  LIST_URL_COMMENT_WALK_COMMENTED: "list_url_comment_walk_commented",
+  COUNT_COMMENT_WALK_POSTED_PER_BATCH: "count_comment_walk_posted_per_batch",
+  CONTENT_QUERY_INCLUDES_COMMON: "content_query_includes_common",
+  CONTENT_QUERY_EXCLUDES_COMMON: "content_query_excludes_common",
+  MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON:
+    "match_rate_value_content_query_includes_common",
+  LAST_TIME_COMMENT_WALK: "last_time_comment_walk",
+};
+
 const KEY_CURRENT_DATA_GROUP_POST = "current_data_group_post";
+
+const KEY_TIME_BREAK_WHEN_SPAMMED = "time_break_when_spammed";
 
 const KEY_AUTH = "auth_data";
 
@@ -130,6 +163,9 @@ const SCHEDULER_TYPE = {
 
 const URL_LIST_GROUPS = "https://www.facebook.com/groups/joins/?nav_source=tab";
 
+const DEFAULT_KEY_FILTER_RECENT_POST =
+  "eyJyZWNlbnRfcG9zdHM6MCI6IntcIm5hbWVcIjpcInJlY2VudF9wb3N0c1wiLFwiYXJnc1wiOlwiXCJ9In0%3D"; //maybe need change later
+
 const MAX_Z_INDEX = 99;
 
 const prefix = "tm_";
@@ -140,6 +176,50 @@ const initialTimeDelay = {
   time_delay_fill_file: 7,
   time_delay_post: 5,
   time_delay_open_new_tab: 2,
+};
+
+const DEFAULT_CONTENT_QUERY_INCLUDES_COMMON = [
+  "Tìm trọ",
+  "tìm phòng",
+  "tài chính",
+  "Ai có phòng",
+];
+
+const DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON = [
+  "mình cho thuê phòng",
+  "mình có phòng",
+  "khai trương",
+  "Pass phòng",
+  "Nhượng phòng",
+  "CÒN 1 PHÒNG",
+  "CHO THUÊ PHÒNG",
+  "CHO THUÊ PHÒNG GIÁ RẺ",
+  "CHO THUÊ PHÒNG GIÁ SINH VIÊN",
+  "CHO THUÊ PHÒNG GIÁ TỐT",
+  "NHANH TAY KẺO HẾT",
+  "DUY NHẤT",
+  "Xem phòng liên hệ",
+  "GIÁ CHỈ TỪ",
+  "Liên Hệ Chính Chủ",
+  "Mình chính chủ",
+];
+
+const DEFAULT_COMMENT_WALK_SETTING = {
+  max_comment_walk_per_batch: 1,
+  time_delay_fill_content_comment_walk_min: 100,
+  time_delay_fill_content_comment_walk_max: 200,
+  time_delay_fill_file_comment_walk: 5,
+  time_delay_submit_comment_walk: 11,
+};
+
+const KEY_DEFAULT_VALUE = {
+  DEFAULT_TIME_BREAK_WHEN_SPAMMED: 2,
+  DEFAULT_CONTENT_QUERY_INCLUDES_COMMON,
+  DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON,
+  DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON: 2, //Example: 2 nghĩa là bắt buộc phải có 3 từ trong danh sách "content_query_includes_common" thì mới được post
+  DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES: 1,
+  DEFAULT_PRIORITY_TASK_POST: 1,
+  DEFAULT_PRIORITY_TASK_COMMENT_WALK: 2,
 };
 
 export {
@@ -200,4 +280,13 @@ export {
   KEY_AUTH,
   KEY_USED_TO_LOGINED_THIS_DEVICE,
   KEY_DEVICE,
+  DEFAULT_KEY_FILTER_RECENT_POST,
+  KEY_COMMENT_WALK,
+  DEFAULT_COMMENT_WALK_SETTING,
+  KEY_TIME_BREAK_WHEN_SPAMMED,
+  KEY_DEFAULT_VALUE,
+  KEY_PRIORITY_TASK,
+  KEY_IS_EXECUTE_PRIORITY_TASK,
+  KEY_TASK_NAME,
+  KEY_CURRENT_TASK,
 };

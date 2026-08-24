@@ -3,9 +3,13 @@ import {
   KEY_SAVED_TEMP,
 } from "../contants/constant-extention.js";
 import {
+  DEFAULT_COMMENT_WALK_SETTING,
   initialTimeDelay,
+  KEY_COMMENT_WALK,
   KEY_COMMENT_WHEN_POST_SUCCESS,
+  KEY_DEFAULT_VALUE,
   KEY_INTERACT_BEFORE_POST,
+  KEY_IS_EXECUTE_PRIORITY_TASK,
   KEY_IS_FIX_STEAL_ALL_FOCUS,
   KEY_IS_FIX_STEAL_FOCUS,
   KEY_IS_RANDOM_BATCH_POST,
@@ -15,6 +19,9 @@ import {
   KEY_IS_SPECIAL_FRAME_HOURS,
   KEY_LAST_TIME_POST,
   KEY_MAX_GROUP_PER_TIME,
+  KEY_PRIORITY_TASK,
+  KEY_STOP_TASK,
+  KEY_TIME_BREAK_WHEN_SPAMMED,
   KEY_TIME_DELAY,
   KEY_TITLE_STRICTLY_MATCH_GROUP,
   MAX_GROUP_PER_TIME_INITIAL,
@@ -30,6 +37,34 @@ import {
 } from "./scheduler-service.js";
 
 /**
+ * @typedef {Object} PostConfig
+ * @property {number} max_group_per_batch
+ * @property {number} time_delay_click_to_post
+ * @property {number} time_delay_fill_content
+ * @property {number} time_delay_fill_file
+ * @property {number} time_delay_post
+ * @property {number} time_delay_open_new_tab
+ * @property {number} last_time_post
+ * @property {boolean} is_shuffle_group_need_post
+ * @property {boolean} is_spammed
+ */
+
+/**
+ * @typedef {Object} CommentWalkConfig
+ * @property {number} max_comment_walk_per_batch
+ * @property {boolean} is_spammed_comment_walk
+ * @property {boolean} is_comment_walk
+ * @property {number} time_delay_fill_content_comment_walk_min
+ * @property {number} time_delay_fill_content_comment_walk_max
+ * @property {number} time_delay_fill_file_comment_walk
+ * @property {number} time_delay_submit_comment_walk
+ * @property {Array<string>} content_query_includes_common_comment_walk
+ * @property {Array<string>} content_query_excludes_common_comment_walk
+ * @property {number} match_rate_value_content_query_includes_common_comment_walk
+ * @property {number} last_time_comment_walk
+ */
+
+/**
  * @typedef {Object} DeviceSetting
  * @property {number} id
  * @property {boolean} is_fix_steal_focus
@@ -39,17 +74,34 @@ import {
  * @property {boolean} is_shuffle_group_need_post
  * @property {boolean} is_special_frame_hours
  * @property {boolean} is_scheduler
+ * @property {boolean} is_execute_priority_task
  * @property {number} max_group_per_batch
+ * @property {number} max_comment_walk_per_batch
  * @property {Array<string>} strictly_match_title_group
  * @property {boolean} is_spammed
+ * @property {boolean} is_spammed_comment_walk
  * @property {boolean} is_comment_when_post
  * @property {boolean} is_interact_batch
+ * @property {boolean} is_comment_walk
+ * @property {boolean} is_remote
  * @property {number} time_delay_click_to_post
  * @property {number} time_delay_fill_content
  * @property {number} time_delay_fill_file
  * @property {number} time_delay_post
  * @property {number} time_delay_open_new_tab
+ * @property {number} time_delay_fill_content_comment_walk_min
+ * @property {number} time_delay_fill_content_comment_walk_max
+ * @property {number} time_delay_fill_file_comment_walk
+ * @property {number} time_delay_submit_comment_walk
+ * @property {number} time_break_when_spammed
+ * @property {Array<string>} content_query_includes_common_comment_walk
+ * @property {Array<string>} content_query_excludes_common_comment_walk
+ * @property {number} match_rate_value_content_query_includes_common_comment_walk
  * @property {number} last_time_post
+ * @property {number} last_time_interact
+ * @property {number} last_time_comment_walk
+ * @property {number} priority_task_post
+ * @property {number} priority_task_comment_walk
  * @property {string} device_id
  */
 
@@ -410,7 +462,7 @@ async function getStrictlyMatchTitleGroupData() {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
       let data = await DB_getValue(KEY_TITLE_STRICTLY_MATCH_GROUP);
-      if (data === undefined || data === null) {
+      if (data === undefined || data === null || typeof data === "string") {
         const initData = DEFAULT_VALUE.STRICTLY_TITLE_MATCH_GROUP;
         await setStrictlyMatchTitleGroupData(initData);
         data = initData.split(",").map((i) => i.trim());
@@ -755,14 +807,25 @@ async function getSettingByDeviceInStorage() {
     const is_interact_batch = await getIsInteractBeforePostData();
     const is_special_frame_hours = await getIsSpecialFrameHoursData();
 
-    //time delay
+    const is_comment_walk = await getIsCommentWalkData();
 
+    //time delay
     const timeDelay = await getTimeDelayData();
     const time_delay_click_to_post = timeDelay.time_delay_click_to_post;
     const time_delay_fill_content = timeDelay.time_delay_fill_content;
     const time_delay_fill_file = timeDelay.time_delay_fill_file;
     const time_delay_post = timeDelay.time_delay_post;
     const time_delay_open_new_tab = timeDelay.time_delay_open_new_tab;
+
+    //TODO LATER
+    // const commentWalk = await getCommentWalkData();
+    // const time_delay_click_to_post_comment_walk = commentWalk.time_delay_click_to_post;
+    // const time_delay_fill_content_comment_walk = commentWalk.time_delay_fill_content;
+    // const time_delay_fill_file_comment_walk = commentWalk.time_delay_fill_file;
+    // const time_delay_submit_comment_walk = commentWalk.time_delay_submit;
+    // const time_break_when_spammed = commentWalk.time_break_when_spammed;
+    // const content_query_includes_common_comment_walk = commentWalk.content_query_includes_common;
+    // const content_query_excludes_common_comment_walk = commentWalk.content_query_excludes_common;
 
     //last time post
     const last_time_post = await getLastTimePostData();
@@ -788,6 +851,7 @@ async function getSettingByDeviceInStorage() {
       time_delay_open_new_tab,
       last_time_post,
       device_id,
+      is_comment_walk,
     };
   } catch (error) {
     throw error;
@@ -875,6 +939,323 @@ async function logSettingHelper() {
   console.log("deviceSetting", deviceSetting);
 }
 
+async function setIsCommentWalkData(b = false) {
+  try {
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(KEY_COMMENT_WALK.IS_ACTIVE, b);
+    } else {
+      await updateDeviceSettingRequest("is_comment_walk", b);
+    }
+    const deviceSetting = await getDeviceSettingTemp();
+    if (deviceSetting) {
+      deviceSetting.is_comment_walk = b;
+      await setDeviceSettingTemp(deviceSetting);
+    }
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getIsCommentWalkData() {
+  try {
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(KEY_COMMENT_WALK.IS_ACTIVE, false);
+    }
+
+    const deviceSetting = await getDeviceSettingTemp();
+    if (deviceSetting) {
+      return deviceSetting.is_comment_walk;
+    }
+
+    const setting = await getDeviceSetting();
+    return setting.is_comment_walk;
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * @typedef {Object} TimeDelayCommentWalk
+ * @property {number} time_delay_fill_content_comment_walk_min
+ * @property {number} time_delay_fill_content_comment_walk_max
+ * @property {number} time_delay_fill_file_comment_walk
+ * @property {number} time_delay_submit_comment_walk
+ */
+
+/**
+ *
+ * @param {TimeDelayCommentWalk} timeDelay
+ */
+async function setTimeDelayCommentWalk(timeDelay) {
+  try {
+    await DB_setValue(
+      KEY_COMMENT_WALK.COMMENT_WALK_SETTING_TIME_DELAY,
+      timeDelay,
+    );
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ *
+ * @returns {Promise<TimeDelayCommentWalk>}
+ */
+async function getTimeDelayCommentWalk() {
+  try {
+    const res = await DB_getValue(
+      KEY_COMMENT_WALK.COMMENT_WALK_SETTING_TIME_DELAY,
+    );
+    if (!res) {
+      const data = {
+        time_delay_fill_content_comment_walk_max:
+          DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_content_comment_walk_max,
+        time_delay_fill_content_comment_walk_min:
+          DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_content_comment_walk_min,
+        time_delay_fill_file_comment_walk:
+          DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_file_comment_walk,
+        time_delay_submit_comment_walk:
+          DEFAULT_COMMENT_WALK_SETTING.time_delay_submit_comment_walk,
+      };
+      await setTimeDelayCommentWalk(data);
+      return data;
+    }
+    return res;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getMaxCommentWalkPerBatchData() {
+  try {
+    const res = await DB_getValue(
+      KEY_COMMENT_WALK.COMMENT_WALK_SETTING_MAX_COMMENT_PER_BATCH,
+    );
+    if (!res) {
+      await setMaxCommentWalkPerBatchData(
+        DEFAULT_COMMENT_WALK_SETTING.max_comment_walk_per_batch,
+      );
+      return DEFAULT_COMMENT_WALK_SETTING.max_comment_walk_per_batch;
+    }
+    return res;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function setMaxCommentWalkPerBatchData(max_comment_walk_per_batch) {
+  try {
+    await DB_setValue(
+      KEY_COMMENT_WALK.COMMENT_WALK_SETTING_MAX_COMMENT_PER_BATCH,
+      max_comment_walk_per_batch,
+    );
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getTimeBreakWhenSpammedData() {
+  return await DB_getValue(KEY_TIME_BREAK_WHEN_SPAMMED, 0);
+}
+
+async function setTimeBreakWhenSpammedData(time) {
+  await DB_setValue(KEY_TIME_BREAK_WHEN_SPAMMED, time);
+}
+
+/**
+ * @returns {Promise<Array<string>>}
+ */
+async function getContentQueryIncludesCommonData() {
+  const res = await DB_getValue(KEY_COMMENT_WALK.CONTENT_QUERY_INCLUDES_COMMON);
+  if (res === null || res === undefined) {
+    await setContentQueryIncludesCommonData(
+      KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_INCLUDES_COMMON,
+    );
+    return KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_INCLUDES_COMMON;
+  }
+  return res;
+}
+
+/**
+ * @param {Array<string>} contentQueryIncludesCommon
+ */
+async function setContentQueryIncludesCommonData(contentQueryIncludesCommon) {
+  await DB_setValue(
+    KEY_COMMENT_WALK.CONTENT_QUERY_INCLUDES_COMMON,
+    contentQueryIncludesCommon,
+  );
+}
+
+/**
+ * @returns {Promise<Array<string>>}
+ */
+async function getContentQueryExcludesCommonData() {
+  const res = await DB_getValue(KEY_COMMENT_WALK.CONTENT_QUERY_EXCLUDES_COMMON);
+  if (res === null || res === undefined) {
+    await setContentQueryExcludesCommonData(
+      KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON,
+    );
+    return KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON;
+  }
+  return res;
+}
+
+/**
+ * @param {Array<string>} contentQueryExcludesCommon
+ */
+async function setContentQueryExcludesCommonData(contentQueryExcludesCommon) {
+  await DB_setValue(
+    KEY_COMMENT_WALK.CONTENT_QUERY_EXCLUDES_COMMON,
+    contentQueryExcludesCommon,
+  );
+}
+
+/**
+ *
+ * @returns {Promise<number>}
+ */
+async function getMatchRateValueContentQueryIncludesCommonData() {
+  return await DB_getValue(
+    KEY_COMMENT_WALK.MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
+    KEY_DEFAULT_VALUE.DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
+  );
+}
+
+async function setMatchRateValueContentQueryIncludesCommonData(rate) {
+  await DB_setValue(
+    KEY_COMMENT_WALK.MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
+    rate,
+  );
+}
+
+async function getIsStopTaskData() {
+  try {
+    return await DB_getValue(KEY_STOP_TASK, false);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function setIsStopTaskData(b = false) {
+  try {
+    await DB_setValue(KEY_STOP_TASK, b);
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function setLastTimeCommentWalkData(lastTimeComment) {
+  try {
+    await DB_setValue(KEY_COMMENT_WALK.LAST_TIME_COMMENT_WALK, lastTimeComment);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getLastTimeCommentWalkData() {
+  try {
+    return await DB_getValue(KEY_COMMENT_WALK.LAST_TIME_COMMENT_WALK, 0);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getPriorityTaskPostData() {
+  try {
+    return await DB_getValue(KEY_PRIORITY_TASK.POST, 1);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function setPriorityTaskPostData(priority = 1) {
+  try {
+    await DB_setValue(KEY_PRIORITY_TASK.POST, priority);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getPriorityTaskCommentWalkData() {
+  try {
+    return await DB_getValue(KEY_PRIORITY_TASK.COMMENT_WALK, 1);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function setPriorityTaskCommentWalkData(priority = 1) {
+  try {
+    await DB_setValue(KEY_PRIORITY_TASK.COMMENT_WALK, priority);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getPriorityTaskData() {
+  try {
+    let priorityTaskPost = await getPriorityTaskPostData();
+    let priorityTaskCommentWalk = await getPriorityTaskCommentWalkData();
+
+    if (priorityTaskPost === null || priorityTaskPost === undefined) {
+      priorityTaskPost = KEY_DEFAULT_VALUE.DEFAULT_PRIORITY_TASK_POST;
+      await setPriorityTaskPostData(priorityTaskPost);
+    }
+    if (
+      priorityTaskCommentWalk === null ||
+      priorityTaskCommentWalk === undefined
+    ) {
+      priorityTaskCommentWalk =
+        KEY_DEFAULT_VALUE.DEFAULT_PRIORITY_TASK_COMMENT_WALK;
+      await setPriorityTaskCommentWalkData(priorityTaskCommentWalk);
+    }
+
+    return {
+      priority_task_post: priorityTaskPost,
+      priority_task_comment_walk: priorityTaskCommentWalk,
+    };
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * @param {Object} priority
+ * @param {number} priority.priority_task_post
+ * @param {number} priority.priority_task_comment_walk
+ */
+async function setPriorityTaskData(priority) {
+  try {
+    await Promise.all([
+      setPriorityTaskPostData(priority.priority_task_post),
+      setPriorityTaskCommentWalkData(priority.priority_task_comment_walk),
+    ]);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getIsExecutePriorityTaskData() {
+  try {
+    return await DB_getValue(KEY_IS_EXECUTE_PRIORITY_TASK, false);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function setIsExecutePriorityTaskData(isExecutePriorityTask = false) {
+  try {
+    await DB_setValue(KEY_IS_EXECUTE_PRIORITY_TASK, isExecutePriorityTask);
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
+
 export {
   setIsCommentWhenPostSuccessData,
   setIsFixStealAllFocusData,
@@ -909,4 +1290,30 @@ export {
   getIsSchedulerData,
   setIsSchedulerData,
   logSettingHelper,
+  setTimeDelayCommentWalk,
+  getTimeDelayCommentWalk,
+  getIsCommentWalkData,
+  setIsCommentWalkData,
+  getMaxCommentWalkPerBatchData,
+  setMaxCommentWalkPerBatchData,
+  getTimeBreakWhenSpammedData,
+  setTimeBreakWhenSpammedData,
+  getContentQueryIncludesCommonData,
+  setContentQueryIncludesCommonData,
+  getContentQueryExcludesCommonData,
+  setContentQueryExcludesCommonData,
+  getMatchRateValueContentQueryIncludesCommonData,
+  setMatchRateValueContentQueryIncludesCommonData,
+  getIsStopTaskData,
+  setIsStopTaskData,
+  setLastTimeCommentWalkData,
+  getLastTimeCommentWalkData,
+  getPriorityTaskPostData,
+  setPriorityTaskPostData,
+  getPriorityTaskCommentWalkData,
+  setPriorityTaskCommentWalkData,
+  getPriorityTaskData,
+  setPriorityTaskData,
+  getIsExecutePriorityTaskData,
+  setIsExecutePriorityTaskData,
 };

@@ -38,6 +38,15 @@ async function getProgressTool() {
   return (await DB_getValue(KEY_IS_IN_PROGRESS)) || false;
 }
 
+async function BG_sendMessage(type, data) {
+  try {
+    await chrome.runtime.sendMessage({ type, data });
+  } catch (error) {
+    logError("Error at BG_sendMessage: ", error);
+    throw error;
+  }
+}
+
 /**
  *
  * @param {{task: {id_href: string, status: string}, time: number}} task
@@ -99,4 +108,5 @@ export {
   setStatusTask,
   getTask,
   saveTask,
+  BG_sendMessage,
 };

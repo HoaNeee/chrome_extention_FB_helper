@@ -1,5 +1,6 @@
 import {
   KEY_IS_PREMIUM,
+  KEY_TASK_NAME,
   prefix,
   SCHEDULER_TYPE,
 } from "../../../contants/contants.js";
@@ -7,11 +8,13 @@ import {
   getTimeToPostOneGroup,
   getTotalGroupsNeedPost,
 } from "../../../helpers/group.js";
-import {
-  getNextTimePost,
-  getNextTimePostWhenSpammed,
-} from "../../../helpers/scheduler.js";
+import { getNextTimePost } from "../../../helpers/scheduler.js";
+import { commentWalkService } from "../../../services/comment-walk-service.js";
 import { getCurrentDataGroupPosting } from "../../../services/data-group-post-service.js";
+import {
+  getCurrentTaskName,
+  getTaskLabelWithName,
+} from "../../../services/device-service.js";
 import {
   getAllDataGroupsInStorage,
   getAllGroupPostedsInStorage,
@@ -22,6 +25,7 @@ import {
   getSchedulerService,
 } from "../../../services/scheduler-service.js";
 import {
+  getIsCommentWalkData,
   getIsFixStealAllFocusData,
   getIsFixStealFocusData,
   getIsRandomBreakBatchData,
@@ -30,6 +34,7 @@ import {
   getIsShuffleGroupNeedPostData,
   getIsSpammedData,
   getIsSpecialFrameHoursData,
+  getIsStopTaskData,
   getLastTimePostData,
   getMaxGroupPerTimeData,
 } from "../../../services/setting-service.js";
@@ -114,7 +119,6 @@ function getDataSavedHTML({
   isFixStealFocus = false,
   isShuffleTime = false,
   isSpammed = false,
-  nextTimeWhenSpammed = 0,
   countBatch = 0,
   isShuffleGroupsNeedPost = false,
   isRandomBatchPost = false,
@@ -122,6 +126,14 @@ function getDataSavedHTML({
   isRandomTimePost,
   isSpecialFrameHours = false,
   maxGroupPerTimeInSpecialFrameHour = 0,
+  isCommentWalk = false,
+  isCommentWalkProcessing = false,
+  lastTimeCommentWalk = 0,
+  lengthCommented = 0,
+  maxCommentWalk = 0,
+  countCommentWalk = 0,
+  isStopTask,
+  currentTaskName = "",
 }) {
   const set = new Set();
   groupsNeedPost.forEach((item) => {
@@ -139,9 +151,7 @@ function getDataSavedHTML({
       return postedsSet.has(group.id_href || group.href || group.id);
     })?.length || 0;
 
-  const nextTime = isSpammed
-    ? new Date(nextTimeWhenSpammed)
-    : new Date(nextTimePost);
+  const nextTime = new Date(nextTimePost);
 
   let estimatedTotalTimeText = getTextWithLanguage({
     vi: "Đang tính toán...",
@@ -166,6 +176,8 @@ function getDataSavedHTML({
     : "";
 
   const groupsHtml = `
+      ${isPremium ? `<div>${getTextWithLanguage({ vi: "Trạng thái tiện ích", en: "Extension status" })}: <span style="color: ${colorByDisabled(!isStopTask)};">${enabledString(!isStopTask)}</span></div>` : ``}
+      ${isPremium ? `<div>${getTextWithLanguage({ vi: "Công việc hiện tại", en: "Current job" })}: <span>${getTaskLabelWithName(currentTaskName)}</span></div>` : ``}
       <div>${getTextWithLanguage({ vi: "Tổng số nhóm", en: "Total Groups" })}: <b>${allGroups.length}</b></div>
       <div>${getTextWithLanguage({ vi: "Số nhóm cần đăng", en: "Total Groups Need Post" })}: <b>${totalGroupsNeedPost}</b></div>
       <div>${getTextWithLanguage({ vi: "Số nhóm đã đăng", en: "Total Groups Posted" })}: <b>${groupsPosted.length}</b></div>
@@ -189,6 +201,8 @@ function getDataSavedHTML({
       ${isPremium ? `<div id="${prefix}is-random-batch-post-status">${getTextWithLanguage({ vi: "Đợt đăng bài ngẫu nhiên", en: "Is Random Batch Post" })}: <span style="color: ${colorByDisabled(isRandomBatchPost)};">${enabledString(isRandomBatchPost)}</span></div>` : ""}
       ${isPremium ? `<div id="${prefix}is-random-time-post-status">${getTextWithLanguage({ vi: "Ngẫu nhiên thời gian đăng", en: "Random time post" })}: <span style="color: ${colorByDisabled(isRandomTimePost)};">${enabledString(isRandomTimePost)}</span></div>` : ""}
       ${isPremium ? `<div id="${prefix}is-special-frame-hours">${getTextWithLanguage({ vi: "Khung giờ đặc biệt", en: "Special Frame Hours" })}: <span style="color: ${colorByDisabled(isSpecialFrameHours)};">${enabledString(isSpecialFrameHours)}</span></div>` : ""}
+      ${isCommentWalk ? `<div id="${prefix}is-comment-walk-status">${getTextWithLanguage({ vi: "Bình luận dạo", en: "Is Comment Walk" })}: <span style="color: ${colorByDisabled(isCommentWalk)};">${enabledString(isCommentWalk)}</span></div>` : ""}
+      ${isCommentWalkProcessing ? `<div id="${prefix}is-comment-walk-processing-status">${getTextWithLanguage({ vi: "Đang bình luận dạo", en: "Is Comment Walk Processing" })}: <span style="color: ${colorByDisabled(isCommentWalkProcessing)};">${enabledString(isCommentWalkProcessing)}</span></div>` : ""}
       ${forDevHtml}
   `;
 
@@ -203,11 +217,19 @@ function getDataSavedHTML({
       })}: <b>${estimatedTotalTimeText}</b></div>  
   `;
 
+  const commentWalkHtml = `
+      <div>${getTextWithLanguage({ vi: "Số bình luận đã bình luận", en: "Total Comment Walk Posted" })}: <b>${lengthCommented}</b></div>
+      <div>${getTextWithLanguage({ vi: "Số bình luận tối đa trong 1 lần", en: "Total Comment Walk Max Per Time" })}: <b>${maxCommentWalk}</b></div>
+      <div>${getTextWithLanguage({ vi: "Thời gian bình luận gần nhất", en: "Last time comment walk" })}: ${lastTimeCommentWalk ? new Date(lastTimeCommentWalk).toLocaleString() : "N/A"}</div>
+      <div>${getTextWithLanguage({ vi: "Số bình luận trong lần hiện tại", en: "Total Comment Walk This Time" })}: <b>${countCommentWalk}/${maxCommentWalk}</b></div>
+  `;
+
   return `
         <div style="margin-top: 16px; font-size: 13px; width: 100%; display: flex; flex-direction: column; gap: 4px">
           ${groupsHtml}
           ${statusHtml}
           ${groupInfoHtml}
+          ${isPremium ? commentWalkHtml : ""}
         </div>
       `;
 }
@@ -221,9 +243,17 @@ function getDataSavedAtDashboardHTML({
   nextTimePost = 0,
   maxGroupPerTime = 0,
   isSpammed = false,
-  nextTimeWhenSpammed = 0,
   isProcessing = false,
   lengthPostedInCurrentTime = 0,
+  lengthCommented = 0,
+  isCommentWalk = false,
+  isCommentWalkProcessing = false,
+  countCommentWalk = 0,
+  maxCommentWalk = 0,
+  lastTimeCommentWalk = 0,
+  isStopTask,
+  isPremium,
+  currentTaskName = "",
 } = {}) {
   const set = new Set();
   groupsNeedPost.forEach((item) => {
@@ -234,26 +264,71 @@ function getDataSavedAtDashboardHTML({
 
   let totalGroupsNeedPost = set.size;
 
-  const nextTime = isSpammed
-    ? new Date(nextTimeWhenSpammed)
-    : new Date(nextTimePost);
+  const nextTime = new Date(nextTimePost);
+
+  function getLengthJob() {
+    if (!isPremium) return lengthPostedInCurrentTime || 0;
+    switch (currentTaskName) {
+      case KEY_TASK_NAME.POST:
+        return lengthPostedInCurrentTime;
+      case KEY_TASK_NAME.COMMENT_WALK:
+        return countCommentWalk;
+      default:
+        return 0;
+    }
+  }
+
+  function getMaxJob() {
+    if (!isPremium) return maxGroupPerTime;
+    switch (currentTaskName) {
+      case KEY_TASK_NAME.POST:
+        return maxGroupPerTime;
+      case KEY_TASK_NAME.COMMENT_WALK:
+        return maxCommentWalk;
+      default:
+        return 0;
+    }
+  }
+
+  function getLastTimeJobDone() {
+    if (!isPremium) return lastTimePost;
+    switch (currentTaskName) {
+      case KEY_TASK_NAME.POST:
+        return lastTimePost;
+      case KEY_TASK_NAME.COMMENT_WALK:
+        return lastTimeCommentWalk;
+      default:
+        return 0;
+    }
+  }
+
+  const lengthJob = getLengthJob();
+  const maxJob = getMaxJob();
+  const lastTimeJobDone = getLastTimeJobDone();
+  const typeJob = isPremium
+    ? getTaskLabelWithName(currentTaskName)
+    : getTaskLabelWithName(KEY_TASK_NAME.POST);
 
   return `
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%;">
       <div>
+        <div>${getTextWithLanguage({ vi: "Trạng thái tiện ích", en: "Extension status" })}: <span style="color: ${colorByDisabled(!isStopTask)};">${enabledString(!isStopTask)}</span></div>
         <div>${getTextWithLanguage({ vi: "Tổng số nhóm", en: "Total Groups" })}: <b>${allGroups.length}</b></div>
         <div>${getTextWithLanguage({ vi: "Số nhóm cần đăng", en: "Number of groups to post" })}: <b>${totalGroupsNeedPost}</b></div>
         <div>${getTextWithLanguage({ vi: "Số nhóm đã đăng", en: "Number of groups posted" })}: <b>${groupsPosted.length}</b></div>
+        ${isPremium ? `<div>${getTextWithLanguage({ vi: "Số bài viết đã bình luận dạo", en: "Number of posts commented walk" })}: <b>${lengthCommented}</b></div>` : ""}
       </div>
       <div>
         <div id="${prefix}is-spammed-status">${getTextWithLanguage({ vi: "Đang bị spam", en: "Is Spammed" })}: <span style="color: ${isSpammed ? "var(--tm-text-danger)" : "var(--tm-text-success)"};"><b>${getTextWithLanguage({ vi: isSpammed ? "Có" : "Không", en: isSpammed ? "Yes" : "No" })}</b></span></div>
-        <div>${getTextWithLanguage({ vi: "Đang chạy auto", en: "Is Processing" })}: <span style="color: ${colorByDisabled(isProcessing)};">${enabledString(isProcessing)}</span></div>
-        <div>${getTextWithLanguage({ vi: "Đang lên lịch", en: "Is Scheduler" })}: <span style="color: ${colorByDisabled(isScheduler)};">${enabledString(isScheduler)}</span></div>
+        <div>${getTextWithLanguage({ vi: "Đang chạy auto", en: "Is Processing" })}: <span style="color: ${colorByDisabled(isProcessing || isCommentWalkProcessing)};">${enabledString(isProcessing || isCommentWalkProcessing)}</span></div>
+        ${isPremium ? `<div>${getTextWithLanguage({ vi: "Bình luận dạo", en: "Is Comment Walk" })}: <span style="color: ${colorByDisabled(isCommentWalk)};">${enabledString(isCommentWalk)}</span></div>` : ""}
+        <div>${getTextWithLanguage({ vi: "Lên lịch", en: "Is Scheduler" })}: <span style="color: ${colorByDisabled(isScheduler)};">${enabledString(isScheduler)}</span></div>
       </div>
       <div>
-        <div>${getTextWithLanguage({ vi: "Hiện tại đang đăng", en: "Total Current Groups Posted" })}: <b>${lengthPostedInCurrentTime}/${maxGroupPerTime}</b></div>
-        <div>${getTextWithLanguage({ vi: "Bài đăng gần nhất", en: "Last time post" })}: ${lastTimePost ? new Date(lastTimePost).toLocaleString() : "N/A"}</div>
-        <div>${getTextWithLanguage({ vi: "Thời gian đăng tiếp theo", en: "Next time post" })}: ${nextTimePost ? `${nextTime.getHours()}:${nextTime.getMinutes()}` : "N/A"}</div>
+        <div>${getTextWithLanguage({ vi: "Kiểu công việc", en: "Job Type" })}: <b>${typeJob}</b></div>
+        <div>${getTextWithLanguage({ vi: "Công việc đã làm hiện tại", en: "Current job done" })}: <b>${lengthJob}/${maxJob}</b></div>
+        <div>${getTextWithLanguage({ vi: "Thời gian gần nhất thực hiện", en: "Last time job done" })}: ${lastTimeJobDone ? new Date(lastTimeJobDone).toLocaleString() : "N/A"}</div>
+        <div>${getTextWithLanguage({ vi: "Thời gian tiếp theo thực hiện", en: "Next time job done" })}: ${isScheduler ? `${nextTime.getHours()}:${nextTime.getMinutes()}` : "N/A"}</div>
       </div>
     </div>
   `;
@@ -269,127 +344,160 @@ async function updateDataSavedInfo() {
     const dataSavedAtDashboard = rootElement.querySelector(
       "#tm_data-saved-info-at-dashboard",
     );
+
+    const { groups: groupsNeedPost } = await getListGroupsNeedPostInStorage();
+
+    const isScheduler = await getIsSchedulerData();
+    const allGroups = await getAllDataGroupsInStorage();
+    const groupsPosted = await getAllGroupPostedsInStorage();
+    const isTesting = await getIsTestInStorage();
+    const isProcessing = await getProgress();
+    const currentGroupNeedPost = await getCurrentDataGroupPosting();
+    const maxGroupPerTime = await getMaxGroupPerTimeData();
+    const isFixStealFocus =
+      (await getIsFixStealFocusData()) ||
+      (await getIsFixStealAllFocusData()) ||
+      false;
+
+    const length = await getCurrentCountPostLength();
+    const objectTask = await getObjectTaskInStorage();
+    const lastTimePost = await getLastTimePostData();
+    const isShuffleTime = await getIsShuffleSchedulerTimeInStorage();
+    const isCommentWalk = await getIsCommentWalkData();
+    const isCommentWalkProcessing =
+      await commentWalkService.getIsCommentWalkProcessing();
+    const countCommentWalk =
+      await commentWalkService.getCountCommentWalkPostedPerBatch();
+    const maxCommentWalk = await commentWalkService.getMaxCommentWalkPerBatch();
+    const lastTimeCommentWalk =
+      await commentWalkService.getLastTimeCommentWalkSuccess();
+
+    const listCommented = await commentWalkService.getListUrlCommented();
+
+    const lengthCommented = listCommented.reduce((acc, item) => {
+      return acc + item.urls.length;
+    }, 0);
+
+    const isStopTask = await getIsStopTaskData();
+
+    const currentTaskName = await getCurrentTaskName();
+
+    let nextTime = await getNextTimePost();
+
+    async function getSpaceTimePost() {
+      const scheduler = await getSchedulerService();
+      const type = scheduler.scheduler_type;
+      const schedulerDetail = await getSchedulerDetail(type);
+      const time = schedulerDetail?.scheduler_time_value || 0;
+      if (
+        type === SCHEDULER_TYPE.CUSTOM_DAILY_HOURS ||
+        type === SCHEDULER_TYPE.EVERY_HOURS ||
+        type === SCHEDULER_TYPE.DAILY_HOURS
+      ) {
+        return time * 60 * 60;
+      } else if (
+        type === SCHEDULER_TYPE.CUSTOM_DAILY_MINUTES ||
+        type === SCHEDULER_TYPE.EVERY_MINUTES
+      ) {
+        return time * 60;
+      }
+      return null;
+    }
+
+    //calulate time estimated total time post
+    const timeToPostOneGroup = await getTimeToPostOneGroup();
+    const timeSpacePost = await getSpaceTimePost();
+
+    let estimatedTotalTime = null;
+
+    if (timeSpacePost !== undefined && timeSpacePost !== null) {
+      const totalGroupNeedPost = await getTotalGroupsNeedPost();
+
+      estimatedTotalTime =
+        totalGroupNeedPost * timeToPostOneGroup +
+        ((totalGroupNeedPost - groupsPosted.length) / maxGroupPerTime) *
+          timeSpacePost;
+    }
+
+    const isDeveloperMode = await getIsDeveloperModeInStorage();
+    const countResetGroups = await getCountResetGroupInStorage();
+    const countBatch = await getCountBatchPost();
+    const isShuffleGroupsNeedPost = await getIsShuffleGroupNeedPostData();
+    const isSpammed = await getIsSpammedData();
+    const isRandomBatchPost = await getIsRandomBreakBatchData();
+    const isRandomTimePost = await getIsRandomTimePostData();
+    const isSpecialFrameHours = await getIsSpecialFrameHoursData();
+    let maxGroupPerTimeInSpecialFrameHour = 0;
+
+    if (isSpecialFrameHours) {
+      maxGroupPerTimeInSpecialFrameHour =
+        (await getObjectIsInSpecialFrameHours())?.max_group || 0;
+    }
+
+    const isPremium = (await DB_getValue(KEY_IS_PREMIUM)) || false;
+
+    const html = getDataSavedHTML({
+      allGroups,
+      groupsNeedPost,
+      groupsPosted,
+      lengthPostedInCurrentTime: length,
+      isTesting,
+      isProcessing,
+      isScheduler,
+      currentGroup: objectTask?.task || {},
+      lastTimePost,
+      currentGroupNeedPost,
+      nextTimePost: nextTime,
+      maxGroupPerTime,
+      estimatedTotalTime,
+      isFixStealFocus,
+      isShuffleTime,
+      isDeveloperMode,
+      countResetGroups,
+      isSpammed,
+      countBatch,
+      isShuffleGroupsNeedPost,
+      isRandomBatchPost,
+      isRandomTimePost,
+      isSpecialFrameHours,
+      maxGroupPerTimeInSpecialFrameHour,
+      isPremium,
+      countCommentWalk,
+      isCommentWalk,
+      isCommentWalkProcessing,
+      lastTimeCommentWalk,
+      lengthCommented,
+      maxCommentWalk,
+      isStopTask,
+      currentTaskName,
+    });
     if (dataSavedEl) {
-      const { groups: groupsNeedPost } = await getListGroupsNeedPostInStorage();
-
-      const isScheduler = await getIsSchedulerData();
-      const allGroups = await getAllDataGroupsInStorage();
-      const groupsPosted = await getAllGroupPostedsInStorage();
-      const isTesting = await getIsTestInStorage();
-      const isProcessing = await getProgress();
-      const currentGroupNeedPost = await getCurrentDataGroupPosting();
-      const maxGroupPerTime = await getMaxGroupPerTimeData();
-      const isFixStealFocus =
-        (await getIsFixStealFocusData()) ||
-        (await getIsFixStealAllFocusData()) ||
-        false;
-
-      const length = await getCurrentCountPostLength();
-      const objectTask = await getObjectTaskInStorage();
-      const lastTimePost = await getLastTimePostData();
-      const isShuffleTime = await getIsShuffleSchedulerTimeInStorage();
-
-      let nextTime = await getNextTimePost();
-
-      async function getSpaceTimePost() {
-        const scheduler = await getSchedulerService();
-        const type = scheduler.scheduler_type;
-        const schedulerDetail = await getSchedulerDetail(type);
-        const time = schedulerDetail?.scheduler_time_value || 0;
-        if (
-          type === SCHEDULER_TYPE.CUSTOM_DAILY_HOURS ||
-          type === SCHEDULER_TYPE.EVERY_HOURS ||
-          type === SCHEDULER_TYPE.DAILY_HOURS
-        ) {
-          return time * 60 * 60;
-        } else if (
-          type === SCHEDULER_TYPE.CUSTOM_DAILY_MINUTES ||
-          type === SCHEDULER_TYPE.EVERY_MINUTES
-        ) {
-          return time * 60;
-        }
-        return null;
-      }
-
-      //calulate time estimated total time post
-      const timeToPostOneGroup = await getTimeToPostOneGroup();
-      const timeSpacePost = await getSpaceTimePost();
-
-      let estimatedTotalTime = null;
-
-      if (timeSpacePost !== undefined && timeSpacePost !== null) {
-        const totalGroupNeedPost = await getTotalGroupsNeedPost();
-
-        estimatedTotalTime =
-          totalGroupNeedPost * timeToPostOneGroup +
-          ((totalGroupNeedPost - groupsPosted.length) / maxGroupPerTime) *
-            timeSpacePost;
-      }
-
-      const isDeveloperMode = await getIsDeveloperModeInStorage();
-      const countResetGroups = await getCountResetGroupInStorage();
-      const nextTimeWhenSpammed = await getNextTimePostWhenSpammed();
-      const countBatch = await getCountBatchPost();
-      const isShuffleGroupsNeedPost = await getIsShuffleGroupNeedPostData();
-      const isSpammed = await getIsSpammedData();
-      const isRandomBatchPost = await getIsRandomBreakBatchData();
-      const isRandomTimePost = await getIsRandomTimePostData();
-      const isSpecialFrameHours = await getIsSpecialFrameHoursData();
-      let maxGroupPerTimeInSpecialFrameHour = 0;
-
-      if (isSpecialFrameHours) {
-        maxGroupPerTimeInSpecialFrameHour =
-          (await getObjectIsInSpecialFrameHours())?.max_group || 0;
-      }
-
-      const isPremium = (await DB_getValue(KEY_IS_PREMIUM)) || false;
-
-      const html = getDataSavedHTML({
-        allGroups,
-        groupsNeedPost,
-        groupsPosted,
-        lengthPostedInCurrentTime: length,
-        isTesting,
-        isProcessing,
-        isScheduler,
-        currentGroup: objectTask?.task || {},
-        lastTimePost,
-        currentGroupNeedPost,
-        nextTimePost: nextTime,
-        maxGroupPerTime,
-        estimatedTotalTime,
-        isFixStealFocus,
-        isShuffleTime,
-        isDeveloperMode,
-        countResetGroups,
-        isSpammed,
-        nextTimeWhenSpammed,
-        countBatch,
-        isShuffleGroupsNeedPost,
-        isRandomBatchPost,
-        isRandomTimePost,
-        isSpecialFrameHours,
-        maxGroupPerTimeInSpecialFrameHour,
-        isPremium,
-      });
       dataSavedEl.innerHTML = html;
+    }
 
-      const htmlAtDashboard = getDataSavedAtDashboardHTML({
-        allGroups,
-        groupsNeedPost,
-        groupsPosted,
-        lengthPostedInCurrentTime: length,
-        isProcessing,
-        isScheduler,
-        lastTimePost,
-        nextTimePost: nextTime,
-        maxGroupPerTime,
-        isSpammed,
-        nextTimeWhenSpammed,
-      });
-      if (dataSavedAtDashboard) {
-        dataSavedAtDashboard.innerHTML = htmlAtDashboard;
-      }
+    const htmlAtDashboard = getDataSavedAtDashboardHTML({
+      allGroups,
+      groupsNeedPost,
+      groupsPosted,
+      lengthPostedInCurrentTime: length,
+      isProcessing,
+      isScheduler,
+      lastTimePost,
+      nextTimePost: nextTime,
+      maxGroupPerTime,
+      isSpammed,
+      countCommentWalk,
+      isCommentWalk,
+      isCommentWalkProcessing,
+      lastTimeCommentWalk,
+      lengthCommented,
+      maxCommentWalk,
+      isStopTask,
+      isPremium,
+      currentTaskName,
+    });
+    if (dataSavedAtDashboard) {
+      dataSavedAtDashboard.innerHTML = htmlAtDashboard;
     }
   } catch (error) {
     logError("Error update data saved info: ", error);

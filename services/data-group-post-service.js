@@ -1,4 +1,8 @@
-import { ERROR_CODE } from "../contants/constant-extention.js";
+import DataGroupPost from "../class/DataGroupPost.js";
+import {
+  ERROR_CODE,
+  KEY_IMPORT_EXPORT_TYPE,
+} from "../contants/constant-extention.js";
 import {
   KEY_CURRENT_DATA_GROUP_POST,
   KEY_DATA_POST_SAVED,
@@ -6,7 +10,7 @@ import {
   KEY_INDEXS_GROUP_CHECKED,
 } from "../contants/contants.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
-import { DataSavedDB } from "../utils/dataSavedDB.js";
+import { DataGroupPostDB } from "../utils/data-group-post-db.js";
 import { CustomError } from "../utils/exception.js";
 import { del, get, patch, post, postImage } from "../utils/request.js";
 import {
@@ -30,22 +34,12 @@ import { getIsUseLocalStorage } from "./storage-global-service.js";
 import { setChangeGroupsCheckedFlag } from "./storage-service.js";
 
 /**
- * @typedef {Object} DataGroupPost
- * @property {string} id
- * @property {string} title
- * @property {string} name
- * @property {string[]} contents
- * @property {Array<string|File>} files
- * @property {number} priority
- */
-
-/**
  * @param {DataGroupPost} data array of data saved in storage
  * @returns {Promise<DataGroupPost>}
  */
 async function addDataGroupPost(data) {
   try {
-    const isUseLocalStorage = getIsUseLocalStorage();
+    const isUseLocalStorage = await getIsUseLocalStorage();
 
     if (isUseLocalStorage) {
       let blobs = await Promise.all(
@@ -56,7 +50,7 @@ async function addDataGroupPost(data) {
 
       data.files = blobs;
 
-      const db = new DataSavedDB(KEY_DATA_POST_SAVED);
+      const db = new DataGroupPostDB();
       const dataSaveds = (await getListDataGroupPostInStorage()) || [];
       dataSaveds.push(data);
       await db.saveDataPosts(dataSaveds);
@@ -86,11 +80,11 @@ async function addDataGroupPost(data) {
  */
 async function setListDataGroupPostInStorage(data) {
   try {
-    const db = new DataSavedDB(KEY_DATA_POST_SAVED);
+    const db = new DataGroupPostDB();
     await db.saveDataPosts(data);
   } catch (error) {
     logError("Error setListDataGroupPostInStorage: " + error);
-    throw new Error("Error setListDataGroupPostInStorage: " + error);
+    throw error;
   }
 }
 
@@ -99,7 +93,7 @@ async function setListDataGroupPostInStorage(data) {
  */
 async function getListDataGroupPostInStorage() {
   try {
-    const db = new DataSavedDB(KEY_DATA_POST_SAVED);
+    const db = new DataGroupPostDB();
     let data = await db.getAllDataSaved();
     if (!data) {
       data = [];
@@ -141,15 +135,11 @@ async function getListDataGroupPostNeedPost() {
  * @returns {Promise<DataGroupPost[]>} array of data saved in storage, if not exist return empty array
  */
 async function getListDataGroupPost() {
-  try {
-    const isUseLocalStorage = getIsUseLocalStorage();
-    if (isUseLocalStorage) {
-      return await getListDataGroupPostInStorage();
-    }
-    return await getDataGroupPostRequest();
-  } catch (error) {
-    throw error;
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  if (isUseLocalStorage) {
+    return await getListDataGroupPostInStorage();
   }
+  return await getDataGroupPostRequest();
 }
 
 async function getDataGroupPostRequest() {
@@ -169,55 +159,51 @@ async function getDataGroupPostRequest() {
  * @returns {Promise<DataGroupPost>}
  */
 async function upadateDataGroupPost(id, isEditFile = false, dataGroupPost) {
-  try {
-    const isUseLocalStorage = getIsUseLocalStorage();
+  const isUseLocalStorage = await getIsUseLocalStorage();
 
-    id = id || dataGroupPost.id;
+  id = id || dataGroupPost.id;
 
-    if (isUseLocalStorage) {
-      //handle file
-      if (isEditFile) {
-        let blobs = await Promise.all(
-          Array.from(dataGroupPost?.files || []).map(
-            async (file) => await parseFileToObjectBase64(file),
-          ),
-        );
-
-        dataGroupPost.files = blobs;
-      }
-
-      const dataGroupPosts = await getListDataGroupPostInStorage();
-      const index = dataGroupPosts.findIndex(
-        (item) => item.id === dataGroupPost.id,
-      );
-      if (index !== -1) {
-        dataGroupPosts[index] = dataGroupPost;
-      }
-
-      await setListDataGroupPostInStorage(dataGroupPosts);
-
-      return dataGroupPost;
-    }
-
+  if (isUseLocalStorage) {
     //handle file
     if (isEditFile) {
-      const responseUrls = await postImage({
-        params: "/files/uploads",
-        isMultiple: true,
-        files: dataGroupPost.files,
-      });
-      dataGroupPost.files = responseUrls.data;
+      let blobs = await Promise.all(
+        Array.from(dataGroupPost?.files || []).map(
+          async (file) => await parseFileToObjectBase64(file),
+        ),
+      );
+
+      dataGroupPost.files = blobs;
     }
 
-    const res = await patch(`/data-group-posts/${id}`, dataGroupPost);
-
-    if (res.data) {
-      return { ...dataGroupPost, ...res.data };
+    const dataGroupPosts = await getListDataGroupPostInStorage();
+    const index = dataGroupPosts.findIndex(
+      (item) => item.id === dataGroupPost.id,
+    );
+    if (index !== -1) {
+      dataGroupPosts[index] = dataGroupPost;
     }
+
+    await setListDataGroupPostInStorage(dataGroupPosts);
+
     return dataGroupPost;
-  } catch (error) {
-    throw error;
   }
+
+  //handle file
+  if (isEditFile) {
+    const responseUrls = await postImage({
+      params: "/files/uploads",
+      isMultiple: true,
+      files: dataGroupPost.files,
+    });
+    dataGroupPost.files = responseUrls.data;
+  }
+
+  const res = await patch(`/data-group-posts/${id}`, dataGroupPost);
+
+  if (res.data) {
+    return { ...dataGroupPost, ...res.data };
+  }
+  return dataGroupPost;
 }
 
 /**
@@ -225,91 +211,81 @@ async function upadateDataGroupPost(id, isEditFile = false, dataGroupPost) {
  * @returns {Promise<boolean>}
  */
 async function deleteDataGroupPost(id) {
-  try {
-    const isUseLocalStorage = getIsUseLocalStorage();
+  const isUseLocalStorage = await getIsUseLocalStorage();
 
-    const dataGroupPosts = await getListDataGroupPost();
-    const newDataGroupPosts = dataGroupPosts.filter((item) => item.id !== id);
+  const dataGroupPosts = await getListDataGroupPost();
+  const newDataGroupPosts = dataGroupPosts.filter((item) => item.id !== id);
 
-    const indexsChecked = await getListIdDataGroupPostCheckeds();
-    const set = new Set(indexsChecked);
-    set.delete(id);
+  const indexsChecked = await getListIdDataGroupPostCheckeds();
+  const set = new Set(indexsChecked);
+  set.delete(id);
 
-    await setListDataGroupPostCheckedInStorage(Array.from(set));
-    if (!isUseLocalStorage) {
-      await del(`/data-group-posts/${id}`);
-    } else {
-      await setListDataGroupPostInStorage(newDataGroupPosts);
-    }
-
-    return true;
-  } catch (error) {
-    throw error;
+  await setListDataGroupPostCheckedInStorage(Array.from(set));
+  if (!isUseLocalStorage) {
+    await del(`/data-group-posts/${id}`);
+  } else {
+    await setListDataGroupPostInStorage(newDataGroupPosts);
   }
+
+  return true;
 }
 
 /**
  * @returns {Promise<Array<String>>} The indexs of group checked stored in storage, defaulting to an empty array if not set
  */
 async function getListIdDataGroupPostCheckeds(force = false) {
-  try {
-    const isUseLocalStorage = getIsUseLocalStorage();
-    const ids = await DB_getValue(KEY_INDEXS_GROUP_CHECKED);
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  const ids = await DB_getValue(KEY_INDEXS_GROUP_CHECKED);
 
-    if (isUseLocalStorage) {
-      return ids || [];
-    }
-
-    if (ids && !force) {
-      return ids;
-    }
-
-    const device_id = await getDeviceId();
-
-    const res = await get(`/data-group-posts/details/${device_id}`);
-    const listIds = res?.data
-      ?.filter((item) => item.is_active)
-      .map((item) => item.data_group_post_id);
-
-    if (listIds) {
-      await setListDataGroupPostCheckedInStorage(listIds);
-    }
-
-    return listIds || [];
-  } catch (error) {
-    throw error;
+  if (isUseLocalStorage) {
+    return ids || [];
   }
+
+  if (ids && !force) {
+    return ids;
+  }
+
+  const device_id = await getDeviceId();
+
+  const res = await get(`/data-group-posts/details/${device_id}`);
+  const listIds = res?.data
+    ?.filter((item) => item.is_active)
+    .map((item) => item.data_group_post_id);
+
+  if (listIds) {
+    await setListDataGroupPostCheckedInStorage(listIds);
+  }
+
+  return listIds || [];
 }
 
 /**
  * @param {{id: string, checked: boolean}} indexs The indexs of group checked
  */
 async function updateDataGroupPostChecked(id, checked) {
-  try {
-    const indexs = await getListIdDataGroupPostCheckeds();
-    const set = new Set(indexs);
-    if (checked) {
-      set.add(id);
-    } else {
-      set.delete(id);
-    }
-
-    if (!getIsUseLocalStorage()) {
-      const device_id = await getDeviceId();
-
-      await patch("/data-group-posts/details", {
-        data_group_post_id: id,
-        device_id,
-        is_active: checked,
-      });
-    }
-
-    await setListDataGroupPostCheckedInStorage(Array.from(set));
-    setChangeGroupsCheckedFlag(true);
-    return true;
-  } catch (error) {
-    throw error;
+  const indexs = await getListIdDataGroupPostCheckeds();
+  const set = new Set(indexs);
+  if (checked) {
+    set.add(id);
+  } else {
+    set.delete(id);
   }
+
+  const isUseLocalStorage = await getIsUseLocalStorage();
+
+  if (!isUseLocalStorage) {
+    const device_id = await getDeviceId();
+
+    await patch("/data-group-posts/details", {
+      data_group_post_id: id,
+      device_id,
+      is_active: checked,
+    });
+  }
+
+  await setListDataGroupPostCheckedInStorage(Array.from(set));
+  setChangeGroupsCheckedFlag(true);
+  return true;
 }
 
 /**
@@ -318,89 +294,115 @@ async function updateDataGroupPostChecked(id, checked) {
  * @returns {Promise<Array<DataGroupPost>>}
  */
 async function importDataGroupPosts(data) {
-  try {
-    if (!data) {
-      return [];
-    }
+  if (!data) {
+    return [];
+  }
 
-    const isUseLocalStorage = getIsUseLocalStorage();
-    if (isUseLocalStorage) {
-      const listDataGroupPost = await getListDataGroupPost();
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  if (isUseLocalStorage) {
+    const listDataGroupPost = await getListDataGroupPost();
 
-      let priority = (await getMaxPriority()) + 1;
+    let priority = (await getMaxPriority()) + 1;
 
-      if (Array.isArray(data)) {
-        for (const object of listDataGroupPost) {
-          object.priority = priority++;
-          object.id = genID();
-        }
-        const newList = [...listDataGroupPost, ...data];
-        await setListDataGroupPostInStorage(newList);
-        return newList;
+    if (Array.isArray(data)) {
+      if (
+        data.some(
+          (item) =>
+            item[KEY_IMPORT_EXPORT_TYPE.KEY_FIELD_OBJECT_TYPE] &&
+            item[KEY_IMPORT_EXPORT_TYPE.KEY_FIELD_OBJECT_TYPE] !==
+              KEY_IMPORT_EXPORT_TYPE.DATA_GROUP_POST,
+        )
+      ) {
+        throw new CustomError(
+          ERROR_CODE.SELF,
+          getTextWithLanguage({
+            vi: "Dữ liệu nhóm không đúng định dạng",
+            en: "Data group is not in the correct format",
+          }),
+        );
       }
 
-      //import just only one object
-      data.priority = priority;
-      data.id = genID();
-      const newList = [...listDataGroupPost, data];
+      for (const object of listDataGroupPost) {
+        object.priority = priority++;
+        object.id = genID();
+      }
+      const newList = [...listDataGroupPost, ...data];
       await setListDataGroupPostInStorage(newList);
       return newList;
     }
 
-    const listDataGroupPosts = await getListDataGroupPost();
-    let priority = listDataGroupPosts.length + 1;
-
-    let payload = [];
-
-    if (Array.isArray(data)) {
-      data = await Promise.all(
-        data.map(async (object) => {
-          object.priority = priority++;
-          if (object.files) {
-            try {
-              const files = object.files.map((obj) => parseBase64ToFile(obj));
-              const responseUrls = await postImage({
-                params: "/files/uploads",
-                isMultiple: true,
-                files,
-              });
-              object.files = responseUrls.data;
-            } catch (error) {
-              logError("Error importDataGroupPosts: " + error);
-              object.files = [];
-            }
-          }
-          return object;
+    //import just only one object
+    if (
+      data[KEY_IMPORT_EXPORT_TYPE.KEY_FIELD_OBJECT_TYPE] &&
+      data[KEY_IMPORT_EXPORT_TYPE.KEY_FIELD_OBJECT_TYPE] !==
+        KEY_IMPORT_EXPORT_TYPE.DATA_GROUP_POST
+    ) {
+      throw new CustomError(
+        ERROR_CODE.SELF,
+        getTextWithLanguage({
+          vi: "Dữ liệu nhóm không đúng định dạng",
+          en: "Data group is not in the correct format",
         }),
       );
-
-      payload = data;
-    } else {
-      //handle single data
-      data.priority = priority;
-      if (data.files) {
-        const files = data.files.map((obj) => parseBase64ToFile(obj));
-        const responseUrls = await postImage({
-          params: "/files/uploads",
-          isMultiple: true,
-          files,
-        });
-        data.files = responseUrls.data;
-      }
-      payload = [data];
     }
-
-    const deviceId = await getDeviceId();
-
-    const res = await post("/data-group-posts/import-data", {
-      list_data_group_post: payload,
-      device_id: deviceId,
-    });
-
-    return res.data;
-  } catch (error) {
-    throw error;
+    data.priority = priority;
+    data.id = genID();
+    const newList = [...listDataGroupPost, data];
+    await setListDataGroupPostInStorage(newList);
+    return newList;
   }
+
+  const listDataGroupPosts = await getListDataGroupPost();
+  let priority = listDataGroupPosts.length + 1;
+
+  let payload = [];
+
+  if (Array.isArray(data)) {
+    data = await Promise.all(
+      data.map(async (object) => {
+        object.priority = priority++;
+        if (object.files) {
+          try {
+            const files = object.files.map((obj) => parseBase64ToFile(obj));
+            const responseUrls = await postImage({
+              params: "/files/uploads",
+              isMultiple: true,
+              files,
+            });
+            object.files = responseUrls.data;
+          } catch (error) {
+            logError("Error importDataGroupPosts: " + error);
+            object.files = [];
+          }
+        }
+        return object;
+      }),
+    );
+
+    payload = data;
+  } else {
+    //handle single data
+    data.priority = priority;
+    if (data.files) {
+      const files = data.files.map((obj) => parseBase64ToFile(obj));
+      const responseUrls = await postImage({
+        params: "/files/uploads",
+        isMultiple: true,
+        files,
+      });
+      data.files = responseUrls.data;
+    }
+    payload = [data];
+  }
+
+  const deviceId = await getDeviceId();
+
+  const res = await post("/data-group-posts/import-data", {
+    list_data_group_post: payload,
+    device_id: deviceId,
+  });
+
+  return res.data;
 }
 
 /**
@@ -408,102 +410,103 @@ async function importDataGroupPosts(data) {
  * @param {Array<DataGroupPost> | DataGroupPost}  data
  */
 async function exportDataGroupPost(data) {
-  try {
-    if (!data || (Array.isArray(data) && !data.length)) {
-      throw new CustomError(
-        ERROR_CODE.SELF,
-        getTextWithLanguage({
-          vi: "Dữ liệu nhóm trống, không thể thực hiện",
-          en: "Data group post is empty, cannot export",
+  if (!data || (Array.isArray(data) && !data.length)) {
+    throw new CustomError(
+      ERROR_CODE.SELF,
+      getTextWithLanguage({
+        vi: "Dữ liệu nhóm trống, không thể thực hiện",
+        en: "Data group post is empty, cannot export",
+      }),
+    );
+  }
+
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  let dataJson = JSON.stringify(data);
+
+  let name = "";
+
+  if (Array.isArray(data)) {
+    let time = new Date().toLocaleString().replace(/[,:\\/\s]/g, "_");
+    name = `data_groups_${time}.json`;
+  } else {
+    name = `data_group_post_for_${data.name}.json`;
+  }
+
+  if (!isUseLocalStorage) {
+    if (Array.isArray(data)) {
+      data = await Promise.all(
+        data.map(async (item) => {
+          if (item.files) {
+            item.files = await Promise.all(
+              item.files.map(async (file) => {
+                const blob = await parseUrlToBlob(file);
+                const fileParse = parseBlobToFile(blob, file);
+                const object = await parseFileToObjectBase64(fileParse);
+                return object;
+              }),
+            );
+          }
+          return item;
         }),
       );
-    }
-
-    const isUseLocalStorage = getIsUseLocalStorage();
-    let dataJson = JSON.stringify(data);
-
-    let name = "";
-
-    if (Array.isArray(data)) {
-      let time = new Date().toLocaleString().replace(/[,:\/\s]/g, "_");
-      name = `data_groups_${time}.json`;
     } else {
-      name = `data_group_post_for_${data.name}.json`;
-    }
-
-    if (!isUseLocalStorage) {
-      if (Array.isArray(data)) {
-        data = await Promise.all(
-          data.map(async (item) => {
-            if (item.files) {
-              item.files = await Promise.all(
-                item.files.map(async (file) => {
-                  const blob = await parseUrlToBlob(file);
-                  const fileParse = parseBlobToFile(blob, file);
-                  const object = await parseFileToObjectBase64(fileParse);
-                  return object;
-                }),
-              );
-            }
-            return item;
+      if (data.files) {
+        data.files = await Promise.all(
+          data.files.map(async (file) => {
+            const blob = await parseUrlToBlob(file);
+            const fileParse = parseBlobToFile(blob, file);
+            const object = await parseFileToObjectBase64(fileParse);
+            return object;
           }),
         );
-      } else {
-        if (data.files) {
-          data.files = await Promise.all(
-            data.files.map(async (file) => {
-              const blob = await parseUrlToBlob(file);
-              const fileParse = parseBlobToFile(blob, file);
-              const object = await parseFileToObjectBase64(fileParse);
-              return object;
-            }),
-          );
-        }
       }
-      dataJson = JSON.stringify(data);
     }
-
-    const blob = new Blob([dataJson], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    throw error;
   }
+
+  if (Array.isArray(data)) {
+    data = data.map((item) => ({
+      ...item,
+      [KEY_IMPORT_EXPORT_TYPE.KEY_FIELD_OBJECT_TYPE]:
+        KEY_IMPORT_EXPORT_TYPE.DATA_GROUP_POST,
+    }));
+  } else {
+    data[KEY_IMPORT_EXPORT_TYPE.KEY_FIELD_OBJECT_TYPE] =
+      KEY_IMPORT_EXPORT_TYPE.DATA_GROUP_POST;
+  }
+
+  dataJson = JSON.stringify(data);
+
+  const blob = new Blob([dataJson], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function getMaxPriority() {
-  try {
-    const isUseLocalStorage = getIsUseLocalStorage();
-    if (isUseLocalStorage) {
-      const list = await getListDataGroupPost();
-      return list.length;
-    }
-    const res = await get("/data-group-posts/get-max-priority");
-    return res.data;
-  } catch (error) {
-    throw error;
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  if (isUseLocalStorage) {
+    const list = await getListDataGroupPost();
+    return list.length;
   }
+  const res = await get("/data-group-posts/get-max-priority");
+  return res.data;
 }
 
 async function clearDataGroupPost() {
-  try {
-    const isUseLocalStorage = getIsUseLocalStorage();
+  const isUseLocalStorage = await getIsUseLocalStorage();
 
-    if (!isUseLocalStorage) {
-      await del("/data-group-posts/delete-all-data-group-post");
-    }
-    setListDataGroupPostCheckedInStorage([]);
+  if (!isUseLocalStorage) {
+    await del("/data-group-posts/delete-all-data-group-post");
+  } else {
     setListDataGroupPostInStorage([]);
-    return true;
-  } catch (error) {
-    throw error;
   }
+  setListDataGroupPostCheckedInStorage([]);
+  return true;
 }
 
 /**
@@ -511,73 +514,65 @@ async function clearDataGroupPost() {
  * @param {Array<string>} dataCheckeds
  */
 async function setListDataGroupPostCheckedInStorage(dataCheckeds = []) {
-  try {
-    await DB_setValue(KEY_INDEXS_GROUP_CHECKED, dataCheckeds);
-  } catch (error) {
-    throw error;
-  }
+  await DB_setValue(KEY_INDEXS_GROUP_CHECKED, dataCheckeds);
 }
 
 /**
  * @returns {Promise<string|null>} random ID of group or NULL if all groups are posted and reset to pending
  */
 async function getRandomIdDataGroupPostChecked() {
-  try {
-    const objectList = await getListGroupsNeedPostInStorage();
-    const listGroups = objectList?.groups || [];
-    if (!listGroups.length) {
+  const objectList = await getListGroupsNeedPostInStorage();
+  const listGroups = objectList?.groups || [];
+  if (!listGroups.length) {
+    return null;
+  }
+
+  let index = 0;
+  let id = listGroups[index].id;
+
+  const isShuffleGroup = await getIsShuffleGroupNeedPostData();
+  if (isShuffleGroup) {
+    index = random(0, listGroups.length - 1);
+    id = listGroups[index].id;
+  }
+
+  let need = listGroups[index];
+
+  let groups = need?.groups || [];
+
+  const posteds = await getAllGroupPostedsInStorage();
+  const set = new Set(posteds);
+
+  groups = groups.filter((gr) => !set.has(gr.id_href));
+
+  const isAllNotPending = groups.every((gr) => gr.status !== "pending");
+
+  if (isAllNotPending) {
+    let isPostedAll = true;
+    for (const gr of listGroups) {
+      if (gr.id === id) continue;
+
+      const groupsTemp = gr?.groups || [];
+      const isExistPending = groupsTemp.some(
+        (gr) => gr.status === "pending" && !set.has(gr.id_href),
+      );
+      if (isExistPending) {
+        id = gr.id;
+        isPostedAll = false;
+        break;
+      }
+    }
+
+    if (isPostedAll) {
+      //reset all -> return null
+      logActions("Reset all groups need post to pending");
       return null;
     }
 
-    let index = 0;
-    let id = listGroups[index].id;
-
-    const isShuffleGroup = await getIsShuffleGroupNeedPostData();
-    if (isShuffleGroup) {
-      index = random(0, listGroups.length - 1);
-      id = listGroups[index].id;
-    }
-
-    let need = listGroups[index];
-
-    let groups = need?.groups || [];
-
-    const posteds = await getAllGroupPostedsInStorage();
-    const set = new Set(posteds);
-
-    groups = groups.filter((gr) => !set.has(gr.id_href));
-
-    const isAllNotPending = groups.every((gr) => gr.status !== "pending");
-
-    if (isAllNotPending) {
-      let isPostedAll = true;
-      for (const gr of listGroups) {
-        if (gr.id === id) continue;
-
-        const groupsTemp = gr?.groups || [];
-        const isExistPending = groupsTemp.some(
-          (gr) => gr.status === "pending" && !set.has(gr.id_href),
-        );
-        if (isExistPending) {
-          id = gr.id;
-          isPostedAll = false;
-          break;
-        }
-      }
-
-      if (isPostedAll) {
-        //reset all -> return null
-        logActions("Reset all groups need post to pending");
-        return null;
-      }
-
-      return id;
-    }
-
     return id;
-  } catch (error) {
-    throw error;
   }
+
+  return id;
 }
 
 /**
@@ -602,21 +597,17 @@ async function setCurrentIdDataGroupPost(id) {
  * @returns Object: { id, title, groups: [ {id_href, status} ] } or null if not exist
  */
 async function getCurrentGroupNeedPost() {
-  try {
-    const objectList = await getListGroupsNeedPostInStorage();
-    let currentIdGroup = await getCurrentIdDataGroupPost();
+  const objectList = await getListGroupsNeedPostInStorage();
+  let currentIdGroup = await getCurrentIdDataGroupPost();
 
-    if (!currentIdGroup) {
-      return null;
-    }
-
-    const listGroups = objectList?.groups || [];
-    const need = listGroups.find((gr) => gr.id === currentIdGroup);
-
-    return need;
-  } catch (error) {
-    throw error;
+  if (!currentIdGroup) {
+    return null;
   }
+
+  const listGroups = objectList?.groups || [];
+  const need = listGroups.find((gr) => gr.id === currentIdGroup);
+
+  return need;
 }
 
 /**
@@ -632,7 +623,7 @@ async function getCurrentDataGroupPosting() {
 
     const id = await getCurrentIdDataGroupPost();
     if (!id) {
-      logActions("No group checked in storage");
+      logError("No group checked in storage");
       return null;
     }
     const listDataGroupPosts = (await getListDataGroupPost()) || [];
@@ -640,8 +631,11 @@ async function getCurrentDataGroupPosting() {
     await setCurrentDataGroupPosting(res);
     return res;
   } catch (error) {
-    logActions("Error get current data group saved need post: " + error);
-    throw new Error("Error get current data group saved need post: " + error);
+    logError("Error get current data group saved need post: " + error);
+    throw new CustomError(
+      ERROR_CODE.SELF,
+      `Error get current data group saved need post: ${error?.message ?? error}`,
+    );
   }
 }
 

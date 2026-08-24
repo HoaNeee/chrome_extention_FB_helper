@@ -1,4 +1,8 @@
-import { prefix } from "../contants/contants.js";
+import {
+  KEY_COMMENT_WALK,
+  KEY_IS_IN_PROGRESS,
+  prefix,
+} from "../contants/contants.js";
 import { getTheme } from "../services/storage-global-service.js";
 import { getTextWithLanguage, logError } from "../utils/utils.js";
 
@@ -37,6 +41,141 @@ function getAllFieldsSetting(root = document) {
   const checkboxIsSpecialFrameHours = root.querySelector(
     `#tm_checkbox-is-special-frame-hours`,
   );
+
+  const checkboxIsCommentWalkProcessing = root.querySelector(
+    `#tm_checkbox-is-comment-walk-processing`,
+  );
+  const checkboxIsCommentWalk = root.querySelector(
+    `#tm_checkbox-is-comment-walk`,
+  );
+  const inputMaxCommentWalkPerBatch = root.querySelector(
+    `#tm_input-max-comment-walk-per-batch`,
+  );
+
+  const inputTimeBreakWhenSpammed = root.querySelector(
+    `#tm_input-time-break-when-spammed`,
+  );
+
+  const inputContentQueryIncludesCommon = root.querySelector(
+    `#tm_input-content-query-includes-common-comment-walk`,
+  );
+
+  const inputContentQueryExcludesCommon = root.querySelector(
+    `#tm_input-content-query-excludes-common-comment-walk`,
+  );
+
+  const inputMatchRateValueContentQueryIncludesCommon = root.querySelector(
+    `#tm_input-match-rate-value-content-query-includes-common-comment-walk`,
+  );
+
+  const checkboxStatusTool = root.querySelector(`#tm_switch-status-tool`);
+
+  const inputPriorityTaskPost = root.querySelector(
+    `#tm_input-priority-task-post`,
+  );
+  const inputPriorityTaskCommentWalk = root.querySelector(
+    `#tm_input-priority-task-comment-walk`,
+  );
+
+  const checkboxIsExecutePriorityTask = root.querySelector(
+    `#tm_checkbox-is-execute-priority-task`,
+  );
+
+  function getPriorityTaskPost() {
+    return parseInt(inputPriorityTaskPost.value);
+  }
+
+  function setPriorityTaskPost(val) {
+    if (inputPriorityTaskPost) {
+      inputPriorityTaskPost.value = val;
+    }
+  }
+
+  function getPriorityTaskCommentWalk() {
+    return parseInt(inputPriorityTaskCommentWalk.value);
+  }
+
+  function setPriorityTaskCommentWalk(val) {
+    if (inputPriorityTaskCommentWalk) {
+      inputPriorityTaskCommentWalk.value = val;
+    }
+  }
+
+  function getIsExecutePriorityTask() {
+    return checkboxIsExecutePriorityTask.checked;
+  }
+
+  function setIsExecutePriorityTask(val) {
+    if (checkboxIsExecutePriorityTask) {
+      checkboxIsExecutePriorityTask.checked = val;
+    }
+  }
+
+  function getStatusTool() {
+    return checkboxStatusTool.checked;
+  }
+
+  function setStatusTool(val) {
+    if (checkboxStatusTool) {
+      checkboxStatusTool.checked = val;
+    }
+  }
+
+  function getMatchRateValueContentQueryIncludesCommon() {
+    return parseInt(inputMatchRateValueContentQueryIncludesCommon.value);
+  }
+
+  function setMatchRateValueContentQueryIncludesCommon(val) {
+    inputMatchRateValueContentQueryIncludesCommon.value = val;
+  }
+
+  function getContentQueryIncludesCommon() {
+    return inputContentQueryIncludesCommon.value.split(",");
+  }
+
+  function setContentQueryIncludesCommon(val) {
+    inputContentQueryIncludesCommon.value = val;
+  }
+
+  function getContentQueryExcludesCommon() {
+    return inputContentQueryExcludesCommon.value.split(",");
+  }
+
+  function setContentQueryExcludesCommon(val) {
+    inputContentQueryExcludesCommon.value = val;
+  }
+
+  function getTimeBreakWhenSpammed() {
+    return parseInt(inputTimeBreakWhenSpammed.value);
+  }
+
+  function setTimeBreakWhenSpammed(val) {
+    inputTimeBreakWhenSpammed.value = val;
+  }
+
+  function getIsCommentWalk() {
+    return checkboxIsCommentWalk.checked;
+  }
+
+  function setIsCommentWalk(val) {
+    checkboxIsCommentWalk.checked = val;
+  }
+
+  function getMaxCommentWalkPerBatch() {
+    return parseInt(inputMaxCommentWalkPerBatch.value) || 1;
+  }
+
+  function setMaxCommentWalkPerBatch(val) {
+    inputMaxCommentWalkPerBatch.value = val;
+  }
+
+  function getIsCommentWalkProcessing() {
+    return checkboxIsCommentWalkProcessing.checked;
+  }
+
+  function setIsCommentWalkProcessing(val) {
+    checkboxIsCommentWalkProcessing.checked = val;
+  }
 
   function setIsProcessing(val) {
     if (checkboxIsProcessing) {
@@ -151,6 +290,31 @@ function getAllFieldsSetting(root = document) {
     setIsRandomTimePost: setIsRandomTimePost,
     getIsSpecialFrameHours: () => checkboxIsSpecialFrameHours.checked,
     setIsSpecialFrameHours: setIsSpecialFrameHours,
+    getIsCommentWalkProcessing: () => checkboxIsCommentWalkProcessing.checked,
+    setIsCommentWalkProcessing: setIsCommentWalkProcessing,
+    getIsCommentWalk: () => getIsCommentWalk,
+    setIsCommentWalk: setIsCommentWalk,
+    getMaxCommentWalkPerBatch: getMaxCommentWalkPerBatch,
+    setMaxCommentWalkPerBatch: setMaxCommentWalkPerBatch,
+    getTimeBreakWhenSpammed: getTimeBreakWhenSpammed,
+    setTimeBreakWhenSpammed: setTimeBreakWhenSpammed,
+    getContentQueryIncludesCommon: getContentQueryIncludesCommon,
+    setContentQueryIncludesCommon: setContentQueryIncludesCommon,
+    getContentQueryExcludesCommon: getContentQueryExcludesCommon,
+    setContentQueryExcludesCommon: setContentQueryExcludesCommon,
+    getMatchRateValueContentQueryIncludesCommon:
+      getMatchRateValueContentQueryIncludesCommon,
+    setMatchRateValueContentQueryIncludesCommon:
+      setMatchRateValueContentQueryIncludesCommon,
+    getStatusTool: getStatusTool,
+    setStatusTool: setStatusTool,
+
+    getPriorityTaskPost: getPriorityTaskPost,
+    setPriorityTaskPost: setPriorityTaskPost,
+    getPriorityTaskCommentWalk: getPriorityTaskCommentWalk,
+    setPriorityTaskCommentWalk: setPriorityTaskCommentWalk,
+    getIsExecutePriorityTask: getIsExecutePriorityTask,
+    setIsExecutePriorityTask: setIsExecutePriorityTask,
   };
 }
 
@@ -558,6 +722,64 @@ function addCssForTextarea() {
   });
 }
 
+function disabledElementProgress(key) {
+  if (key === KEY_IS_IN_PROGRESS) {
+    enabledElement({
+      selector: "#tm_checkbox-is-processing",
+      isField: true,
+      fieldSelector: ".tm_field-container",
+    });
+  } else if (key === KEY_COMMENT_WALK.IS_COMMENT_WALK_PROCESSING) {
+    enabledElement({
+      selector: "#tm_checkbox-is-comment-walk-processing",
+      isField: true,
+      fieldSelector: ".tm_field-container",
+    });
+  }
+
+  disabledElement({ selector: "#tm_btn-auto" });
+  disabledElement({ selector: "#tm_btn-continue-post" });
+  disabledElement({ selector: "#tm_btn-auto-comment-walk" });
+  disabledElement({ selector: "#tm_btn-get-list-groups-of-user" });
+  disabledElement({ selector: "#tm_btn-reset-groups" });
+  disabledElement({ selector: "#tm_btn-reset-groups-posted" });
+  disabledElement({ selector: "#tm_btn-reset" });
+  disabledElement({ selector: "#tm_btn-update-groups-need-post" });
+  disabledElement({ selector: "#tm_btn-reset-is-spammed" });
+  disabledElement({ selector: "#tm_btn-save-max-group-per-time" });
+  disabledElement({ selector: "#tm_btn-reset-commented-walk" });
+}
+
+function enabledElementProgress(key) {
+  enabledElement({ selector: "#tm_btn-auto" });
+  enabledElement({ selector: "#tm_btn-continue-post" });
+  enabledElement({ selector: "#tm_btn-auto-comment-walk" });
+  enabledElement({ selector: "#tm_btn-get-list-groups-of-user" });
+  enabledElement({ selector: "#tm_btn-reset-groups" });
+  enabledElement({ selector: "#tm_btn-reset-groups-posted" });
+  enabledElement({ selector: "#tm_btn-reset" });
+  enabledElement({ selector: "#tm_btn-update-groups-need-post" });
+  enabledElement({ selector: "#tm_btn-reset-is-spammed" });
+  enabledElement({ selector: "#tm_btn-save-max-group-per-time" });
+  enabledElement({ selector: "#tm_btn-reset-commented-walk" });
+
+  if (key === KEY_IS_IN_PROGRESS) {
+    disabledElement({
+      selector: "#tm_checkbox-is-processing",
+      fieldSelector: ".tm_field-container",
+      isCheckbox: true,
+      isField: true,
+    });
+  } else if (key === KEY_COMMENT_WALK.IS_COMMENT_WALK_PROCESSING) {
+    disabledElement({
+      selector: "#tm_checkbox-is-comment-walk-processing",
+      fieldSelector: ".tm_field-container",
+      isCheckbox: true,
+      isField: true,
+    });
+  }
+}
+
 export {
   getAllFieldsSetting,
   disabledElement,
@@ -571,4 +793,6 @@ export {
   findLabelSetedUpAndAddTippy,
   getAllFieldsAdvancedSetting,
   addCssForTextarea,
+  disabledElementProgress,
+  enabledElementProgress,
 };

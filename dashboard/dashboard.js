@@ -1,27 +1,22 @@
-import { initLanguage, logError } from "../utils/utils.js";
-import { dialogContainer } from "./src/draw_element/dialog.js";
-import { createPanelTabGroup } from "./src/draw_element/panel-data-group-tab.js";
-import { addLog, createPanelLog } from "./src/draw_element/panel-log.js";
-import { createPanelSetting } from "./src/draw_element/panel-setting-tab.js";
-import { createPanel } from "./src/draw_element/panel-dashboard.js";
 import {
   addAllEvtTooltipForElement,
   addCssForTextarea,
 } from "../helpers/elementDom.js";
+import { LIST_TAB_WITH_PREMIUM } from "../helpers/premium.js";
+import { getPremiumService } from "../services/auth-service.js";
+import { initialTheme } from "../services/storage-global-service.js";
+import { initLanguage, logError } from "../utils/utils.js";
+import { dialogContainer } from "./src/draw_element/dialog.js";
+import { createPanelCommentWalkTab } from "./src/draw_element/panel-comment-walk-tab.js";
+import { createPanel } from "./src/draw_element/panel-dashboard.js";
+import { createPanelTabGroup } from "./src/draw_element/panel-data-group-tab.js";
+import { addLog, createPanelLog } from "./src/draw_element/panel-log.js";
+import { createPanelAdvancedSetting } from "./src/draw_element/panel-setting-advanced-tab.js";
+import { createPanelSetting } from "./src/draw_element/panel-setting-tab.js";
+import { changeTab, drawTab } from "./src/draw_element/tab.js";
+import { addEvtHeader } from "./src/helpers/header.js";
 import { initialData, initialFastAndFirst } from "./src/helpers/initial.js";
 import addValueChangeListener from "./src/listener/addValueChangeListener.js";
-import { createPanelAdvancedSetting } from "./src/draw_element/panel-setting-advanced-tab.js";
-import { changeTab, drawTab } from "./src/draw_element/tab.js";
-import { getSpecialFrameHoursService } from "../services/special-frame-hours-service.js";
-import { DB_getValue, DB_listValues } from "../utils/api-helper.js";
-import { getDeviceSetting } from "../services/setting-service.js";
-import { getSchedulerService } from "../services/scheduler-service.js";
-import {
-  getCommentPostRequest,
-  getListCommentWhenPostSuccessService,
-} from "../services/comment-service.js";
-import { addEvtHeader } from "./src/helpers/header.js";
-import { initialTheme } from "../services/storage-global-service.js";
 
 async function main() {
   try {
@@ -50,6 +45,7 @@ async function main() {
       createPanelSetting(mainElement),
       createPanelTabGroup(mainElement),
       createPanelAdvancedSetting(mainElement),
+      createPanelCommentWalkTab(mainElement),
     ]);
 
     await initialData(mainElement);
@@ -60,11 +56,17 @@ async function main() {
 
     const tabValue = hashParams.get("#nav");
 
+    const isPremium = await getPremiumService();
+
     if (tabValue) {
-      changeTab({
-        tabValue,
-        displayValue: tabValue === "dashboard" ? "flex" : "block",
-      });
+      if (!isPremium && LIST_TAB_WITH_PREMIUM.includes(tabValue)) {
+        changeTab({ tabValue: "dashboard", displayValue: "flex" });
+      } else {
+        changeTab({
+          tabValue,
+          displayValue: tabValue === "dashboard" ? "flex" : "block",
+        });
+      }
     } else {
       changeTab({ tabValue: "dashboard", displayValue: "flex" });
     }
@@ -130,6 +132,12 @@ async function test() {
     // console.log(listKey);
     // console.log(await getSchedulerService());
     // console.log(await getListCommentWhenPostSuccessService());
+    // chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    //   if (request.type === "TEST") {
+    //     console.log("Data at dashboard: ", request.data);
+    //     sendResponse({ status: "success", data: "Data received at dashboard" });
+    //   }
+    // });
   } catch (error) {
     logError("Error at test: ", error);
   }

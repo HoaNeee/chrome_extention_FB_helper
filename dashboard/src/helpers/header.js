@@ -1,10 +1,18 @@
-import { KEY_LANGUAGE, prefix } from "../../../contants/contants.js";
 import {
-  getProfile,
+  KEY_IS_DARK_THEME,
+  KEY_LANGUAGE,
+  prefix,
+} from "../../../contants/contants.js";
+import {
   getProfileService,
   logoutService,
 } from "../../../services/auth-service.js";
-import { DB_setValue } from "../../../utils/api-helper.js";
+import {
+  getIsStopTaskData,
+  setIsStopTaskData,
+} from "../../../services/setting-service.js";
+import { setTheme } from "../../../services/storage-global-service.js";
+import { DB_getValue, DB_setValue } from "../../../utils/api-helper.js";
 import { handleErrorHelper } from "../../../utils/exception.js";
 import { getTextWithLanguage, logError, sleep } from "../../../utils/utils.js";
 import {
@@ -75,10 +83,7 @@ async function addEvtHeader() {
       handleErrorHelper({ error, isShowNotify: false });
     }
 
-    const {
-      setIsShow: setIsShowDialogInfo,
-      changeContent: changeContentDialogInfoUser,
-    } = createDialog({
+    const { setIsShow: setIsShowDialogInfo } = createDialog({
       html: createDialogInfoUser({
         user,
         onLogoutSuccess: handleLogout,
@@ -120,8 +125,43 @@ async function addEvtHeader() {
         setIsShowDialogInfo(true);
       });
     }
+
+    const switchStatusTool = document.querySelector(
+      `#${prefix}switch-status-tool-at-header`,
+    );
+    const isStopTask = await getIsStopTaskData();
+    if (switchStatusTool) {
+      switchStatusTool.checked = !isStopTask;
+      switchStatusTool.addEventListener("change", async (e) => {
+        const checked = e.target.checked;
+        await setIsStopTaskData(!checked);
+      });
+    }
+
+    const btnChangeTheme = document.body.querySelector(
+      `#${prefix}btn-change-theme`,
+    );
+    if (btnChangeTheme) {
+      btnChangeTheme.addEventListener("click", async () => {
+        const isDarkTheme = (await DB_getValue(KEY_IS_DARK_THEME)) || false;
+        const newIsDarkTheme = !isDarkTheme;
+        await setTheme(newIsDarkTheme);
+        if (newIsDarkTheme) {
+          document.body.classList.add("dark");
+          document.body.classList.remove("light");
+        } else {
+          document.body.classList.remove("dark");
+          document.body.classList.add("light");
+        }
+
+        const svgs = document.querySelectorAll(".tm_svg");
+        svgs.forEach((svg) => {
+          svg.setAttribute("fill", newIsDarkTheme ? "white" : "black");
+        });
+      });
+    }
   } catch (error) {
-    logError("Error at add event for header dashboard");
+    logError("Error at add event for header dashboard", error);
   }
 }
 
@@ -141,7 +181,7 @@ async function updateAuthUI(user) {
       }
     }
   } catch (error) {
-    logError("Error at update auth UI");
+    logError("Error at update auth UI", error);
   }
 }
 

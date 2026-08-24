@@ -5,6 +5,7 @@ import {
   DB_setValue,
 } from "../utils/api-helper.js";
 import { get, post } from "../utils/request.js";
+import { logError } from "../utils/utils.js";
 import {
   getIsUseLocalStorage,
   setIsUseLocalStorage,

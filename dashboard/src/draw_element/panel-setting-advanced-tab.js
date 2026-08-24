@@ -3,10 +3,14 @@ import {
   setListCommentWhenPostSuccessService,
   setMaxCommentPerTimeService,
 } from "../../../services/comment-service.js";
+import { commentWalkService } from "../../../services/comment-walk-service.js";
 import { setMaxPostInteractService } from "../../../services/interact-before-post-service.js";
 import {
+  setIsCommentWalkData,
   setIsCommentWhenPostSuccessData,
   setIsInteractBeforePostData,
+  setMaxCommentWalkPerBatchData,
+  setTimeDelayCommentWalk,
 } from "../../../services/setting-service.js";
 import { getProgress } from "../../../services/storage-service.js";
 import { getTextWithLanguage, logError } from "../../../utils/utils.js";
@@ -19,47 +23,57 @@ async function createPanelAdvancedSetting(anchorElem = document.body) {
     rootAdvancedSetting.className = `${prefix}tab-setting`;
     rootAdvancedSetting.setAttribute("data-tab-value", "settings-advanced");
 
-    const advancedSettingHTML = `
-        <div class="${prefix}advanced-setting">
-            <div class="${prefix}section">
-                <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt nâng cao", en: "Advanced Setting" })}</h2>
-                <div class="${prefix}field-container field-checkbox">
-                    <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-comment-when-post-success">
-                    <label for="${prefix}checkbox-is-comment-when-post-success" style="user-select: none;">${getTextWithLanguage({ vi: "Bình luận tương tác khi đăng bài thành công (Thử nghiệm)", en: "Comment interact when post success (Beta)" })}</label>
-                </div>
-                <div style="margin-left: 48px; display: flex; flex-direction: column; gap: 12px">
-                  <div class="${prefix}field-container">
-                    <label for="${prefix}input-max-comment-per-time">${getTextWithLanguage({ vi: "Số lượng bình luận tối đa mỗi lần", en: "Max comment per time" })}</label>
-                    <div style="display: flex; gap: 4px;">
-                      <input min="1" type="number" id="${prefix}input-max-comment-per-time" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="EX: 1,2,3,...">
-                      <button id="${prefix}btn-save-max-comment-per-time" class="not-style">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
-                    </div>
-                  </div>
-                  <div class="${prefix}field-container">
-                      <label for="${prefix}input-keyword-comment-when-post-success">${getTextWithLanguage({ vi: `Nhập nội dung bình luận (nhiều bình luận cách nhau bằng cách xuống dòng)`, en: "Enter comment content (multiple comments separated by newline)" })}:
-                      </label>
-                      <div style="display: flex; gap: 4px;">
-                          <textarea placeholder="Ex: Hay quá!\nIb mình\nGiá nhiêu shop ơi?" id="${prefix}input-keyword-comment-when-post-success" class="${prefix}input-outline auto-stretch"></textarea>
-                      </div>
-                      <div style="text-align: end; margin-top: 4px;">
-                          <button id="${prefix}btn-save-keyword-comment-when-post-success" class="not-style">${getTextWithLanguage({ vi: "Lưu bình luận", en: "Save comment" })}</button>
-                      </div>
-                  </div>  
-                </div>
-                <div class="${prefix}field-container field-checkbox">
-                    <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-interact-before-post">
-                    <label for="${prefix}checkbox-is-interact-before-post" style="user-select: none;">${getTextWithLanguage({ vi: "Tự động tương tác trước khi đăng bài (Thử nghiệm)", en: "Auto interact before post (Beta)" })}</label>
-                </div> 
-                <div style="margin-left: 48px; display: flex; flex-direction: column; gap: 12px">
-                    <div class="${prefix}field-container">
-                      <label for="${prefix}input-max-post-interact">${getTextWithLanguage({ vi: "Số lượng bài viết tối đa cần tương tác", en: "Max post interact" })}</label>
-                      <div style="display: flex; gap: 4px;">
-                        <input min="1" type="number" id="${prefix}input-max-post-interact" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="EX: 1,2,3,...">
-                        <button id="${prefix}btn-save-max-post-interact" class="not-style">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
-                      </div>
-                    </div>
-                  </div>
+    const commentAfterPost = `<div class="${prefix}section">
+      <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt bình luận tương tác sau khi đăng bài (Thử nghiệm)", en: "Comment interact after post setting (Beta)" })}</h2>
+       <div class="${prefix}field-container field-checkbox">
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-comment-when-post-success">
+          <label for="${prefix}checkbox-is-comment-when-post-success" style="user-select: none;">${getTextWithLanguage({ vi: "Bình luận tương tác khi đăng bài thành công", en: "Comment interact when post success" })}</label>
         </div>
+        <div style="margin-left: 48px; display: flex; flex-direction: column; gap: 12px">
+          <div class="${prefix}field-container">
+            <label for="${prefix}input-max-comment-per-time">${getTextWithLanguage({ vi: "Số lượng bình luận tối đa mỗi lần", en: "Max comment per time" })}</label>
+            <div style="display: flex; gap: 4px;">
+              <input min="1" type="number" id="${prefix}input-max-comment-per-time" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="EX: 1,2,3,...">
+              <button id="${prefix}btn-save-max-comment-per-time" class="not-style">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
+            </div>
+          </div>
+          <div class="${prefix}field-container">
+              <label for="${prefix}input-keyword-comment-when-post-success">${getTextWithLanguage({ vi: `Nhập nội dung bình luận (nhiều bình luận cách nhau bằng cách xuống dòng)`, en: "Enter comment content (multiple comments separated by newline)" })}:
+              </label>
+              <div style="display: flex; gap: 4px;">
+                  <textarea placeholder="Ex: Hay quá!\nIb mình\nGiá nhiêu shop ơi?" id="${prefix}input-keyword-comment-when-post-success" class="${prefix}input-outline auto-stretch"></textarea>
+              </div>
+              <div style="text-align: end; margin-top: 4px;">
+                  <button id="${prefix}btn-save-keyword-comment-when-post-success" class="not-style">${getTextWithLanguage({ vi: "Lưu bình luận", en: "Save comment" })}</button>
+              </div>
+          </div>  
+        </div>
+    </div>`;
+
+    const interactBeforePost = `
+      <div class="${prefix}section">
+        <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt tương tác trước khi đăng bài (Thử nghiệm)", en: "Interact before post setting (Beta)" })}</h2>
+        <div class="${prefix}field-container field-checkbox">
+            <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-interact-before-post">
+            <label for="${prefix}checkbox-is-interact-before-post" style="user-select: none;">${getTextWithLanguage({ vi: "Tự động tương tác trước khi đăng bài", en: "Auto interact before post" })}</label>
+        </div> 
+        <div style="margin-left: 48px; display: flex; flex-direction: column; gap: 12px">
+          <div class="${prefix}field-container">
+            <label for="${prefix}input-max-post-interact">${getTextWithLanguage({ vi: "Số lượng bài viết tối đa cần tương tác", en: "Max post interact" })}</label>
+            <div style="display: flex; gap: 4px;">
+              <input min="1" type="number" id="${prefix}input-max-post-interact" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="EX: 1,2,3,...">
+              <button id="${prefix}btn-save-max-post-interact" class="not-style">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const advancedSettingHTML = `
+      <div class="${prefix}advanced-setting">
+        ${commentAfterPost}
+        ${interactBeforePost}
+      </div>
     `;
 
     rootAdvancedSetting.innerHTML = advancedSettingHTML;

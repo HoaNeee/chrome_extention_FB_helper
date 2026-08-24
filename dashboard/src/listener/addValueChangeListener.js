@@ -1,22 +1,22 @@
+import { KEY_MESSAGE_FROM_BACKGROUND } from "../../../contants/constant-extention.js";
 import {
   KEY_ALL_GROUPS,
   KEY_AUTH,
+  KEY_COMMENT_WALK,
   KEY_GROUPS_NEED_POST,
   KEY_HISTORY_LOGS,
   KEY_IS_DEVELOPER_MODE,
   KEY_IS_IN_PROGRESS,
   KEY_IS_PREMIUM,
-  KEY_IS_SPAMMED,
   KEY_IS_TEST,
   KEY_POST,
   KEY_SCHEDULER,
+  KEY_STOP_TASK,
+  prefix,
 } from "../../../contants/contants.js";
-import { logError } from "../../../utils/utils.js";
-import { updateDataSavedInfo } from "../draw_element/dataSavedInfo.js";
-import { drawHistoryLogItem } from "../draw_element/panel-log.js";
 import {
-  disabledElement,
-  enabledElement,
+  disabledElementProgress,
+  enabledElementProgress,
   getAllFieldsSetting,
   hideElement,
   hideField,
@@ -24,14 +24,19 @@ import {
   showField,
 } from "../../../helpers/elementDom.js";
 import { handleShowOrHideElementPremium } from "../../../helpers/premium.js";
+import { logSchedulerHelper } from "../../../helpers/scheduler.js";
+import {
+  automationCommentWalk,
+  automationContinue,
+} from "../../../services/automation-service.js";
+import { commentWalkService } from "../../../services/comment-walk-service.js";
 import { clearAndCreateSchedulerAlarm } from "../../../services/scheduler-service.js";
 import { setIsTestInStorage } from "../../../services/storage-service.js";
-import { getIsSchedulerData } from "../../../services/setting-service.js";
-import { logSchedulerHelper } from "../../../helpers/scheduler.js";
-import { KEY_IS_USE_LOCAL_STORAGE } from "../../../contants/constant-extention.js";
+import { setProgressTool } from "../../../utils/bgr-storage.js";
+import { logError } from "../../../utils/utils.js";
+import { updateDataSavedInfo } from "../draw_element/dataSavedInfo.js";
+import { addLog, drawHistoryLogItem } from "../draw_element/panel-log.js";
 import { updateAuthUI } from "../helpers/header.js";
-
-let timeOutClearAndCreateSchedulerAlarm = null;
 
 export default function addValueChangeListener() {
   const keys = [
@@ -42,13 +47,18 @@ export default function addValueChangeListener() {
     KEY_POST,
     KEY_GROUPS_NEED_POST,
     KEY_IS_DEVELOPER_MODE,
-    KEY_IS_SPAMMED,
     KEY_HISTORY_LOGS,
     KEY_IS_PREMIUM,
     // KEY_IS_USE_LOCAL_STORAGE,
     KEY_AUTH,
+    KEY_COMMENT_WALK.IS_COMMENT_WALK_PROCESSING,
+    KEY_COMMENT_WALK.COUNT_COMMENT_WALK_POSTED_PER_BATCH,
+    KEY_COMMENT_WALK.IS_ACTIVE,
+    KEY_STOP_TASK,
+    KEY_MESSAGE_FROM_BACKGROUND.AUTOMATION.POST_CONTINUE,
+    KEY_MESSAGE_FROM_BACKGROUND.AUTOMATION.COMMENT_WALK,
   ];
-  const { setIsTest } = getAllFieldsSetting();
+  const { setIsTest, setIsCommentWalk } = getAllFieldsSetting();
   chrome.storage.onChanged.addListener(async (changes, areaName) => {
     if (areaName === "local") {
       for (const key of keys) {
@@ -59,54 +69,38 @@ export default function addValueChangeListener() {
             if (key === KEY_AUTH) {
               await updateAuthUI(newVal);
             }
-            if (key === KEY_IS_IN_PROGRESS) {
-              await handleIsProgress(newVal);
+            if (
+              key === KEY_IS_IN_PROGRESS ||
+              key === KEY_COMMENT_WALK.IS_COMMENT_WALK_PROCESSING
+            ) {
+              await handleIsProgress(key, newVal);
             }
             if (key === KEY_IS_DEVELOPER_MODE) {
-              if (newVal) {
-                showElement("#tm_btn-reset-all-data-saved");
-                showElement("#tm_btn-test-auto");
-                showElement("#tm_btn-click");
-                showField({
-                  selector: "#tm_checkbox-is-test",
-                  fieldSelector: ".tm_field-container",
-                });
-                showField({
-                  selector: "#tm_checkbox-is-spammed",
-                  fieldSelector: ".tm_field-container",
-                });
-              } else {
-                await setIsTestInStorage(false);
-                setIsTest(false);
-                hideElement("#tm_btn-test-auto");
-                hideElement("#tm_btn-click");
-                hideField({
-                  selector: "#tm_checkbox-is-test",
-                  fieldSelector: ".tm_field-container",
-                });
-                hideField({
-                  selector: "#tm_checkbox-is-spammed",
-                  fieldSelector: ".tm_field-container",
-                });
-                hideElement("#tm_btn-reset-all-data-saved");
-              }
+              await handleIsDeveloperMode(newVal);
             }
             if (key === KEY_IS_TEST) {
               setIsTest(newVal);
-            }
-            if (key === KEY_IS_SPAMMED) {
-              if (timeOutClearAndCreateSchedulerAlarm) {
-                clearTimeout(timeOutClearAndCreateSchedulerAlarm);
-              }
-              timeOutClearAndCreateSchedulerAlarm = setTimeout(() => {
-                handleIsSpammed();
-              }, 10000);
             }
             if (key === KEY_HISTORY_LOGS) {
               handleHisoryLog(newVal);
             }
             if (key === KEY_IS_PREMIUM) {
               handleShowOrHideElementPremium(newVal);
+            }
+            if (key === KEY_COMMENT_WALK.IS_ACTIVE) {
+              setIsCommentWalk(newVal);
+            }
+
+            if (key === KEY_STOP_TASK) {
+              handleStopTask(newVal);
+            }
+
+            //Fake send message from background
+            if (key === KEY_MESSAGE_FROM_BACKGROUND.AUTOMATION.COMMENT_WALK) {
+              await automationCommentWalk();
+            }
+            if (key === KEY_MESSAGE_FROM_BACKGROUND.AUTOMATION.POST_CONTINUE) {
+              await automationContinue();
             }
 
             updateDataSavedInfo();
@@ -118,17 +112,6 @@ export default function addValueChangeListener() {
       }
     }
   });
-}
-
-async function handleIsSpammed() {
-  try {
-    const isScheduler = await getIsSchedulerData();
-    if (isScheduler) {
-      clearAndCreateSchedulerAlarm();
-    }
-  } catch (error) {
-    logError("Error at handle spammed at addValueChange", error);
-  }
 }
 
 async function handleHisoryLog(histories) {
@@ -164,48 +147,88 @@ async function handleHisoryLog(histories) {
   }
 }
 
-async function handleIsProgress(val) {
-  const { setIsProcessing } = getAllFieldsSetting();
+async function handleIsProgress(key, val) {
+  const { setIsProcessing, setIsCommentWalkProcessing } = getAllFieldsSetting();
   try {
-    setIsProcessing(val);
+    if (key === KEY_IS_IN_PROGRESS) {
+      setIsProcessing(val);
+    }
+    if (key === KEY_COMMENT_WALK.IS_COMMENT_WALK_PROCESSING) {
+      setIsCommentWalkProcessing(val);
+    }
     if (val) {
-      disabledElement({ selector: "#tm_btn-auto" });
-      disabledElement({ selector: "#tm_btn-continue-post" });
-      disabledElement({ selector: "#tm_btn-get-list-groups-of-user" });
-      disabledElement({ selector: "#tm_btn-reset-groups" });
-      disabledElement({ selector: "#tm_btn-reset-groups-posted" });
-      disabledElement({ selector: "#tm_btn-reset" });
-      disabledElement({ selector: "#tm_btn-update-groups-need-post" });
-      disabledElement({ selector: "#tm_btn-reset-is-spammed" });
-      disabledElement({ selector: "#tm_btn-save-max-group-per-time" });
-
-      enabledElement({
-        selector: "#tm_checkbox-is-processing",
-        isField: true,
-        fieldSelector: ".tm_field-container",
-      });
+      disabledElementProgress(key);
     }
     if (!val) {
-      enabledElement({ selector: "#tm_btn-auto" });
-      enabledElement({ selector: "#tm_btn-continue-post" });
-      enabledElement({ selector: "#tm_btn-get-list-groups-of-user" });
-      enabledElement({ selector: "#tm_btn-reset-groups" });
-      enabledElement({ selector: "#tm_btn-reset-groups-posted" });
-      enabledElement({ selector: "#tm_btn-reset" });
-      enabledElement({ selector: "#tm_btn-update-groups-need-post" });
-      enabledElement({ selector: "#tm_btn-reset-is-spammed" });
-      enabledElement({ selector: "#tm_btn-save-max-group-per-time" });
-
-      disabledElement({
-        selector: "#tm_checkbox-is-processing",
-        fieldSelector: ".tm_field-container",
-        isCheckbox: true,
-        isField: true,
-      });
-
+      enabledElementProgress(key);
       await clearAndCreateSchedulerAlarm();
     }
   } catch (error) {
     logError("Error at handleIsProgress: ", error);
+  }
+}
+
+async function handleStopTask(isStopTask) {
+  try {
+    const { setStatusTool } = getAllFieldsSetting();
+    setStatusTool(!isStopTask);
+    const switchStatusTool = document.querySelector(
+      `#${prefix}switch-status-tool-at-header`,
+    );
+    if (switchStatusTool) {
+      switchStatusTool.checked = !isStopTask;
+    }
+    if (isStopTask) {
+      await commentWalkService.setIsCommentWalkProcessing(false);
+      await setProgressTool(false);
+      addLog({
+        vi: "Tiện ích đã được tắt",
+        en: "Tool has been stopped",
+        type: "info",
+      });
+    } else {
+      addLog({
+        vi: "Tiện ích đã được bật lại, khởi tạo lại các tác vụ",
+        en: "Tool has been turned on, initializing tasks",
+        type: "info",
+      });
+      await clearAndCreateSchedulerAlarm();
+      await logSchedulerHelper();
+    }
+  } catch (error) {
+    logError("Error at handleStopTask: ", error);
+  }
+}
+
+async function handleIsDeveloperMode(newVal) {
+  const { setIsTest } = getAllFieldsSetting();
+  if (newVal) {
+    showElement("#tm_btn-reset-all-data-saved");
+    showElement("#tm_btn-test-auto");
+    showElement("#tm_btn-click");
+    showElement("#tm_btn-click-2");
+    showField({
+      selector: "#tm_checkbox-is-test",
+      fieldSelector: ".tm_field-container",
+    });
+    showField({
+      selector: "#tm_checkbox-is-spammed",
+      fieldSelector: ".tm_field-container",
+    });
+  } else {
+    await setIsTestInStorage(false);
+    setIsTest(false);
+    hideElement("#tm_btn-test-auto");
+    hideElement("#tm_btn-click");
+    hideElement("#tm_btn-click-2");
+    hideField({
+      selector: "#tm_checkbox-is-test",
+      fieldSelector: ".tm_field-container",
+    });
+    hideField({
+      selector: "#tm_checkbox-is-spammed",
+      fieldSelector: ".tm_field-container",
+    });
+    hideElement("#tm_btn-reset-all-data-saved");
   }
 }

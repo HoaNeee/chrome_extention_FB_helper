@@ -65,7 +65,7 @@ async function checkIsPostedAllGroup() {
     return true;
   } catch (error) {
     logError("Error check posted all group: " + error);
-    return false;
+    return true;
   }
 }
 

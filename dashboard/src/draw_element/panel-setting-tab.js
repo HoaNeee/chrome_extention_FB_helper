@@ -1,5 +1,6 @@
 import {
   initialTimeDelay,
+  KEY_DEFAULT_VALUE,
   KEY_IS_SHUFFLE_SCHEDULER_TIME,
   prefix,
   SCHEDULER_TYPE,
@@ -11,23 +12,22 @@ import {
   getSchedulerWithType,
   logSchedulerHelper,
 } from "../../../helpers/scheduler.js";
+import { commentWalkService } from "../../../services/comment-walk-service.js";
 import {
-  genIDNumber,
-  getTextWithLanguage,
-  logError,
-  randomID,
-} from "../../../utils/utils.js";
-import {
+  changeTypeScheduler,
+  clearAndCreateSchedulerAlarm,
+  clearSchedulerAuto,
   getSchedulerDetail,
   getSchedulerService,
-  changeTypeScheduler,
-  clearSchedulerAuto,
   setSchedulerDetail,
-  clearAndCreateSchedulerAlarm,
 } from "../../../services/scheduler-service.js";
 import {
   getIsSchedulerData,
   getTimeDelayData,
+  setContentQueryExcludesCommonData,
+  setContentQueryIncludesCommonData,
+  setIsCommentWalkData,
+  setIsExecutePriorityTaskData,
   setIsFixStealAllFocusData,
   setIsFixStealFocusData,
   setIsRandomBreakBatchData,
@@ -36,10 +36,20 @@ import {
   setIsShuffleGroupNeedPostData,
   setIsSpammedData,
   setIsSpecialFrameHoursData,
+  setIsStopTaskData,
+  setMatchRateValueContentQueryIncludesCommonData,
+  setMaxCommentWalkPerBatchData,
   setMaxGroupPerTimeData,
+  setPriorityTaskData,
   setStrictlyMatchTitleGroupData,
+  setTimeBreakWhenSpammedData,
+  setTimeDelayCommentWalk,
   setTimeDelayData,
 } from "../../../services/setting-service.js";
+import {
+  clearAllSpecialFrameHours,
+  getSpecialFrameHoursService,
+} from "../../../services/special-frame-hours-service.js";
 import {
   getIsDeveloperModeInStorage,
   getIsTestInStorage,
@@ -49,7 +59,13 @@ import {
   setIsTestInStorage,
   setProgress,
 } from "../../../services/storage-service.js";
-import { DB_getValue, DB_setValue } from "../../../utils/api-helper.js";
+import { DB_setValue } from "../../../utils/api-helper.js";
+import { handleErrorHelper } from "../../../utils/exception.js";
+import {
+  getTextWithLanguage,
+  logError,
+  splitString,
+} from "../../../utils/utils.js";
 import { updateDataSavedInfo } from "./dataSavedInfo.js";
 import { createDialog, dialogViewScheduler } from "./dialog.js";
 import { showNotify } from "./notify.js";
@@ -58,11 +74,6 @@ import {
   createDialogAddSpecialHours,
   createDialogViewSpecialFrameHours,
 } from "./special-frame-hours.js";
-import {
-  clearAllSpecialFrameHours,
-  getSpecialFrameHoursService,
-} from "../../../services/special-frame-hours-service.js";
-import { handleErrorHelper } from "../../../utils/exception.js";
 
 async function createPanelSetting(anchorElem = document.body) {
   try {
@@ -70,10 +81,48 @@ async function createPanelSetting(anchorElem = document.body) {
     rootSetting.className = "tm_tab-setting";
     rootSetting.setAttribute("data-tab-value", "settings");
 
+    const toolSetting = `
+      <div class="${prefix}section">
+        <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt tiện ích", en: "Tool Setting" })}</h2>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="${prefix}field-container field-switch">
+              <label for="${prefix}switch-status-tool">${getTextWithLanguage({ vi: "Bật/Tắt tiện ích", en: "On/Off tool" })}: </label>
+              <div>
+                <label class="switch">
+                  <input type="checkbox" id="${prefix}switch-status-tool">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="${prefix}field-container field-checkbox">
+              <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-execute-priority-task">
+              <label for="${prefix}checkbox-is-execute-priority-task" style="user-select: none;">${getTextWithLanguage({ vi: "Thực hiện các công việc theo độ ưu tiên", en: "Execute tasks by priority" })}</label>
+            </div>
+            <div class="${prefix}div-priority-task" style="padding: 4px 8px; margin-left: 32px;">
+              <h4 class="${prefix}title-section" style="font-size: 14px;">${getTextWithLanguage({ vi: "Độ ưu tiên cho các công việc", en: "Job Priority" })}:</h4>
+              <div style="margin-left: 8px; margin-top: 8px;">
+                <div class="${prefix}field-container field-row">
+                  <label for="${prefix}input-priority-task-post">${getTextWithLanguage({ vi: "Đăng bài", en: "Post" })}: </label>
+                  <input type="number" id="${prefix}input-priority-task-post" class="${prefix}input-outline" min="1" placeholder="Ex: 1">
+                </div>
+                <div class="${prefix}field-container field-row">
+                  <label for="${prefix}input-priority-task-comment-walk">${getTextWithLanguage({ vi: "Bình luận dạo", en: "Comment walk" })}: </label>
+                  <input type="number" id="${prefix}input-priority-task-comment-walk" class="${prefix}input-outline" min="1" placeholder="Ex: 2">
+                </div>
+                <div style="margin-top: 16px;">
+                  <button id="${prefix}btn-save-priority-task" class="not-style">${getTextWithLanguage({ vi: "Lưu cấu hình độ ưu tiên", en: "Save priority configuration" })}</button>
+                </div>
+              </div>
+            </div>
+        </div>
+      </div>
+    `;
+
     const groupsHTML = `
       <div class="${prefix}section">
-        <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt cơ bản", en: "Basic Setting" })}</h2>
-        <div class="${prefix}field-container">
+        <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt cơ bản cho đăng bài", en: "Basic Setting for Post" })}</h2>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div class="${prefix}field-container">
             <label for="${prefix}input-max-group-per-time">${getTextWithLanguage({ vi: "Số lượng nhóm tối đa mỗi lần", en: "Max group per time" })}</label>
             <div style="display: flex; gap: 4px;">
               <input min="1" type="number" id="${prefix}input-max-group-per-time" class="${prefix}input-outline" style="display: inline-block; flex: 1;">
@@ -82,7 +131,7 @@ async function createPanelSetting(anchorElem = document.body) {
           </div>
           <div style="">
             <div class="${prefix}field-container">
-              <label for="${prefix}input-strictly-match-title-group">${getTextWithLanguage({ vi: `Các từ khóa lọc nghiêm ngặt trong tên (cách nhau bằng dấu phẩy ',')`, en: "Strictly match title keywords group (separate by comma ',')" })}:
+              <label for="${prefix}input-strictly-match-title-group">${getTextWithLanguage({ vi: `Các từ khóa bổ trợ lọc theo tên nhóm (cách nhau bằng dấu phẩy ',')`, en: "Strictly match title keywords group (separate by comma ',')" })}:
               </label>
               <div style="display: flex; gap: 4px;">
                 <textarea placeholder="Ex: Cho thuê trọ, nhà trọ, ..." id="${prefix}input-strictly-match-title-group" class="${prefix}input-outline" style="flex: 1; height: 70px; padding: 8px 4px"></textarea>
@@ -94,6 +143,14 @@ async function createPanelSetting(anchorElem = document.body) {
               <button id="${prefix}btn-save-strictly-match-title-group" class="not-style">${getTextWithLanguage({ vi: "Lưu từ khóa", en: "Save keywords" })}</button>
             </div>
           </div>
+          <div class="${prefix}field-container">
+            <label for="${prefix}input-time-break-when-spammed">${getTextWithLanguage({ vi: "Thời gian nghỉ khi bị spam (ngày)", en: "Time break when spammed (days)" })}</label>
+            <div style="display: flex; gap: 4px;">
+              <input min="1" type="number" id="${prefix}input-time-break-when-spammed" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="Ex: 1,2,3...">
+              <button id="${prefix}btn-save-time-break-when-spammed" class="not-style">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
+            </div>
+          </div>
+        </div>
       </div>
     `;
 
@@ -103,6 +160,10 @@ async function createPanelSetting(anchorElem = document.body) {
         <div class="${prefix}field-container field-checkbox">
           <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-processing">
           <label for="${prefix}checkbox-is-processing" style="user-select: none;">${getTextWithLanguage({ vi: "Đang chạy", en: "Auto is processing" })}</label>
+        </div>
+        <div class="${prefix}field-container field-checkbox">
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-comment-walk-processing">
+          <label for="${prefix}checkbox-is-comment-walk-processing" style="user-select: none;">${getTextWithLanguage({ vi: "Đang chạy bình luận dạo", en: "Auto is comment walk processing" })}</label>
         </div>
         <div class="${prefix}field-container field-checkbox">
           <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-test">
@@ -209,12 +270,102 @@ async function createPanelSetting(anchorElem = document.body) {
       </div>
     `;
 
+    const commentWalk = `
+      <div class="${prefix}section comment-walk-setting">
+        <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt bình luận dạo (Thử nghiệm)", en: "Comment Walk Setting (Beta)" })}</h2>
+        <div class="flex flex-col" style="gap: 16px">  
+          <div class="${prefix}field-container field-checkbox">
+            <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-comment-walk">
+            <label for="${prefix}checkbox-is-comment-walk" style="user-select: none;">${getTextWithLanguage({ vi: "Bình luận dạo", en: "Comment walk" })}</label>
+          </div> 
+          <div class="${prefix}field-container">
+            <label for="${prefix}input-max-comment-walk-per-batch">${getTextWithLanguage({ vi: "Số lượng bình luận tối đa mỗi lần:", en: "Max comments per batch:" })}</label>
+            <div style="display: flex; gap: 4px;">
+              <input min="1" type="number" id="${prefix}input-max-comment-walk-per-batch" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="EX: 1,2,3,...">
+              <button id="${prefix}btn-save-max-comment-walk-per-batch" class="not-style">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
+            </div>
+          </div>
+          <div class="${prefix}field-container">
+            <label for="${prefix}input-match-rate-value-content-query-includes-common-comment-walk">${getTextWithLanguage({ vi: "Tỷ lệ khớp từ khóa trong nội dung (Khi bình luận dạo):", en: "Rate of keywords matching in content (When comment walk):" })}</label>
+            <div style="display: flex; gap: 4px;">
+              <input min="0" max="100" type="number" id="${prefix}input-match-rate-value-content-query-includes-common-comment-walk" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="EX: 1,2,3,...">
+              <button id="${prefix}btn-save-match-rate-value-content-query-includes-common-comment-walk" class="not-style">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
+            </div>
+          </div>
+          <div style="">
+          <div class="${prefix}field-container">
+            <label for="${prefix}input-content-query-includes-common-comment-walk">${getTextWithLanguage({ vi: `Các từ khóa lọc có trong nội dung khi bình luận (cách nhau bằng dấu phẩy ',')`, en: "Keywords must be included in the content when commenting (separate by comma ',')" })}:
+            </label>
+            <div style="display: flex; gap: 4px;">
+              <textarea placeholder="Ex: Cho thuê trọ, nhà trọ, ..." id="${prefix}input-content-query-includes-common-comment-walk" class="${prefix}input-outline" style="flex: 1; height: 70px; padding: 8px 4px"></textarea>
+            </div>
+          </div>
+          <div style="text-align: end; margin-top: 4px;">
+            <button id="${prefix}btn-save-content-query-includes-common-comment-walk" class="not-style">${getTextWithLanguage({ vi: "Lưu từ khóa", en: "Save keywords" })}</button>
+          </div>
+        </div>
+        <div style="">
+          <div class="${prefix}field-container">
+            <label for="${prefix}input-content-query-excludes-common-comment-walk">${getTextWithLanguage({ vi: `Các từ khóa lọc không được có trong nội dung khi bình luận (cách nhau bằng dấu phẩy ',')`, en: "Keywords must not be included in the content when commenting (separate by comma ',')" })}:
+            </label>
+            <div style="display: flex; gap: 4px;">
+              <textarea placeholder="Ex: Cho thuê trọ, nhà trọ, ..." id="${prefix}input-content-query-excludes-common-comment-walk" class="${prefix}input-outline" style="flex: 1; height: 70px; padding: 8px 4px"></textarea>
+            </div>
+          </div>
+          <div style="text-align: end; margin-top: 4px;">
+            <button id="${prefix}btn-save-content-query-excludes-common-comment-walk" class="not-style">${getTextWithLanguage({ vi: "Lưu từ khóa", en: "Save keywords" })}</button>
+          </div>
+        </div>
+
+          <div class="${prefix}section">
+            <h3 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt thời gian trễ cho bình luận dạo", en: "Time delay setting for comment walk" })}</h3>
+            <div class="flex flex-col" style="gap: 12px">
+                <div class="${prefix}field-container">
+                  <label>${getTextWithLanguage({ vi: "Thời gian trễ khi nhập nội dung bình luận (theo mili giây)", en: "Time delay when fill comment content (by millisecond)" })}</label>
+                  <div class="flex w-full">
+                    <div class="${prefix}field-container w-full" style="padding-left: 0px">
+                      <label for="${prefix}input-time-delay-fill-content-comment-walk-min">${getTextWithLanguage({ vi: "Tối thiểu", en: "Min" })}</label>
+                      <div style="display: flex; gap: 4px;">
+                        <input min="1" type="number" id="${prefix}input-time-delay-fill-content-comment-walk-min" class="${prefix}input-outline w-full not-style" style="display: inline-block; flex: 1;" placeholder="EX: 100,120,150,...">
+                      </div>
+                    </div>
+                    <div class="${prefix}field-container w-full">
+                      <label for="${prefix}input-time-delay-fill-content-comment-walk-max">${getTextWithLanguage({ vi: "Tối đa", en: "Max" })}</label>
+                      <div style="display: flex; gap: 4px;" class="w-full">
+                        <input min="1" type="number" id="${prefix}input-time-delay-fill-content-comment-walk-max" class="${prefix}input-outline w-full not-style" style="display: inline-block; flex: 1;" placeholder="EX: 200,250,300,...">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="${prefix}field-container">
+                  <label for="${prefix}input-time-delay-fill-file-comment-walk">${getTextWithLanguage({ vi: "Thời gian trễ khi điền tệp bình luận dạo", en: "Time delay when fill comment file" })}</label>
+                  <div style="display: flex; gap: 4px;">
+                    <input min="1" type="number" id="${prefix}input-time-delay-fill-file-comment-walk" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="EX: 1,2,3,...">
+                  </div>
+                </div>
+                <div class="${prefix}field-container">
+                  <label for="${prefix}input-time-delay-submit-comment-walk">${getTextWithLanguage({ vi: "Thời gian trễ khi gửi bình luận", en: "Time delay when submit comment" })}</label>
+                  <div style="display: flex; gap: 4px;">
+                    <input min="1" type="number" id="${prefix}input-time-delay-submit-comment-walk" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="EX: 1,2,3,...">
+                  </div>
+                </div>
+                <div>
+                  <button id="${prefix}btn-save-time-delay-comment-walk" class="not-style">${getTextWithLanguage({ vi: "Lưu thời gian trễ", en: "Save time delay" })}</button>
+                </div>
+              </div>
+            </div>
+        </div>
+      </div>
+    `;
+
     const basicSettingHTML = `
       <div class="${prefix}basic-setting">
+        ${toolSetting}
         ${groupsHTML}
         ${optionalHTML}
         ${schedulerHTML}
         ${timeDelayHTML}
+        ${commentWalk}
       </div>
   `;
 
@@ -349,7 +500,7 @@ async function createPanelSetting(anchorElem = document.body) {
 
         switch (val) {
           case SCHEDULER_TYPE.EVERY_MINUTES:
-            const divCustomEveryMinutes = createElementSchedulerCustom({
+            var divCustomEveryMinutes = createElementSchedulerCustom({
               label: getTextWithLanguage({
                 vi: "Nhập tùy chỉnh mỗi phút",
                 en: "Enter custom every minutes",
@@ -394,7 +545,7 @@ async function createPanelSetting(anchorElem = document.body) {
             }
             break;
           case SCHEDULER_TYPE.EVERY_HOURS:
-            const divCustomEveryHours = createElementSchedulerCustom({
+            var divCustomEveryHours = createElementSchedulerCustom({
               label: getTextWithLanguage({
                 vi: "Nhập tùy chỉnh mỗi giờ",
                 en: "Enter custom every hours",
@@ -439,7 +590,7 @@ async function createPanelSetting(anchorElem = document.body) {
 
             break;
           case SCHEDULER_TYPE.CUSTOM_DAILY_MINUTES:
-            const divCustomDailyMinutes = createElementSchedulerCustom({
+            var divCustomDailyMinutes = createElementSchedulerCustom({
               label: getTextWithLanguage({
                 vi: "Nhập giá trị bộ lịch mỗi phút",
                 en: "Enter value of scheduler every minutes",
@@ -456,9 +607,8 @@ async function createPanelSetting(anchorElem = document.body) {
             }
 
             break;
-
           case SCHEDULER_TYPE.CUSTOM_DAILY_HOURS:
-            const divCustomDailyHours = createElementSchedulerCustom({
+            var divCustomDailyHours = createElementSchedulerCustom({
               label: getTextWithLanguage({
                 vi: "Nhập giá trị bộ lịch mỗi giờ",
                 en: "Enter value of scheduler every hours",
@@ -613,6 +763,28 @@ async function createPanelSetting(anchorElem = document.body) {
     }
 
     async function addEvent() {
+      async function saveAndLog(cb = async () => {}, errorName = "") {
+        try {
+          await cb?.();
+          showNotify({
+            message: getTextWithLanguage({
+              vi: "Lưu cấu hình thành công",
+              en: "Save configuration success",
+            }),
+            type: "success",
+          });
+        } catch (error) {
+          logError("Error at " + errorName, error);
+          showNotify({
+            message: getTextWithLanguage({
+              vi: "Đã xảy ra lỗi",
+              en: "Something went wrong",
+            }),
+            type: "error",
+          });
+        }
+      }
+
       try {
         const btnSaveMaxGroupPerTime = document.querySelector(
           `#tm_btn-save-max-group-per-time`,
@@ -807,6 +979,301 @@ async function createPanelSetting(anchorElem = document.body) {
                 type: "error",
               });
               isConfrimClear = false;
+            }
+          });
+        }
+
+        const btnSaveTimeDelayCommentWalk = document.querySelector(
+          `#${prefix}btn-save-time-delay-comment-walk`,
+        );
+        if (btnSaveTimeDelayCommentWalk) {
+          btnSaveTimeDelayCommentWalk.addEventListener("click", async () => {
+            try {
+              const inputTimeDelayFillContentCommentWalkMin =
+                anchorElem.querySelector(
+                  `#${prefix}input-time-delay-fill-content-comment-walk-min`,
+                );
+              const inputTimeDelayFillContentCommentWalkMax =
+                anchorElem.querySelector(
+                  `#${prefix}input-time-delay-fill-content-comment-walk-max`,
+                );
+              const inputTimeDelayFillFileCommentWalk =
+                anchorElem.querySelector(
+                  `#${prefix}input-time-delay-fill-file-comment-walk`,
+                );
+              const inputTimeDelaySubmitCommentWalk = anchorElem.querySelector(
+                `#${prefix}input-time-delay-submit-comment-walk`,
+              );
+
+              const timeDelayFillContentCommentWalkMin = Number(
+                inputTimeDelayFillContentCommentWalkMin.value?.trim() || 1,
+              );
+              const timeDelayFillContentCommentWalkMax = Number(
+                inputTimeDelayFillContentCommentWalkMax.value?.trim() || 1,
+              );
+              const timeDelayFillFileCommentWalk = Number(
+                inputTimeDelayFillFileCommentWalk.value?.trim() || 1,
+              );
+              const timeDelaySubmitCommentWalk = Number(
+                inputTimeDelaySubmitCommentWalk.value?.trim() || 1,
+              );
+
+              if (
+                timeDelayFillContentCommentWalkMin &&
+                timeDelayFillContentCommentWalkMax &&
+                timeDelayFillFileCommentWalk &&
+                timeDelaySubmitCommentWalk
+              ) {
+                await setTimeDelayCommentWalk({
+                  time_delay_fill_content_comment_walk_min:
+                    timeDelayFillContentCommentWalkMin,
+                  time_delay_fill_content_comment_walk_max:
+                    timeDelayFillContentCommentWalkMax,
+                  time_delay_fill_file_comment_walk:
+                    timeDelayFillFileCommentWalk,
+                  time_delay_submit_comment_walk: timeDelaySubmitCommentWalk,
+                });
+
+                addLog({
+                  vi: "Cấu hình đã được lưu",
+                  en: "The configuration has been saved",
+                });
+              } else {
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Không hợp lệ, vui lòng thử lại",
+                    en: "Invalid, please try again",
+                  }),
+                  type: "error",
+                });
+                return;
+              }
+              showNotify({
+                message: getTextWithLanguage({
+                  vi: "Lưu thời gian delay bình luận thành công",
+                  en: "Save time delay comment success",
+                }),
+                type: "success",
+              });
+            } catch (error) {
+              logError("Error at btnSaveTimeDelayCommentWalk", error);
+              showNotify({
+                message: getTextWithLanguage({
+                  vi: "Đã xảy ra lỗi",
+                  en: "Something went wrong",
+                }),
+                type: "error",
+              });
+            }
+          });
+        }
+
+        const btnSaveMaxCommentWalkPerBatch = document.querySelector(
+          `#${prefix}btn-save-max-comment-walk-per-batch`,
+        );
+        if (btnSaveMaxCommentWalkPerBatch) {
+          btnSaveMaxCommentWalkPerBatch.addEventListener("click", async () => {
+            const input = document.querySelector(
+              `#${prefix}input-max-comment-walk-per-batch`,
+            );
+            const value = Number(input?.value.trim());
+            if (input && value) {
+              try {
+                await setMaxCommentWalkPerBatchData(value);
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Lưu cấu hình thành công",
+                    en: "Save configuration success",
+                  }),
+                  type: "success",
+                });
+              } catch (error) {
+                logError("Error at btnSaveMaxCommentWalkPerBatch", error);
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Đã xảy ra lỗi",
+                    en: "Something went wrong",
+                  }),
+                  type: "error",
+                });
+              }
+            }
+          });
+        }
+
+        const btnSaveTimeBreakWhenSpammed = root.querySelector(
+          `#${prefix}btn-save-time-break-when-spammed`,
+        );
+        if (btnSaveTimeBreakWhenSpammed) {
+          btnSaveTimeBreakWhenSpammed.addEventListener("click", async () => {
+            const input = document.querySelector(
+              `#${prefix}input-time-break-when-spammed`,
+            );
+            const value = Number(input?.value.trim());
+            if (input && value) {
+              try {
+                await setTimeBreakWhenSpammedData(value);
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Lưu cấu hình thành công",
+                    en: "Save configuration success",
+                  }),
+                  type: "success",
+                });
+              } catch (error) {
+                logError("Error at btnSaveTimeBreakWhenSpammed", error);
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Đã xảy ra lỗi",
+                    en: "Something went wrong",
+                  }),
+                  type: "error",
+                });
+              }
+            } else {
+              showNotify({
+                message: getTextWithLanguage({
+                  vi: "Không hợp lệ, hãy thử lại",
+                  en: "Invalid, please try again",
+                }),
+                type: "error",
+              });
+            }
+          });
+        }
+
+        const btnSaveContentQueryIncludesCommon = root.querySelector(
+          `#${prefix}btn-save-content-query-includes-common-comment-walk`,
+        );
+        if (btnSaveContentQueryIncludesCommon) {
+          btnSaveContentQueryIncludesCommon.addEventListener(
+            "click",
+            async () => {
+              const input = document.querySelector(
+                `#${prefix}input-content-query-includes-common-comment-walk`,
+              );
+              const value = input?.value.trim();
+              if (input) {
+                await saveAndLog(async () => {
+                  const arr = splitString(value);
+                  await setContentQueryIncludesCommonData(arr);
+                }, "btnSaveContentQueryIncludesCommon");
+              } else {
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Không hợp lệ, hãy thử lại",
+                    en: "Invalid, please try again",
+                  }),
+                  type: "error",
+                });
+              }
+            },
+          );
+        }
+
+        const btnSaveContentQueryExcludesCommon = root.querySelector(
+          `#${prefix}btn-save-content-query-excludes-common-comment-walk`,
+        );
+        if (btnSaveContentQueryExcludesCommon) {
+          btnSaveContentQueryExcludesCommon.addEventListener(
+            "click",
+            async () => {
+              const input = document.querySelector(
+                `#${prefix}input-content-query-excludes-common-comment-walk`,
+              );
+              const value = input?.value.trim();
+              if (input) {
+                console.log(value);
+                await saveAndLog(async () => {
+                  const arr = splitString(value);
+                  await setContentQueryExcludesCommonData(arr);
+                }, "btnSaveContentQueryExcludesCommon");
+              } else {
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Không hợp lệ, hãy thử lại",
+                    en: "Invalid, please try again",
+                  }),
+                  type: "error",
+                });
+              }
+            },
+          );
+        }
+
+        const btnSaveMatchRateValueContentQueryIncludesCommon =
+          root.querySelector(
+            `#${prefix}btn-save-match-rate-value-content-query-includes-common-comment-walk`,
+          );
+        if (btnSaveMatchRateValueContentQueryIncludesCommon) {
+          btnSaveMatchRateValueContentQueryIncludesCommon.addEventListener(
+            "click",
+            async () => {
+              const input = document.querySelector(
+                `#${prefix}input-match-rate-value-content-query-includes-common-comment-walk`,
+              );
+              const value = Number(input?.value.trim());
+              if (input && value) {
+                await saveAndLog(async () => {
+                  await setMatchRateValueContentQueryIncludesCommonData(value);
+                }, "btnSaveMatchRateValueContentQueryIncludesCommon");
+              } else {
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Không hợp lệ, hãy thử lại",
+                    en: "Invalid, please try again",
+                  }),
+                  type: "error",
+                });
+              }
+            },
+          );
+        }
+
+        const btnSavePriorityTask = root.querySelector(
+          `#${prefix}btn-save-priority-task`,
+        );
+        if (btnSavePriorityTask) {
+          btnSavePriorityTask.addEventListener("click", async () => {
+            try {
+              const inputPriorityTaskPost = root.querySelector(
+                `#${prefix}input-priority-task-post`,
+              );
+              const inputPriorityTaskCommentWalk = root.querySelector(
+                `#${prefix}input-priority-task-comment-walk`,
+              );
+              const priorityTaskPost = Number(
+                inputPriorityTaskPost?.value.trim() ||
+                  KEY_DEFAULT_VALUE.DEFAULT_PRIORITY_TASK_POST,
+              );
+              const priorityTaskCommentWalk = Number(
+                inputPriorityTaskCommentWalk?.value.trim() ||
+                  KEY_DEFAULT_VALUE.DEFAULT_PRIORITY_TASK_COMMENT_WALK,
+              );
+
+              if (
+                inputPriorityTaskPost &&
+                inputPriorityTaskCommentWalk &&
+                priorityTaskPost &&
+                priorityTaskCommentWalk
+              ) {
+                await saveAndLog(async () => {
+                  await setPriorityTaskData({
+                    priority_task_post: priorityTaskPost,
+                    priority_task_comment_walk: priorityTaskCommentWalk,
+                  });
+                }, "btnSavePriorityTask");
+              } else {
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Không hợp lệ, hãy thử lại",
+                    en: "Invalid, please try again",
+                  }),
+                  type: "error",
+                });
+              }
+            } catch (error) {
+              logError("Error at btnSavePriorityTask: ", error);
             }
           });
         }
@@ -1184,6 +1651,92 @@ async function createPanelSetting(anchorElem = document.body) {
               logError("Error inputDelayPost change: ", error);
             }
           });
+        }
+
+        const checkboxIsCommentWalk = document.querySelector(
+          `#${prefix}checkbox-is-comment-walk`,
+        );
+        if (checkboxIsCommentWalk) {
+          checkboxIsCommentWalk.addEventListener("change", async (e) => {
+            const isCommentWalk = e.target.checked;
+            try {
+              await setIsCommentWalkData(isCommentWalk);
+            } catch (error) {
+              logError("Error at checkboxIsCommentWalk", error);
+              showNotify({
+                message: getTextWithLanguage({
+                  vi: "Đã xảy ra lỗi",
+                  en: "Something went wrong",
+                }),
+                type: "error",
+              });
+              e.target.checked = !isCommentWalk;
+            }
+          });
+        }
+
+        const checkboxIsCommentWalkProcessing = document.querySelector(
+          `#${prefix}checkbox-is-comment-walk-processing`,
+        );
+
+        if (checkboxIsCommentWalkProcessing) {
+          checkboxIsCommentWalkProcessing.addEventListener(
+            "change",
+            async (e) => {
+              const isCommentWalkProcessing = e.target.checked;
+              try {
+                await commentWalkService.setIsCommentWalkProcessing(
+                  isCommentWalkProcessing,
+                );
+              } catch (error) {
+                logError("Error at checkboxIsCommentWalkProcessing", error);
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Đã xảy ra lỗi",
+                    en: "Something went wrong",
+                  }),
+                  type: "error",
+                });
+                e.target.checked = !isCommentWalkProcessing;
+              }
+            },
+          );
+        }
+
+        const switchStatusTool = document.querySelector(
+          `#${prefix}switch-status-tool`,
+        );
+        if (switchStatusTool) {
+          switchStatusTool.addEventListener("change", async (e) => {
+            const checked = e.target.checked;
+            try {
+              await setIsStopTaskData(!checked);
+            } catch (error) {
+              handleErrorHelper({ name: "checkboxIsStatusTool", error });
+              e.target.checked = !checked;
+            }
+          });
+        }
+
+        const checkboxIsExecutePriorityTask = document.querySelector(
+          `#${prefix}checkbox-is-execute-priority-task`,
+        );
+        if (checkboxIsExecutePriorityTask) {
+          checkboxIsExecutePriorityTask.addEventListener(
+            "change",
+            async (e) => {
+              const isExecutePriorityTask = e.target.checked;
+              try {
+                await setIsExecutePriorityTaskData(isExecutePriorityTask);
+              } catch (error) {
+                handleErrorHelper({
+                  name: "checkboxIsExecutePriorityTask",
+                  error,
+                });
+                e.target.checked = !isExecutePriorityTask;
+              }
+            },
+          );
         }
       } catch (error) {
         logError("Error at addFieldsEvent: ", error);

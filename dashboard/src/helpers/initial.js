@@ -1,11 +1,14 @@
-import { API_RESPONSE_CODE } from "../../../contants/constant-extention.js";
 import {
+  DEFAULT_COMMENT_WALK_SETTING,
   initialTimeDelay,
+  KEY_COMMENT_WALK,
+  KEY_DEFAULT_VALUE,
   KEY_IS_DARK_THEME,
+  KEY_IS_IN_PROGRESS,
 } from "../../../contants/contants.js";
 import {
-  disabledElement,
-  enabledElement,
+  disabledElementProgress,
+  enabledElementProgress,
   getAllFieldsAdvancedSetting,
   getAllFieldsSetting,
   hideElement,
@@ -25,6 +28,7 @@ import {
   getMaxCommentPerTimeService,
   setMaxCommentPerTimeService,
 } from "../../../services/comment-service.js";
+import { commentWalkService } from "../../../services/comment-walk-service.js";
 import { getListDataGroupPost } from "../../../services/data-group-post-service.js";
 import {
   getAllGroupPostedsInStorage,
@@ -41,7 +45,11 @@ import {
   initialSchedulerSetting,
 } from "../../../services/scheduler-service.js";
 import {
+  getContentQueryExcludesCommonData,
+  getContentQueryIncludesCommonData,
+  getIsCommentWalkData,
   getIsCommentWhenPostSuccessData,
+  getIsExecutePriorityTaskData,
   getIsFixStealAllFocusData,
   getIsFixStealFocusData,
   getIsInteractBeforePostData,
@@ -51,15 +59,22 @@ import {
   getIsShuffleGroupNeedPostData,
   getIsSpammedData,
   getIsSpecialFrameHoursData,
+  getIsStopTaskData,
+  getMatchRateValueContentQueryIncludesCommonData,
+  getMaxCommentWalkPerBatchData,
   getMaxGroupPerTimeData,
+  getPriorityTaskData,
   getStrictlyMatchTitleGroupData,
+  getTimeBreakWhenSpammedData,
+  getTimeDelayCommentWalk,
   getTimeDelayData,
   initialDeviceSetting,
+  setContentQueryExcludesCommonData,
+  setContentQueryIncludesCommonData,
+  setMatchRateValueContentQueryIncludesCommonData,
+  setTimeBreakWhenSpammedData,
 } from "../../../services/setting-service.js";
-import {
-  initIsUseLocalStorage,
-  setIsUseLocalStorage,
-} from "../../../services/storage-global-service.js";
+import { setIsUseLocalStorage } from "../../../services/storage-global-service.js";
 import {
   getIsDeveloperModeInStorage,
   getIsShuffleSchedulerTimeInStorage,
@@ -95,6 +110,17 @@ async function initialData({ anchorElement = document.body }) {
         setIsRandomBatchPost,
         setIsRandomTimePost,
         setIsSpecialFrameHours,
+        setIsCommentWalkProcessing,
+        setIsCommentWalk,
+        setMaxCommentWalkPerBatch,
+        setTimeBreakWhenSpammed,
+        setContentQueryIncludesCommon,
+        setContentQueryExcludesCommon,
+        setMatchRateValueContentQueryIncludesCommon,
+        setStatusTool,
+        setPriorityTaskCommentWalk,
+        setPriorityTaskPost,
+        setIsExecutePriorityTask,
       } = getAllFieldsSetting();
 
       //get max group
@@ -105,25 +131,32 @@ async function initialData({ anchorElement = document.body }) {
         logError("Error when get or set max group per time", error);
       }
 
+      const priorityTask = await getPriorityTaskData();
+      setPriorityTaskCommentWalk(priorityTask.priority_task_comment_walk);
+      setPriorityTaskPost(priorityTask.priority_task_post);
+
+      const isExecutePriorityTask = await getIsExecutePriorityTaskData();
+      setIsExecutePriorityTask(isExecutePriorityTask);
+
       const isTesting = await getIsTestInStorage();
       setIsTest(isTesting);
 
       const isProcessing = await getProgress();
-      if (!isProcessing) {
-        disabledElement({
-          selector: "#tm_checkbox-is-processing",
-          fieldSelector: ".tm_field-container",
-          isCheckbox: true,
-          isField: true,
-        });
+      if (isProcessing) {
+        disabledElementProgress(KEY_IS_IN_PROGRESS);
       } else {
-        enabledElement({
-          selector: "#tm_checkbox-is-processing",
-          fieldSelector: ".tm_field-container",
-          isField: true,
-        });
+        enabledElementProgress(KEY_IS_IN_PROGRESS);
       }
       setIsProcessing(isProcessing);
+
+      const isProgressCommentWalk =
+        await commentWalkService.getIsCommentWalkProcessing();
+      if (isProgressCommentWalk) {
+        disabledElementProgress(KEY_COMMENT_WALK.IS_COMMENT_WALK_PROCESSING);
+      } else {
+        enabledElementProgress(KEY_COMMENT_WALK.IS_COMMENT_WALK_PROCESSING);
+      }
+      setIsCommentWalkProcessing(isProgressCommentWalk);
 
       const isFixStealFocus = await getIsFixStealFocusData();
       setIsFixStealFocus(isFixStealFocus);
@@ -145,6 +178,60 @@ async function initialData({ anchorElement = document.body }) {
 
       const isSpecialFrameHours = await getIsSpecialFrameHoursData();
       setIsSpecialFrameHours(isSpecialFrameHours);
+
+      const timeBreakWhenSpammed = await getTimeBreakWhenSpammedData();
+      if (!timeBreakWhenSpammed) {
+        await setTimeBreakWhenSpammedData(
+          KEY_DEFAULT_VALUE.DEFAULT_TIME_BREAK_WHEN_SPAMMED,
+        );
+        setTimeBreakWhenSpammed(
+          KEY_DEFAULT_VALUE.DEFAULT_TIME_BREAK_WHEN_SPAMMED,
+        );
+      } else {
+        setTimeBreakWhenSpammed(timeBreakWhenSpammed);
+      }
+
+      const contentQueryIncludes = await getContentQueryIncludesCommonData();
+      if (contentQueryIncludes) {
+        setContentQueryIncludesCommon(contentQueryIncludes.join(", "));
+      } else {
+        await setContentQueryIncludesCommonData(
+          KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_INCLUDES_COMMON,
+        );
+        setContentQueryIncludesCommon(
+          KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_INCLUDES_COMMON.join(", "),
+        );
+      }
+
+      const contentQueryExcludes = await getContentQueryExcludesCommonData();
+      if (contentQueryExcludes) {
+        setContentQueryExcludesCommon(contentQueryExcludes.join(", "));
+      } else {
+        await setContentQueryExcludesCommonData(
+          KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON,
+        );
+        setContentQueryExcludesCommon(
+          KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON.join(", "),
+        );
+      }
+
+      const matchRateValueContentQueryIncludesCommon =
+        await getMatchRateValueContentQueryIncludesCommonData();
+      if (matchRateValueContentQueryIncludesCommon) {
+        setMatchRateValueContentQueryIncludesCommon(
+          matchRateValueContentQueryIncludesCommon,
+        );
+      } else {
+        await setMatchRateValueContentQueryIncludesCommonData(
+          KEY_DEFAULT_VALUE.DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
+        );
+        setMatchRateValueContentQueryIncludesCommon(
+          KEY_DEFAULT_VALUE.DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
+        );
+      }
+
+      const isStopTask = await getIsStopTaskData();
+      setStatusTool(!isStopTask);
 
       const isScheduler = await getIsSchedulerData();
 
@@ -197,6 +284,12 @@ async function initialData({ anchorElement = document.body }) {
         await setMaxPostInteractService(maxPost);
       }
       setMaxPostInteract(maxPost);
+
+      const maxCommentWalkPerBatch = await getMaxCommentWalkPerBatchData();
+      setMaxCommentWalkPerBatch(maxCommentWalkPerBatch);
+
+      const isCommentWalk = await getIsCommentWalkData();
+      setIsCommentWalk(isCommentWalk);
     }
 
     await initialSettings();
@@ -247,6 +340,44 @@ async function initialData({ anchorElement = document.body }) {
           timeDelay.time_delay_open_new_tab ||
           initialTimeDelay.time_delay_open_new_tab;
       }
+
+      const timeDelayCommentWalk = await getTimeDelayCommentWalk();
+
+      const inputTimeDelayFillContentCommentWalkMin =
+        anchorElement.querySelector(
+          `#tm_input-time-delay-fill-content-comment-walk-min`,
+        );
+      const inputTimeDelayFillContentCommentWalkMax =
+        anchorElement.querySelector(
+          `#tm_input-time-delay-fill-content-comment-walk-max`,
+        );
+      const inputTimeDelayFillFileCommentWalk = anchorElement.querySelector(
+        `#tm_input-time-delay-fill-file-comment-walk`,
+      );
+      const inputTimeDelaySubmitCommentWalk = anchorElement.querySelector(
+        `#tm_input-time-delay-submit-comment-walk`,
+      );
+
+      if (inputTimeDelayFillContentCommentWalkMin) {
+        inputTimeDelayFillContentCommentWalkMin.value =
+          timeDelayCommentWalk.time_delay_fill_content_comment_walk_min ||
+          DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_content_comment_walk_min;
+      }
+      if (inputTimeDelayFillContentCommentWalkMax) {
+        inputTimeDelayFillContentCommentWalkMax.value =
+          timeDelayCommentWalk.time_delay_fill_content_comment_walk_max ||
+          DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_content_comment_walk_max;
+      }
+      if (inputTimeDelayFillFileCommentWalk) {
+        inputTimeDelayFillFileCommentWalk.value =
+          timeDelayCommentWalk.time_delay_fill_file_comment_walk ||
+          DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_file_comment_walk;
+      }
+      if (inputTimeDelaySubmitCommentWalk) {
+        inputTimeDelaySubmitCommentWalk.value =
+          timeDelayCommentWalk.time_delay_submit_comment_walk ||
+          DEFAULT_COMMENT_WALK_SETTING.time_delay_submit_comment_walk;
+      }
     }
 
     await initialInputTimeDelay();
@@ -272,6 +403,7 @@ async function initialData({ anchorElement = document.body }) {
         fieldSelector: ".tm_field-container",
       });
       showElement("#tm_btn-click");
+      showElement("#tm_btn-click-2");
       showField({
         selector: "#tm_checkbox-is-spammed",
         fieldSelector: ".tm_field-container",
@@ -283,6 +415,7 @@ async function initialData({ anchorElement = document.body }) {
         fieldSelector: ".tm_field-container",
       });
       hideElement("#tm_btn-click");
+      hideElement("#tm_btn-click-2");
       hideField({
         selector: "#tm_checkbox-is-spammed",
         fieldSelector: ".tm_field-container",
@@ -291,12 +424,12 @@ async function initialData({ anchorElement = document.body }) {
     }
 
     const isPremium = await getPremiumService();
-    handleShowOrHideElementPremium(isPremium);
+    await handleShowOrHideElementPremium(isPremium);
 
     await updateDataSavedInfo();
     await initHistoryLogs();
   } catch (error) {
-    logError("Error initialData: " + error);
+    logError("Error initialData: ", error);
   }
 }
 

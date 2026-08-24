@@ -8,7 +8,6 @@ import {
   createSchedulerDailyHours,
   getCorrectNextTime,
   getNextTimePost,
-  getNextTimePostWhenSpammed,
 } from "../helpers/scheduler.js";
 import { logActions, logError, random } from "../utils/utils.js";
 
@@ -18,8 +17,6 @@ import { getDeviceId } from "./device-service.js";
 import {
   getIsRandomTimePostData,
   getIsSchedulerData,
-  getIsSpammedData,
-  setIsSpammedData,
 } from "./setting-service.js";
 import { getIsUseLocalStorage } from "./storage-global-service.js";
 import {
@@ -48,6 +45,13 @@ import {
  */
 
 let schedulerSetting = null;
+
+const initScheduler = {
+  scheduler_type: SCHEDULER_TYPE.DAILY_HOURS,
+  is_scheduler: false,
+};
+
+let timeoutId = null;
 
 async function createSchedulerAuto(forceTime = 0) {
   try {
@@ -106,8 +110,6 @@ async function getAlarmScheduler() {
   }
 }
 
-let timeoutId = null;
-
 /**
  *  @description This function clear scheduler auto and create scheduler auto again,
  * must user is not spammed and not in progress
@@ -127,22 +129,14 @@ async function clearAndCreateSchedulerAlarm() {
     }
 
     clearSchedulerAuto();
-    let isSpammed = await getIsSpammedData();
-    const timeSpammed = await getNextTimePostWhenSpammed();
+
     const time = await getNextTimePost();
-
-    const nowMs = Date.now();
-
-    if (isSpammed && timeSpammed < nowMs) {
-      await setIsSpammedData(false);
-      isSpammed = false;
-    }
 
     const timeDelay = await getTimeDelayForScheduler();
 
     timeoutId = setTimeout(async () => {
       await Promise.all([
-        createSchedulerAuto(isSpammed ? timeSpammed : time + timeDelay),
+        createSchedulerAuto(time + timeDelay),
         setTimeDelayForScheduler(0),
       ]);
     }, 2000);
@@ -154,11 +148,6 @@ async function clearAndCreateSchedulerAlarm() {
     });
   }
 }
-
-const initScheduler = {
-  scheduler_type: SCHEDULER_TYPE.DAILY_HOURS,
-  is_scheduler: false,
-};
 
 /**
  *
@@ -205,6 +194,7 @@ async function setSchedulerInStorage(schduler) {
 async function getSchedulerInStorage() {
   try {
     const scheduler = await DB_getValue(KEY_SCHEDULER);
+    if (!scheduler || !Object.keys(scheduler).length) return null;
     return scheduler;
   } catch (error) {
     throw error;
@@ -438,6 +428,8 @@ async function changeTypeScheduler(type) {
         await setSchedulerDetail(type, initDetails);
         details = initDetails;
       }
+
+      return details;
     }
 
     const deviceId = await getDeviceId();

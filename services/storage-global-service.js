@@ -1,11 +1,12 @@
 import { KEY_IS_USE_LOCAL_STORAGE } from "../contants/constant-extention.js";
 import { KEY_IS_DARK_THEME } from "../contants/contants.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
+import { logError } from "../utils/utils.js";
 
 let isUseLocalStorage = null;
 
-function getIsUseLocalStorage() {
-  return isUseLocalStorage;
+async function getIsUseLocalStorage() {
+  return await DB_getValue(KEY_IS_USE_LOCAL_STORAGE, true);
 }
 
 async function setIsUseLocalStorage(b = false) {
@@ -23,15 +24,15 @@ async function initIsUseLocalStorage() {
   }
 }
 
-let theme = "light";
+const map = new Map();
 
 async function initialTheme() {
   try {
     const isDark = (await DB_getValue(KEY_IS_DARK_THEME)) || false;
     if (isDark) {
-      theme = "dark";
+      map.set("theme", "dark");
     } else {
-      theme = "light";
+      map.set("theme", "light");
     }
   } catch (error) {
     logError("Error initialTheme: " + error);
@@ -40,7 +41,7 @@ async function initialTheme() {
 
 async function setTheme(isDark) {
   try {
-    theme = isDark ? "dark" : "light";
+    map.set("theme", isDark ? "dark" : "light");
     await DB_setValue(KEY_IS_DARK_THEME, isDark);
   } catch (error) {
     logError("Error setTheme: " + error);
@@ -48,7 +49,7 @@ async function setTheme(isDark) {
 }
 
 function getTheme() {
-  return theme;
+  return map.get("theme") || "light";
 }
 
 export {

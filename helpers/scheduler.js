@@ -273,29 +273,14 @@ async function getNextTimePost() {
     return ans;
   } catch (error) {
     logError("Error at getNextTimePost: ", error);
-    return null;
+    return 0;
   }
-}
-
-async function getNextTimePostWhenSpammed() {
-  let nextTime = await DB_getValue(KEY_NEXT_TIME_POST_WHEN_SPAMMED);
-  if (!nextTime) {
-    nextTime = new Date().getTime() + 1000 * 60 * 60 * 24 * 2;
-    await DB_setValue(KEY_NEXT_TIME_POST_WHEN_SPAMMED, nextTime);
-  }
-  return nextTime;
 }
 
 async function getCorrectNextTime() {
   try {
-    const isSpammed = await getIsSpammedData();
-    let nextTime = 0;
-    if (isSpammed) {
-      nextTime = await getNextTimePostWhenSpammed();
-    } else {
-      const timeDelay = await getTimeDelayForScheduler();
-      nextTime = (await getNextTimePost()) + timeDelay;
-    }
+    const timeDelay = await getTimeDelayForScheduler();
+    let nextTime = (await getNextTimePost()) + timeDelay;
 
     return nextTime;
   } catch (error) {
@@ -311,11 +296,11 @@ async function logSchedulerHelper() {
 
     const nextTime = await getCorrectNextTime();
     const date = new Date(nextTime);
-    let text_vi = "Đăng bài tự động theo lịch trình đang được bật";
-    let text_en = "Auto posting schedule is enabled";
+    let text_vi = "Công việc tự động theo lịch trình đang được bật";
+    let text_en = "Auto schedule task is enabled";
 
-    text_vi += `, thời gian đăng bài tiếp theo trong bộ lịch: ${date.toLocaleString()}`;
-    text_en += `, the next posting time in schedule: ${date.toLocaleString()}`;
+    text_vi += `, thời gian thực hiện công việc tiếp theo trong bộ lịch: ${date.toLocaleString()}`;
+    text_en += `, the next task time in schedule: ${date.toLocaleString()}`;
 
     addLog({
       vi: text_vi,
@@ -334,7 +319,6 @@ export {
   convertFrameHours,
   getNextTimePost,
   shuffleTimes,
-  getNextTimePostWhenSpammed,
   getCorrectNextTime,
   logSchedulerHelper,
 };
