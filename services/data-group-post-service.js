@@ -426,7 +426,7 @@ async function exportDataGroupPost(data) {
 
   if (Array.isArray(data)) {
     let time = new Date().toLocaleString().replace(/[,:\\/\s]/g, "_");
-    name = `data_groups_${time}.json`;
+    name = `list_data_groups_${time}.json`;
   } else {
     name = `data_group_post_for_${data.name}.json`;
   }

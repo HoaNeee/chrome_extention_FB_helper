@@ -122,9 +122,13 @@ const commentWalkService = {
   async updateStatusCommentWalk(id, isActive) {
     const listCommentWalkActive = await this.getListIdCommentWalkActive();
     if (isActive) {
+      if (listCommentWalkActive.includes(id)) return;
       listCommentWalkActive.push(id);
     } else {
-      listCommentWalkActive.splice(listCommentWalkActive.indexOf(id), 1);
+      const index = listCommentWalkActive.indexOf(id);
+      if (index > -1) {
+        listCommentWalkActive.splice(index, 1);
+      }
     }
     await this.setListIdCommentWalkActive(listCommentWalkActive);
   },
