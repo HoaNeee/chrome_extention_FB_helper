@@ -1473,9 +1473,9 @@
               await updateLastTimePost(now());
             }
           } else {
-            const text2 = await CL_getTextWithLang({
-              viText: "Kh\xF4ng th\u1EC3 t\xECm \xF4 \u0111\u0103ng b\xE0i",
-              enText: "Not found content input box"
+            const text2 = getTextLanguageContent({
+              vi: "Kh\xF4ng th\u1EC3 t\xECm \xF4 \u0111\u0103ng b\xE0i",
+              en: "Not found content input box"
             });
             throw new Error(text2);
           }
@@ -1488,9 +1488,9 @@
         });
         return true;
       }
-      const text = await CL_getTextWithLang({
-        viText: "Kh\xF4ng t\xECm \u0111\u01B0\u1EE3c th\u1EBB click \u0111\u1EC3 t\u1EA1o \xF4 input",
-        enText: "Not found button to create input tag"
+      const text = getTextLanguageContent({
+        vi: "Kh\xF4ng t\xECm \u0111\u01B0\u1EE3c th\u1EBB click \u0111\u1EC3 t\u1EA1o \xF4 input",
+        en: "Not found button to create input tag"
       });
       throw new Error(text);
     } catch (error) {
@@ -2595,19 +2595,23 @@
           sendMessage(KEY_NEXT_POST_GROUP, {});
           const isTest = await CL_getValue(KEY_IS_TEST, false);
           if (isTest) {
-            logContent({
-              vi: "\u0110ang test, tab s\u1EBD \u0111\xF3ng sau 15s",
-              en: "Is test, tab will close after 15s"
-            });
+            logContent(
+              getTextLanguageContent({
+                vi: "\u0110ang test, tab s\u1EBD \u0111\xF3ng sau 15s",
+                en: "Is test, tab will close after 15s"
+              })
+            );
             setTimeout(() => {
               sendMessage(KEY_CLOSE_THIS_TAB, {});
             }, 15 * 1e3);
           } else {
             const closeDelay = random(35, 55);
-            logContent({
-              vi: `C\xF4ng vi\u1EC7c \u0111\xE3 ho\xE0n th\xE0nh, tab n\xE0y s\u1EBD \u0111\xF3ng sau ${closeDelay}s`,
-              en: `Task completed, this tab will close after ${closeDelay}s`
-            });
+            logContent(
+              getTextLanguageContent({
+                vi: `C\xF4ng vi\u1EC7c \u0111\xE3 ho\xE0n th\xE0nh, tab n\xE0y s\u1EBD \u0111\xF3ng sau ${closeDelay}s`,
+                en: `Task completed, this tab will close after ${closeDelay}s`
+              })
+            );
             setTimeout(() => {
               sendMessage(KEY_CLOSE_THIS_TAB, {});
             }, closeDelay * 1e3);

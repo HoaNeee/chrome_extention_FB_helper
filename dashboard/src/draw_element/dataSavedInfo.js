@@ -4,6 +4,7 @@ import {
   prefix,
   SCHEDULER_TYPE,
 } from "../../../contants/contants.js";
+import { deviceHelper } from "../../../helpers/device-helper.js";
 import {
   getTimeToPostOneGroup,
   getTotalGroupsNeedPost,
@@ -11,10 +12,7 @@ import {
 import { getNextTimePost } from "../../../helpers/scheduler.js";
 import { commentWalkService } from "../../../services/comment-walk-service.js";
 import { getCurrentDataGroupPosting } from "../../../services/data-group-post-service.js";
-import {
-  getCurrentTaskName,
-  getTaskLabelWithName,
-} from "../../../services/device-service.js";
+import { getCurrentTaskName } from "../../../services/device-service.js";
 import {
   getAllDataGroupsInStorage,
   getAllGroupPostedsInStorage,
@@ -177,7 +175,7 @@ function getDataSavedHTML({
 
   const groupsHtml = `
       ${isPremium ? `<div>${getTextWithLanguage({ vi: "Trạng thái tiện ích", en: "Extension status" })}: <span style="color: ${colorByDisabled(!isStopTask)};">${enabledString(!isStopTask)}</span></div>` : ``}
-      ${isPremium ? `<div>${getTextWithLanguage({ vi: "Công việc hiện tại", en: "Current job" })}: <span>${getTaskLabelWithName(currentTaskName)}</span></div>` : ``}
+      ${isPremium ? `<div>${getTextWithLanguage({ vi: "Công việc hiện tại", en: "Current job" })}: <span>${deviceHelper.getTaskLabelWithName(currentTaskName)}</span></div>` : ``}
       <div>${getTextWithLanguage({ vi: "Tổng số nhóm", en: "Total Groups" })}: <b>${allGroups.length}</b></div>
       <div>${getTextWithLanguage({ vi: "Số nhóm cần đăng", en: "Total Groups Need Post" })}: <b>${totalGroupsNeedPost}</b></div>
       <div>${getTextWithLanguage({ vi: "Số nhóm đã đăng", en: "Total Groups Posted" })}: <b>${groupsPosted.length}</b></div>
@@ -306,8 +304,8 @@ function getDataSavedAtDashboardHTML({
   const maxJob = getMaxJob();
   const lastTimeJobDone = getLastTimeJobDone();
   const typeJob = isPremium
-    ? getTaskLabelWithName(currentTaskName)
-    : getTaskLabelWithName(KEY_TASK_NAME.POST);
+    ? deviceHelper.getTaskLabelWithName(currentTaskName)
+    : deviceHelper.getTaskLabelWithName(KEY_TASK_NAME.POST);
 
   return `
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%;">

@@ -1,16 +1,14 @@
-import { DEFAULT_DEVICE_ID } from "../contants/constant-extention.js";
 import {
   KEY_CURRENT_TASK,
   KEY_DEVICE,
-  KEY_PRIORITY_TASK,
   KEY_TASK_NAME,
   KEY_USED_TO_LOGINED_THIS_DEVICE,
 } from "../contants/contants.js";
+import { deviceHelper } from "../helpers/device-helper.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import { post } from "../utils/request.js";
 import {
   genID,
-  getTextWithLanguage,
   logError,
   random,
   randomNumberValue,
@@ -130,7 +128,7 @@ async function getListTask() {
   const data = [];
 
   for (const k in priorityTask) {
-    const name = getTaskName(k);
+    const name = deviceHelper.getTaskName(k);
     data.push({
       name,
       priority: priorityTask[k],
@@ -168,33 +166,6 @@ async function getListTaskNameInactive() {
   return list
     .filter((i) => !listActiveName.includes(i.name))
     .map((i) => i.name);
-}
-
-function getTaskName(key) {
-  for (const k in KEY_TASK_NAME) {
-    if (key.includes(KEY_TASK_NAME[k])) return KEY_TASK_NAME[k];
-  }
-  return KEY_TASK_NAME.UNKNOWN;
-}
-
-function getTaskLabelWithName(name) {
-  switch (name) {
-    case KEY_TASK_NAME.POST:
-      return getTextWithLanguage({
-        vi: "Đăng bài",
-        en: "Post",
-      });
-    case KEY_TASK_NAME.COMMENT_WALK:
-      return getTextWithLanguage({
-        vi: "Bình luận dạo",
-        en: "Comment walk",
-      });
-    default:
-      return getTextWithLanguage({
-        vi: "Không xác định",
-        en: "Unknown",
-      });
-  }
 }
 
 async function getRandomTaskNameWithPriority() {
@@ -244,14 +215,15 @@ async function getRandomTaskNameWithPriority() {
 }
 
 async function checkTaskActive(taskName) {
-  switch (taskName) {
-    case KEY_TASK_NAME.POST:
-      return !(await getIsSpammedData());
-    case KEY_TASK_NAME.COMMENT_WALK:
-      return true;
-    default:
-      return false;
+  if (taskName === KEY_TASK_NAME.POST) {
+    return !(await getIsSpammedData());
   }
+
+  if (taskName === KEY_TASK_NAME.COMMENT_WALK) {
+    return true;
+  }
+
+  return false;
 }
 
 async function getCurrentTaskName() {
@@ -263,20 +235,19 @@ async function setCurrentTaskName(taskName) {
 }
 
 export {
-  getDeviceId,
-  getUsedToLoginedThisDevice,
-  setUsedToLoginedThisDevice,
-  getDeviceFromStorage,
-  setDeviceInStorage,
+  checkTaskActive,
   createNewDevice,
   createNewDeviceAndForceSave,
-  getDeviceTypeByBrowser,
   createNewDeviceRequest,
-  getListTask,
-  getRandomTaskNameWithPriority,
-  getListTaskNameInactive,
-  getTaskLabelWithName,
-  checkTaskActive,
   getCurrentTaskName,
+  getDeviceFromStorage,
+  getDeviceId,
+  getDeviceTypeByBrowser,
+  getListTask,
+  getListTaskNameInactive,
+  getRandomTaskNameWithPriority,
+  getUsedToLoginedThisDevice,
   setCurrentTaskName,
+  setDeviceInStorage,
+  setUsedToLoginedThisDevice,
 };

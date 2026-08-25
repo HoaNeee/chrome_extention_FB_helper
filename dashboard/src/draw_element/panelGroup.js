@@ -8,6 +8,8 @@ import { drawEditor } from "./editor.js";
 import { findLabelSetedUpAndAddTippy } from "../../../helpers/elementDom.js";
 import { prefix } from "../../../contants/contants.js";
 import { drawPreviewImage, initialFile } from "../../../helpers/file.js";
+import { closeDialogLoading, showDialogLoading } from "./dialog.js";
+import { createButtonConfirm } from "./button.js";
 
 /**
  *
@@ -306,6 +308,8 @@ function drawPanelGroup({
     const divBtn = document.createElement("div");
     divBtn.style.display = "flex";
     divBtn.style.justifyContent = "flex-end";
+    divBtn.style.gap = "8px";
+    divBtn.style.alignItems = "center";
 
     const btnSave = document.createElement("button");
     btnSave.innerText = getTextWithLanguage({
@@ -317,6 +321,7 @@ function drawPanelGroup({
 
     btnSave.addEventListener("click", async () => {
       try {
+        showDialogLoading();
         const files = Array.from(inputFile.files);
         const payload = {
           id: id || genID(),
@@ -361,56 +366,78 @@ function drawPanelGroup({
             en: "Error: " + error,
           }),
         );
+      } finally {
+        closeDialogLoading();
       }
     });
 
     if (type === "edit") {
-      const btnDelete = document.createElement("button");
-      btnDelete.innerText = getTextWithLanguage({
-        vi: "Xóa",
-        en: "Delete",
+      const btnDelete = createButtonConfirm({
+        title: getTextWithLanguage({
+          vi: "Xóa",
+          en: "Delete",
+        }),
+        titleConfirm: getTextWithLanguage({
+          vi: "Xác nhận",
+          en: "Confirm",
+        }),
+        onConfirm: () => {
+          onDelete?.();
+        },
       });
-      btnDelete.style.marginRight = "8px";
+
+      // document.createElement("button");
+      // btnDelete.innerText = getTextWithLanguage({
+      //   vi: "Xóa",
+      //   en: "Delete",
+      // });
+      // btnDelete.style.marginRight = "8px";
 
       divBtn.insertBefore(btnDelete, btnSave);
 
-      let isConfirmingDelete = false;
-      let timeoutId = null;
-      btnDelete.addEventListener("click", () => {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-        if (isConfirmingDelete) {
-          onDelete?.();
-        } else {
-          btnDelete.innerText = getTextWithLanguage({
-            vi: "Xác nhận",
-            en: "Confirm",
-          });
-          isConfirmingDelete = true;
-          btnDelete.style.backgroundColor = "red";
-          timeoutId = setTimeout(() => {
-            btnDelete.innerText = getTextWithLanguage({
-              vi: "Xóa",
-              en: "Delete",
-            });
-            btnDelete.style.backgroundColor = "";
-            isConfirmingDelete = false;
-          }, 3000);
-        }
-      });
+      // let isConfirmingDelete = false;
+      // let timeoutId = null;
+      // btnDelete.addEventListener("click", () => {
+      //   if (timeoutId) {
+      //     clearTimeout(timeoutId);
+      //   }
+      //   if (isConfirmingDelete) {
+      //     onDelete?.();
+      //   } else {
+      //     btnDelete.innerText = getTextWithLanguage({
+      //       vi: "Xác nhận",
+      //       en: "Confirm",
+      //     });
+      //     isConfirmingDelete = true;
+      //     btnDelete.style.backgroundColor = "red";
+      //     timeoutId = setTimeout(() => {
+      //       btnDelete.innerText = getTextWithLanguage({
+      //         vi: "Xóa",
+      //         en: "Delete",
+      //       });
+      //       btnDelete.style.backgroundColor = "";
+      //       isConfirmingDelete = false;
+      //     }, 3000);
+      //   }
+      // });
 
       const btnExport = document.createElement("button");
       btnExport.innerText = getTextWithLanguage({
         vi: "Xuất",
         en: "Export",
       });
-      btnExport.style.marginRight = "8px";
 
       divBtn.insertBefore(btnExport, btnDelete);
 
       btnExport.addEventListener("click", async () => {
-        await exportDataGroupPost(initialData);
+        try {
+          showDialogLoading();
+          await exportDataGroupPost(initialData);
+        } catch (error) {
+          logError("Error at exportGroup: " + error);
+        } finally {
+          closeDialogLoading();
+        }
       });
     }
 

@@ -129,10 +129,12 @@ const commentWalkService = {
     await this.setListIdCommentWalkActive(listCommentWalkActive);
   },
 
+  /**
+   *
+   * @returns {Promise<string[]>}
+   */
   async getListIdCommentWalkActive() {
-    return (
-      (await DB_getValue(KEY_COMMENT_WALK.LIST_ID_COMMENT_WALK_ACTIVE)) || []
-    );
+    return await DB_getValue(KEY_COMMENT_WALK.LIST_ID_COMMENT_WALK_ACTIVE, []);
   },
 
   async setListIdCommentWalkActive(ids) {

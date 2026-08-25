@@ -42,6 +42,7 @@ import {
   URL_LIST_GROUPS,
 } from "./contants/contants.js";
 import { addLog } from "./dashboard/src/draw_element/panel-log.js";
+import { deviceHelper } from "./helpers/device-helper.js";
 import {
   checkPostedAllGroupOrMaxGroupPerTime,
   resetPostedGroupAndSave,
@@ -74,7 +75,6 @@ import {
   getDeviceFromStorage,
   getListTaskNameInactive,
   getRandomTaskNameWithPriority,
-  getTaskLabelWithName,
   setCurrentTaskName,
 } from "./services/device-service.js";
 import {
@@ -1282,7 +1282,7 @@ async function handleOnAlarm(alarm) {
       const listTaskNameInactive = await getListTaskNameInactive();
       if (listTaskNameInactive.length) {
         const listLabelTask = listTaskNameInactive
-          .map((i) => getTaskLabelWithName(i))
+          .map((i) => deviceHelper.getTaskLabelWithName(i))
           .join(", ");
 
         addLog({
@@ -1300,8 +1300,11 @@ async function handleOnAlarm(alarm) {
 
       addLog({
         vi:
-          "Công việc hiện tại của tiện ích: " + getTaskLabelWithName(taskName),
-        en: "Current task of the tool: " + getTaskLabelWithName(taskName),
+          "Công việc hiện tại của tiện ích: " +
+          deviceHelper.getTaskLabelWithName(taskName),
+        en:
+          "Current task of the tool: " +
+          deviceHelper.getTaskLabelWithName(taskName),
       });
 
       switch (taskName) {
@@ -1463,29 +1466,6 @@ async function handleOnAlarm(alarm) {
           return;
         }
 
-        // if (isCommentWalk) {
-        //   addLog({
-        //     vi: "Chức năng bình luận dạo đang được bật, công việc hiện tại của tiện ích là bình luận dạo",
-        //     en: "The function of commenting walk is enabled, the current task of the tool is commenting walk",
-        //   });
-        //   await automationCommentWalk();
-        // } else {
-        //   if (isSpammed) {
-        //     await logWhenSpammedPost();
-        //     return;
-        //   }
-        //   const isCommentWhenPost = await getIsCommentWhenPostSuccessData();
-        //   if (isCommentWhenPost) {
-        //     addLog({
-        //       vi: "Chức năng bình luận sau khi đăng bài đang được bật, bình luận sẽ được ngẫu nhiên thực hiện hoặc không sau khi hoàn tất việc đăng bài",
-        //       en: "The function of commenting after posting is enabled, will be performed or not randomly after completing the posting",
-        //     });
-        //   }
-        //   await randomInteractBeforePost();
-
-        //   await automationContinue();
-        // }
-
         await handleExecuteTask();
 
         return;
@@ -1523,24 +1503,6 @@ async function handleOnAlarm(alarm) {
         return;
       }
 
-      // if (isCommentWalk) {
-      //   addLog({
-      //     vi: "Chức năng bình luận dạo đang được bật, công việc hiện tại của tiện ích là bình luận dạo",
-      //     en: "The function of commenting walk is enabled, the current task of the tool is commenting walk",
-      //   });
-      //   await automationCommentWalk();
-      //   return;
-      // }
-
-      // if (isSpammed) {
-      //   await logWhenSpammedPost();
-      //   return;
-      // }
-
-      // await randomInteractBeforePost();
-
-      // await automationContinue();
-
       await handleExecuteTask();
 
       const isShuffle =
@@ -1549,11 +1511,12 @@ async function handleOnAlarm(alarm) {
         shuffleTimes();
       }
 
+      //TODO: FIX LATER
       //force create schduler when tab post maybe frozen
-      const isScheduler = await getIsSchedulerData();
-      if (isScheduler) {
-        clearAndCreateSchedulerAlarm();
-      }
+      // const isScheduler = await getIsSchedulerData();
+      // if (isScheduler) {
+      //   clearAndCreateSchedulerAlarm();
+      // }
     }
   } catch (error) {
     logError("Error at alarm: ", error);

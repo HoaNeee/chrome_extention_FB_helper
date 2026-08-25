@@ -2,6 +2,7 @@ import { KEY_POST, KEY_TAB, STATUS_TASK } from "../contants/contants.js";
 import { showNotify } from "../dashboard/src/draw_element/notify.js";
 import { addLog } from "../dashboard/src/draw_element/panel-log.js";
 import { commentWalkHelper } from "../helpers/comment-walk.js";
+import { logSchedulerHelper } from "../helpers/scheduler.js";
 import { DB_openInTab, DB_setValue } from "../utils/api-helper.js";
 import {
   getTextWithLanguage,
@@ -92,12 +93,14 @@ async function autoWithFirstTask() {
       if (!listGroups.length) {
         showNotify({
           message: getTextWithLanguage({
-            vi: "Không có dữ liệu nhóm cần đăng",
-            en: "No group need post",
+            vi: "Không có dữ liệu nhóm cần đăng, tác vụ đợt này bị tàm dừng",
+            en: "No group need post, this batch has been paused",
           }),
           type: "error",
         });
         setProgress(false);
+        clearAndCreateSchedulerAlarm();
+        logSchedulerHelper();
         return;
       }
 
@@ -111,6 +114,8 @@ async function autoWithFirstTask() {
           en: "The task has been paused because no data was selected for this batch, please select at least 1 data to post.",
         });
         setProgress(false);
+        clearAndCreateSchedulerAlarm();
+        logSchedulerHelper();
         return;
       }
 
@@ -138,6 +143,8 @@ async function autoWithFirstTask() {
           type: "error",
         });
         setProgress(false);
+        clearAndCreateSchedulerAlarm();
+        logSchedulerHelper();
         return;
       }
 
@@ -206,7 +213,9 @@ async function automationHelper({ isTest = false } = {}) {
         vi: "Tác vụ đã bị tạm dừng do không có dữ liệu nhóm",
         en: "The task has been paused because there is no group data",
       });
-      await setProgress(false);
+      setProgress(false);
+      clearAndCreateSchedulerAlarm();
+      logSchedulerHelper();
       return;
     }
 
@@ -216,27 +225,20 @@ async function automationHelper({ isTest = false } = {}) {
       !Array.isArray(indexsChecked) ||
       !indexsChecked.length
     ) {
+      setProgress(false);
       showNotify({
-        message: "No group checked need post, please check again",
+        message: getTextWithLanguage({
+          vi: "Đợt đăng bài này không có dữ liệu nào được chọn, hãy chọn ít nhất 1 dữ liệu để đăng",
+          en: "No group checked need post, please check again",
+        }),
         type: "error",
       });
-      setProgress(false);
       addLog({
         vi: "Tác vụ đã bị tạm dừng do đợt đăng bài này không có dữ liệu nào được chọn, hãy chọn ít nhất 1 dữ liệu để đăng.",
         en: "The task has been paused because no data was selected for this batch, please select at least 1 data to post.",
       });
-      return;
-    }
-
-    const listGroups = allGroups;
-
-    if (!listGroups.length) {
-      showNotify({ message: "No group found", type: "error" });
-      addLog({
-        vi: "Tác vụ đã bị tạm dừng do danh sách nhóm trống, hãy lấy danh sách nhóm trước hoặc tham gia thêm vào các nhóm sau đó lấy lại dữ liệu.",
-        en: "The task has been paused because the list of groups is empty. Please get the list of groups first or join more groups and then get the data again.",
-      });
-      await setProgress(false);
+      clearAndCreateSchedulerAlarm();
+      logSchedulerHelper();
       return;
     }
 
@@ -248,10 +250,10 @@ async function automationHelper({ isTest = false } = {}) {
 
     autoWithFirstTask();
   } catch (error) {
-    logError("Error at automation: " + error);
+    logError("Error at automation: " + error.message || error);
     addLog({
-      vi: `Lỗi hệ thống. ${error}`,
-      en: `System error. ${error}`,
+      vi: `Lỗi hệ thống. ${error.message || error}`,
+      en: `System error. ${error.message || error}`,
     });
     setProgress(false);
     throw error;

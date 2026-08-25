@@ -96,11 +96,17 @@ export default function addValueChangeListener() {
             }
 
             //Fake send message from background
-            if (key === KEY_MESSAGE_FROM_BACKGROUND.AUTOMATION.COMMENT_WALK) {
-              await automationCommentWalk();
-            }
-            if (key === KEY_MESSAGE_FROM_BACKGROUND.AUTOMATION.POST_CONTINUE) {
-              await automationContinue();
+            try {
+              if (key === KEY_MESSAGE_FROM_BACKGROUND.AUTOMATION.COMMENT_WALK) {
+                await automationCommentWalk();
+              }
+              if (
+                key === KEY_MESSAGE_FROM_BACKGROUND.AUTOMATION.POST_CONTINUE
+              ) {
+                await automationContinue();
+              }
+            } catch (error) {
+              logError("listener - automation error: ", error);
             }
 
             updateDataSavedInfo();

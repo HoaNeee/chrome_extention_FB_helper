@@ -179,19 +179,23 @@ async function main() {
         //close this tab
         const isTest = await CL_getValue(KEY_IS_TEST, false);
         if (isTest) {
-          logContent({
-            vi: "Đang test, tab sẽ đóng sau 15s",
-            en: "Is test, tab will close after 15s",
-          });
+          logContent(
+            getTextLanguageContent({
+              vi: "Đang test, tab sẽ đóng sau 15s",
+              en: "Is test, tab will close after 15s",
+            }),
+          );
           setTimeout(() => {
             sendMessage(KEY_CLOSE_THIS_TAB, {});
           }, 15 * 1000);
         } else {
           const closeDelay = random(35, 55);
-          logContent({
-            vi: `Công việc đã hoàn thành, tab này sẽ đóng sau ${closeDelay}s`,
-            en: `Task completed, this tab will close after ${closeDelay}s`,
-          });
+          logContent(
+            getTextLanguageContent({
+              vi: `Công việc đã hoàn thành, tab này sẽ đóng sau ${closeDelay}s`,
+              en: `Task completed, this tab will close after ${closeDelay}s`,
+            }),
+          );
           setTimeout(() => {
             sendMessage(KEY_CLOSE_THIS_TAB, {});
           }, closeDelay * 1000);

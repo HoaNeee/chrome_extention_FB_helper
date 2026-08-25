@@ -314,9 +314,9 @@ async function postHelper(task) {
             await updateLastTimePost(now());
           }
         } else {
-          const text = await CL_getTextWithLang({
-            viText: "Không thể tìm ô đăng bài",
-            enText: "Not found content input box",
+          const text = getTextLanguageContent({
+            vi: "Không thể tìm ô đăng bài",
+            en: "Not found content input box",
           });
           throw new Error(text);
         }
@@ -333,9 +333,9 @@ async function postHelper(task) {
       return true;
     }
 
-    const text = await CL_getTextWithLang({
-      viText: "Không tìm được thẻ click để tạo ô input",
-      enText: "Not found button to create input tag",
+    const text = getTextLanguageContent({
+      vi: "Không tìm được thẻ click để tạo ô input",
+      en: "Not found button to create input tag",
     });
     throw new Error(text);
   } catch (error) {

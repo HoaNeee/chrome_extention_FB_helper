@@ -16,10 +16,6 @@ import {
   parseUrlToBlob,
 } from "../utils/utils.js";
 
-/**
- * @typedef {import("../services/comment-walk-service.js").CommentWalkType} CommentWalkType
- */
-
 const commentWalkHelper = {
   async goToPageSearch(query) {
     try {

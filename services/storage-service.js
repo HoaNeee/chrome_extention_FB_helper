@@ -24,7 +24,11 @@ import Queue from "../utils/queue.js";
 import { logError, now } from "../utils/utils.js";
 
 async function setProgress(b) {
-  await DB_setValue(KEY_IS_IN_PROGRESS, b);
+  try {
+    await DB_setValue(KEY_IS_IN_PROGRESS, b);
+  } catch (error) {
+    logError("Error at setProgress in storage-service: " + error);
+  }
 }
 
 async function getProgress() {

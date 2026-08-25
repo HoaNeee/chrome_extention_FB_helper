@@ -17,7 +17,6 @@ import {
   automationTest,
 } from "../../../services/automation-service.js";
 import { commentWalkService } from "../../../services/comment-walk-service.js";
-import { getRandomTaskNameWithPriority } from "../../../services/device-service.js";
 import {
   getListGroupsService,
   updateGroupNeedPosts,
@@ -379,7 +378,8 @@ async function createPanel(doc = document.body) {
             //   console.log(num, randomRateBoolean(total - num, total));
             // }
             // console.log(randomNumberValue(arr));
-            console.log(await getRandomTaskNameWithPriority());
+            // console.log(await getRandomTaskNameWithPriority());
+            // console.log(randomRateBoolean(1, 100));
           } catch (error) {
             logError("Error at btnClick click event: ", error);
           }

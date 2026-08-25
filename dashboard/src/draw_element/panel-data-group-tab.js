@@ -12,11 +12,16 @@ import {
   getListDataGroupPost,
   importDataGroupPosts,
 } from "../../../services/data-group-post-service.js";
-import { createDialog } from "./dialog.js";
+import {
+  closeDialogLoading,
+  createDialog,
+  showDialogLoading,
+} from "./dialog.js";
 import { createDivListGroups } from "./listGroup.js";
 import { showNotify } from "./notify.js";
 import { addLog } from "./panel-log.js";
 import { drawPanelGroup } from "./panelGroup.js";
+import { createButtonConfirm } from "./button.js";
 
 async function createPanelTabGroup(anchorElem = document.body) {
   try {
@@ -33,7 +38,7 @@ async function createPanelTabGroup(anchorElem = document.body) {
         <button id="${prefix}btn-add-data-group">${getTextWithLanguage({ vi: "Thêm dữ liệu nhóm", en: "Add data group" })}</button>
         <button id="${prefix}btn-export-data-groups">${getTextWithLanguage({ vi: "Xuất dữ liệu nhóm", en: "Export data group" })}</button>
         <button id="${prefix}btn-import-data-groups">${getTextWithLanguage({ vi: "Nhập dữ liệu nhóm", en: "Import data group" })}</button>
-        <button id="${prefix}btn-clear-data-groups">${getTextWithLanguage({ vi: "Xóa tất cả dữ liệu nhóm", en: "Clear all data group" })}</button>
+        <div id="${prefix}div-btn-clear-data-group"></div>
         <input type="file" id="${prefix}input-import-data-groups" style="display: none;" accept=".json">
     </div>
         <div style="padding: 8px;" id="${prefix}list-data-groups-container"></div>
@@ -81,6 +86,7 @@ async function createPanelTabGroup(anchorElem = document.body) {
 
       async function onDeleteGroup(id) {
         try {
+          showDialogLoading();
           await deleteDataGroupPost(id);
 
           const groupTitle =
@@ -110,6 +116,8 @@ async function createPanelTabGroup(anchorElem = document.body) {
             type: "error",
           });
           logError("Error at onDeleteGroup: ", error);
+        } finally {
+          closeDialogLoading();
         }
       }
 
@@ -206,19 +214,22 @@ async function createPanelTabGroup(anchorElem = document.body) {
         }
 
         //clear groups
-        const btnClearGroup = document.querySelector(
-          `#tm_btn-clear-data-groups`,
+        const divBtnClearDataGroup = document.querySelector(
+          `#tm_div-btn-clear-data-group`,
         );
-        if (btnClearGroup) {
-          let isConfirmingClearGroups = false;
-          let timeOutIdClearGroups = null;
-          btnClearGroup.addEventListener("click", async () => {
-            if (isConfirmingClearGroups) {
-              if (timeOutIdClearGroups) {
-                clearTimeout(timeOutIdClearGroups);
-                timeOutIdClearGroups = null;
-              }
+        if (divBtnClearDataGroup) {
+          const btnConfirm = createButtonConfirm({
+            title: getTextWithLanguage({
+              vi: "Xóa tất cả dữ liệu nhóm",
+              en: "Clear all data group",
+            }),
+            titleConfirm: getTextWithLanguage({
+              vi: "Xác nhận xóa",
+              en: "Confirm delete",
+            }),
+            onConfirm: async () => {
               try {
+                showDialogLoading();
                 await clearDataGroupPost();
                 drawListGroups([]);
                 showNotify({
@@ -227,6 +238,10 @@ async function createPanelTabGroup(anchorElem = document.body) {
                     en: "Cleaned all data group successfully",
                   }),
                   type: "success",
+                });
+                addLog({
+                  vi: "Bạn vừa xóa hết danh sách dữ liệu nhóm",
+                  en: "You just cleared all data group",
                 });
               } catch (error) {
                 logError("Error at clearDataGroupPost in addEvent: " + error);
@@ -237,34 +252,12 @@ async function createPanelTabGroup(anchorElem = document.body) {
                   }),
                   type: "error",
                 });
+              } finally {
+                closeDialogLoading();
               }
-              isConfirmingClearGroups = false;
-              btnClearGroup.innerText = getTextWithLanguage({
-                en: "Clear data group",
-                vi: "Xóa dữ liệu nhóm",
-              });
-              btnClearGroup.style.background = "";
-              addLog({
-                vi: "Bạn vừa xóa hết danh sách dữ liệu nhóm",
-                en: "You just cleared all data group",
-              });
-            } else {
-              isConfirmingClearGroups = true;
-              btnClearGroup.innerText = getTextWithLanguage({
-                en: "Click again to confirm",
-                vi: "Xác nhận lại",
-              });
-              btnClearGroup.style.background = "var(--tm-text-danger)";
-              timeOutIdClearGroups = setTimeout(() => {
-                isConfirmingClearGroups = false;
-                btnClearGroup.innerText = getTextWithLanguage({
-                  en: "Clear data groups",
-                  vi: "Xóa dữ liệu nhóm",
-                });
-                btnClearGroup.style.background = "";
-              }, 3000);
-            }
+            },
           });
+          divBtnClearDataGroup.appendChild(btnConfirm);
         }
 
         const btnExportGroups = document.querySelector(
@@ -272,6 +265,16 @@ async function createPanelTabGroup(anchorElem = document.body) {
         );
         if (btnExportGroups) {
           btnExportGroups.addEventListener("click", () => {
+            if (!listDataGroupPost.length) {
+              showNotify({
+                message: getTextWithLanguage({
+                  vi: "Không có dữ liệu nhóm",
+                  en: "No data groups",
+                }),
+                type: "error",
+              });
+              return;
+            }
             exportGroupsEvent(listDataGroupPost);
           });
         }
@@ -298,12 +301,16 @@ async function createPanelTabGroup(anchorElem = document.body) {
 
 async function exportGroupsEvent(listDataGroupPost) {
   try {
+    showDialogLoading();
     const list = cloneData(listDataGroupPost);
-    await exportDataGroupPost(list);
-    addLog({
-      vi: `Bạn vừa xuất ${listDataGroupPost.length} dữ liệu nhóm vào file JSON`,
-      en: `You just exported ${listDataGroupPost.length} data groups to a JSON file`,
-    });
+    const success = await exportDataGroupPost(list);
+    if (success) {
+      addLog({
+        vi: `Bạn vừa xuất ${listDataGroupPost.length} dữ liệu nhóm vào file JSON`,
+        en: `You just exported ${listDataGroupPost.length} data groups to a JSON file`,
+      });
+    }
+    closeDialogLoading();
   } catch (error) {
     handleErrorHelper({
       error,
@@ -313,6 +320,7 @@ async function exportGroupsEvent(listDataGroupPost) {
         en: "Cannot export data group",
       }),
     });
+    closeDialogLoading();
   }
 }
 
@@ -325,6 +333,7 @@ async function importGroupsEvent(cb) {
     inputImportGroups.click();
     inputImportGroups.onchange = function (event) {
       try {
+        showDialogLoading();
         const file = event.target.files[0];
         const reader = new FileReader();
         reader.onload = async function (e) {
@@ -348,6 +357,8 @@ async function importGroupsEvent(cb) {
             }
           } catch (err) {
             handleErrorHelper({ name: "importDataGroupPost", error: err });
+          } finally {
+            closeDialogLoading();
           }
         };
         reader.readAsText(file);

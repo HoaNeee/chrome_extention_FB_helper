@@ -1166,7 +1166,7 @@ async function getLastTimeCommentWalkData() {
 
 async function getPriorityTaskPostData() {
   try {
-    return await DB_getValue(KEY_PRIORITY_TASK.POST, 1);
+    return await DB_getValue(KEY_PRIORITY_TASK.POST);
   } catch (error) {
     throw error;
   }
@@ -1182,7 +1182,7 @@ async function setPriorityTaskPostData(priority = 1) {
 
 async function getPriorityTaskCommentWalkData() {
   try {
-    return await DB_getValue(KEY_PRIORITY_TASK.COMMENT_WALK, 1);
+    return await DB_getValue(KEY_PRIORITY_TASK.COMMENT_WALK);
   } catch (error) {
     throw error;
   }

@@ -5,7 +5,6 @@ import {
 } from "../contants/constant-extention.js";
 import {
   KEY_CURRENT_DATA_GROUP_POST,
-  KEY_DATA_POST_SAVED,
   KEY_INDEX_GROUP_POST,
   KEY_INDEXS_GROUP_CHECKED,
 } from "../contants/contants.js";
@@ -485,6 +484,7 @@ async function exportDataGroupPost(data) {
   a.download = name;
   a.click();
   URL.revokeObjectURL(url);
+  return true;
 }
 
 async function getMaxPriority() {
@@ -652,20 +652,20 @@ export {
   clearDataGroupPost,
   deleteDataGroupPost,
   exportDataGroupPost,
+  getCurrentDataGroupPosting,
+  getCurrentGroupNeedPost,
+  getCurrentIdDataGroupPost,
   getDataGroupPostRequest,
   getListDataGroupPost,
-  getListIdDataGroupPostCheckeds,
   getListDataGroupPostInStorage,
   getListDataGroupPostNeedPost,
+  getListIdDataGroupPostCheckeds,
   getMaxPriority,
   getRandomIdDataGroupPostChecked,
   importDataGroupPosts,
+  setCurrentDataGroupPosting,
+  setCurrentIdDataGroupPost,
   setListDataGroupPostInStorage,
   upadateDataGroupPost,
   updateDataGroupPostChecked,
-  setCurrentIdDataGroupPost,
-  getCurrentIdDataGroupPost,
-  getCurrentGroupNeedPost,
-  getCurrentDataGroupPosting,
-  setCurrentDataGroupPosting,
 };
