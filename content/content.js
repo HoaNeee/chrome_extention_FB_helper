@@ -1823,19 +1823,6 @@
       return null;
     }
   }
-  function findDivItemPreview(divItemContainer) {
-    try {
-      const selectors = SELECTOR_RAW.itemFeedSearchResultPreviewContents;
-      for (const s of selectors) {
-        const div = findElement(s, divItemContainer);
-        if (div) return div;
-      }
-      return null;
-    } catch (error) {
-      logErrorContent("error in findDivItemPreview", error);
-      return null;
-    }
-  }
   function findButtonShowMore(divItemContainer) {
     try {
       const lang = getLanguage();
@@ -1950,7 +1937,8 @@
           })
         );
       };
-      const VALUE_RATE_ADD_FOR_HOME = 1;
+      const VALUE_RATE_ADD_FOR_HOME = 0;
+      const VALUE_RATE_MULTIPLY_FOR_KEYWORD_CERTAIN = 2;
       const isDevMode = await CL_getIsDevMode();
       const isTest = await CL_getIsTest();
       let flagDone = false;
@@ -2021,7 +2009,6 @@
             countScroll++;
             const article = findElement('div[role="article"]', child);
             if (article) {
-              console.log({ article });
               logContent(
                 getTextLanguageContent({
                   en: "This post maybe is advertisement, skip it...",
@@ -2119,7 +2106,6 @@
               continue;
             }
             const divFeedContent = await findDivItemFeedContent(child);
-            const divPreview = findDivItemPreview(child);
             if (!divFeedContent) {
               logErrorContent("Not found div feed content, skip post");
               continue;
@@ -2214,6 +2200,7 @@
                 );
               } else if (areaComment.isHome) {
                 for (const comment of listCommentWalk) {
+                  let score = 0;
                   const keywordExclude = comment.keyword_query_excludes;
                   const contentExcludeMatch = matchQueryKeywords(
                     keywordExclude,
@@ -2226,13 +2213,34 @@
                   const rateComment = Number(comment.match_rate_value_content_query_includes) + VALUE_RATE_ADD_FOR_HOME;
                   const contentMatchs = matchQueryKeywords(
                     keywordInclude,
-                    contentNameAndDiv
+                    contentDiv
                   );
-                  if (contentMatchs.length >= rateComment) {
+                  score += contentMatchs.length;
+                  const keywordCertainChoice = comment.keywords_certain_choice;
+                  const contentCertainChoiceMatch = matchQueryKeywords(
+                    keywordCertainChoice,
+                    contentDiv
+                  );
+                  const profileNameCertainMatch = matchQueryKeywords(
+                    keywordCertainChoice,
+                    contentProfileName
+                  );
+                  score += contentCertainChoiceMatch.length * VALUE_RATE_MULTIPLY_FOR_KEYWORD_CERTAIN;
+                  if (!contentCertainChoiceMatch.length) {
+                    score += profileNameCertainMatch.length;
+                  }
+                  if (contentMatchs.length >= rateComment && (contentCertainChoiceMatch.length || profileNameCertainMatch.length)) {
+                    const match = Array.from(
+                      /* @__PURE__ */ new Set([
+                        ...contentMatchs,
+                        ...contentCertainChoiceMatch,
+                        ...profileNameCertainMatch
+                      ])
+                    );
                     listMatch.push({
                       id: comment.id,
-                      rate: contentMatchs.length,
-                      match: [...contentMatchs]
+                      rate: score,
+                      match
                     });
                   }
                 }
@@ -2256,8 +2264,8 @@
               );
               logContent(
                 getTextLanguageContent({
-                  en: "Skip post because not enough rate or not keyword match",
-                  vi: "B\u1ECF qua b\xE0i vi\u1EBFt v\xEC kh\xF4ng \u0111\u1EE7 t\u1EC9 l\u1EC7 ho\u1EB7c kh\xF4ng \u0111\xFAng t\u1EEB kh\xF3a"
+                  en: "Skip post because not keyword match",
+                  vi: "B\u1ECF qua b\xE0i vi\u1EBFt v\xEC kh\xF4ng \u0111\xFAng t\u1EEB kh\xF3a"
                 })
               );
               continue;
