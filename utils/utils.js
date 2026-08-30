@@ -430,6 +430,23 @@ function cvStringHigher(str) {
     .trim();
 }
 
+/**
+ *
+ * @param {string[]} tokens
+ * @param {string} target
+ * @returns {string[]} - array of tokens that match target
+ */
+function matchQueryKeywords(tokens = [], target = "") {
+  const res = new Set();
+  let normalTarget = cvStringHigher(target);
+  for (const token of tokens) {
+    if (normalTarget.includes(cvStringHigher(token))) {
+      res.add(token);
+    }
+  }
+  return Array.from(res);
+}
+
 export {
   sleep,
   random,
@@ -465,4 +482,5 @@ export {
   splitString,
   cvStringHigher,
   randomNumberValue,
+  matchQueryKeywords,
 };

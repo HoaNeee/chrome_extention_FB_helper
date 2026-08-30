@@ -144,6 +144,7 @@ import {
   parseFileToObjectBase64,
   parseUrlToBlob,
   random,
+  randomNumberValue,
   randomRateBoolean,
 } from "./utils/utils.js";
 
@@ -264,12 +265,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return true;
 
       case KEY_ADD_URL_COMMENTED:
-        handleAddUrlCommented(msg.data?.url);
+        handleAddUrlCommented(msg.data?.id, msg.data?.url);
         break;
 
       case KEY_COMPLETED_COMMENT_WALK_THIS_BATCH:
         handleCompletedCommentWalkThisBatch(sender);
-        return true;
+        break;
 
       case KEY_STOP_TASK_REQUEST.GET_IS_STOP_TASK:
         handleGetIsStopTask(sendResponse);
@@ -278,6 +279,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       case KEY_COMMENT_WALK_REQUEST.UPDATE_LAST_TIME_COMMENT:
         handleUpdateLastTimeComment(msg.data?.time);
         break;
+
+      case KEY_COMMENT_WALK_REQUEST.GET_COMMENT_WALK_NEVER_COMMENTED:
+        handleGetCommentWalkActiveNeverComment(
+          msg.data.ids,
+          msg.data.url,
+          sendResponse,
+        );
+        return true;
     }
   } catch (error) {
     logError("Error at background: ", error);
@@ -474,31 +483,32 @@ async function handleCanCommentWalkThisTab(sender, sendResponse) {
       return true;
     }
 
-    const currentId = await commentWalkService.getCurrentIdCommentWalkActive();
-    if (!currentId) {
-      sendResponse({
-        status: STATUS_RESPONSE.FAIL,
-        message:
-          "Can not comment walk this tab, because id comment walk not found",
-      });
-      return true;
-    }
+    // const currentId = await commentWalkService.getCurrentIdCommentWalkActive();
+    // if (!currentId) {
+    //   sendResponse({
+    //     status: STATUS_RESPONSE.FAIL,
+    //     message:
+    //       "Can not comment walk this tab, because id comment walk not found",
+    //   });
+    //   return true;
+    // }
 
-    const commentWalk = await commentWalkService.getCommentWalkById(currentId);
-    if (!commentWalk) {
-      sendResponse({
-        status: STATUS_RESPONSE.FAIL,
-        message:
-          "Can not comment walk this tab, because comment walk data not found",
-      });
-      return true;
-    }
+    // const commentWalk = await commentWalkService.getCommentWalkById(currentId);
+    // if (!commentWalk) {
+    //   sendResponse({
+    //     status: STATUS_RESPONSE.FAIL,
+    //     message:
+    //       "Can not comment walk this tab, because comment walk data not found",
+    //   });
+    //   return true;
+    // }
+
+    // const listCommentWalk = await commentWalkService.getListCommentWalk();
 
     sendResponse({
       status: STATUS_RESPONSE.SUCCESS,
       data: {
         can_comment_walk: true,
-        data: commentWalk,
       },
     });
     return true;
@@ -509,7 +519,8 @@ async function handleCanCommentWalkThisTab(sender, sendResponse) {
 
 async function handleCanCommentWalkThisPost(url, sendResponse) {
   try {
-    const commented = await commentWalkService.checkUrlCommented(url);
+    const id = await commentWalkService.getCurrentIdCommentWalkActive();
+    const commented = await commentWalkService.checkUrlCommented(id, url);
 
     sendResponse({
       status: STATUS_RESPONSE.SUCCESS,
@@ -520,6 +531,67 @@ async function handleCanCommentWalkThisPost(url, sendResponse) {
     return true;
   } catch (error) {
     logError("Error at handleCanCommentWalkThisPost: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+    return true;
+  }
+}
+
+async function handleGetCommentWalkActiveNeverComment(
+  ids = [],
+  url = "",
+  sendResponse,
+) {
+  try {
+    let listCommentNeverComment = [];
+
+    for (const id of ids) {
+      const commentWalk = await commentWalkService.getCommentWalkById(id);
+      if (!commentWalk) {
+        continue;
+      }
+      const commented = await commentWalkService.checkUrlCommented(id, url);
+      if (!commented) {
+        listCommentNeverComment.push(commentWalk);
+      }
+    }
+
+    let commentWalk = null;
+
+    if (listCommentNeverComment.length > 0) {
+      //get by score
+      const total = listCommentNeverComment.length;
+      const listValue = listCommentNeverComment.map((_, i) => total - i);
+      let value = null;
+
+      for (const item of listValue) {
+        if (randomRateBoolean(item, total)) {
+          value = item;
+          break;
+        }
+      }
+
+      if (!value) {
+        value = randomNumberValue(listValue);
+      }
+
+      const index = total - value;
+
+      commentWalk = listCommentNeverComment[index];
+    }
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: commentWalk,
+    });
+    return true;
+  } catch (error) {
+    logError("Error at handleGetCommentWalkActiveNeverComment: ", error);
     sendResponse({
       status: STATUS_RESPONSE.FAIL,
       message: getTextWithLanguage({
@@ -1024,9 +1096,9 @@ async function handleUpdateLastTimeComment(time) {
   }
 }
 
-async function handleAddUrlCommented(url) {
+async function handleAddUrlCommented(id, url) {
   try {
-    await commentWalkService.addUrlCommented(url);
+    await commentWalkService.addUrlCommented(id, url);
   } catch (error) {
     logError("Error at handleAddUrlCommented: ", error);
   }
@@ -1287,10 +1359,10 @@ async function handleOnAlarm(alarm) {
 
         addLog({
           vi:
-            "Các tác vụ có thể không thực hiện được (có thể bị spam,...): " +
+            "Các tác vụ có thể không thực hiện được (có thể bị spam, bị tắt,...): " +
             listLabelTask,
           en:
-            "Tasks that may not be performed (maybe spammed,...): " +
+            "Tasks that may not be performed (maybe spammed, disabled,...): " +
             listLabelTask,
         });
       }
@@ -1412,32 +1484,13 @@ async function handleOnAlarm(alarm) {
               date.toLocaleString(),
           });
 
-          if (isCommentWalk) {
-            await commentWalkService.setIsCommentWalkProcessing(false);
-          } else {
-            setProgressTool(false);
-          }
-
           setCountBatchPost(0);
-          clearAndCreateSchedulerAlarm();
+          //clearAndCreateSchedulerAlarm();
+          await handleStopTool();
         }
 
         const countBatchPost = await getCountBatchPost();
-        if (countBatchPost > 8) {
-          sleepThisTime();
-          return;
-        }
-
-        if (countBatchPost >= 5 && countBatchPost <= 8) {
-          //increase percent to sleep this time
-          if (randomRateBoolean(30, 100)) {
-            sleepThisTime();
-            return;
-          }
-        }
-
-        //random this time to post or not with 10% chance
-        if (randomRateBoolean(10, 100) && countBatchPost >= 2) {
+        if (randomRateBoolean(countBatchPost - 2, 8)) {
           sleepThisTime();
           return;
         }

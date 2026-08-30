@@ -436,12 +436,12 @@ async function findElementFeedInGroup(time = 0) {
  */
 async function scrollElementIntoView(selector) {
   if (selector instanceof HTMLElement || selector instanceof Node) {
-    selector.scrollIntoView({ behavior: "smooth", block: "center" });
+    selector.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
   const element = document.querySelector(selector);
   if (element) {
-    element.scrollIntoView({ behavior: "smooth", block: "center" });
+    element.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   await sleep(1000 + random(100, 500));
 }

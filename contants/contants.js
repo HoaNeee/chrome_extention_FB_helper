@@ -1,3 +1,5 @@
+import { KEY_COMMENT_WALK_AREA } from "./constant-extention.js";
+
 const KEY_RETRY_CALL = "retry_call";
 const KEY_RE_POST_ALL_GROUP = "re_post_all_group";
 
@@ -122,6 +124,7 @@ const KEY_COMMENT_WALK = {
   IS_ACTIVE: "is_comment_walk",
   COMMENT_WALK_SETTING_MAX_COMMENT_PER_BATCH: "max_comment_walk_per_batch",
   CURRENT_COMMENT_WALK_OBJECT: "current_comment_walk_object",
+  CURRENT_COMMENT_WALK_AREA: "current_comment_walk_area",
   COMMENT_WALK_SETTING_TIME_DELAY: "comment_walk_setting_time_delay",
   LIST_ID_COMMENT_WALK_ACTIVE: "list_ids_comment_walk_active",
   IS_COMMENT_WALK_PROCESSING: "is_comment_walk_processing",
@@ -134,6 +137,8 @@ const KEY_COMMENT_WALK = {
   MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON:
     "match_rate_value_content_query_includes_common",
   LAST_TIME_COMMENT_WALK: "last_time_comment_walk",
+  COMMENT_WALK_AREA: "comment_walk_area",
+  KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK: "keywords_certain_choice_comment_walk",
 };
 
 const KEY_CURRENT_DATA_GROUP_POST = "current_data_group_post";
@@ -183,6 +188,21 @@ const DEFAULT_CONTENT_QUERY_INCLUDES_COMMON = [
   "tìm phòng",
   "tài chính",
   "Ai có phòng",
+  "Cần phòng gấp",
+  "Cần gấp phòng",
+  "tc",
+  "cần tìm phòng gấp",
+  "cần gấp",
+  "budget",
+];
+
+const DEFAULT_KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK = [
+  "Tìm phòng",
+  "Tìm trọ",
+  "kiếm phòng",
+  "Kiếm trọ",
+  "Cần căn",
+  "Tìm căn",
 ];
 
 const DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON = [
@@ -210,6 +230,7 @@ const DEFAULT_COMMENT_WALK_SETTING = {
   time_delay_fill_content_comment_walk_max: 200,
   time_delay_fill_file_comment_walk: 5,
   time_delay_submit_comment_walk: 11,
+  comment_walk_area: KEY_COMMENT_WALK_AREA.RANDOM,
 };
 
 const KEY_DEFAULT_VALUE = {
@@ -220,6 +241,7 @@ const KEY_DEFAULT_VALUE = {
   DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES: 1,
   DEFAULT_PRIORITY_TASK_POST: 1,
   DEFAULT_PRIORITY_TASK_COMMENT_WALK: 2,
+  DEFAULT_KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
 };
 
 export {

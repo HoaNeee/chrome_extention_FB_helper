@@ -1,3 +1,4 @@
+import { KEY_COMMENT_WALK_AREA } from "../contants/constant-extention.js";
 import { KEY_POST, KEY_TAB, STATUS_TASK } from "../contants/contants.js";
 import { showNotify } from "../dashboard/src/draw_element/notify.js";
 import { addLog } from "../dashboard/src/draw_element/panel-log.js";
@@ -389,11 +390,18 @@ async function automationCommentWalk() {
     });
 
     const commentWalk = await commentWalkService.getCommentWalkById(id);
+    let area = await commentWalkService.getCommentWalkArea();
+    if (area === KEY_COMMENT_WALK_AREA.RANDOM) {
+      area = commentWalkService.getRandomCommentWalkArea();
+    }
+
+    await commentWalkService.setCurrentCommentWalkArea(area);
 
     if (
-      !commentWalk ||
-      !commentWalk?.title_query_searchs ||
-      !commentWalk?.title_query_searchs.length
+      (!commentWalk ||
+        !commentWalk?.title_query_searchs ||
+        !commentWalk?.title_query_searchs.length) &&
+      area === KEY_COMMENT_WALK_AREA.SEARCH_PAGE
     ) {
       showNotify({
         message: getTextWithLanguage({
@@ -412,15 +420,17 @@ async function automationCommentWalk() {
       return;
     }
 
-    await commentWalkService.setCurrentIdCommentWalkActive(id);
     await commentWalkService.setIsCommentWalkProcessing(true);
-
-    const queryRandom =
-      commentWalk.title_query_searchs[
-        random(0, commentWalk.title_query_searchs.length - 1)
-      ];
-
-    await commentWalkHelper.goToPageSearch(queryRandom);
+    if (area === KEY_COMMENT_WALK_AREA.SEARCH_PAGE) {
+      await commentWalkService.setCurrentIdCommentWalkActive(id);
+      const queryRandom =
+        commentWalk.title_query_searchs[
+          random(0, commentWalk.title_query_searchs.length - 1)
+        ];
+      await commentWalkHelper.goToPageSearch(queryRandom);
+    } else {
+      await commentWalkHelper.gotoPageHome();
+    }
   } catch (error) {
     logError("Error at automationCommentWalk: " + error);
     await commentWalkService.setIsCommentWalkProcessing(false);

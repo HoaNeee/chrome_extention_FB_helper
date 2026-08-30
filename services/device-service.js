@@ -14,7 +14,11 @@ import {
   randomNumberValue,
   randomRateBoolean,
 } from "../utils/utils.js";
-import { getIsSpammedData, getPriorityTaskData } from "./setting-service.js";
+import {
+  getIsCommentWalkData,
+  getIsSpammedData,
+  getPriorityTaskData,
+} from "./setting-service.js";
 
 /**
  * @typedef {Object} Device
@@ -220,7 +224,11 @@ async function checkTaskActive(taskName) {
   }
 
   if (taskName === KEY_TASK_NAME.COMMENT_WALK) {
-    return true;
+    const isCommentWalk = await getIsCommentWalkData();
+    if (isCommentWalk) {
+      return true;
+    }
+    return false;
   }
 
   return false;

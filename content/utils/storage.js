@@ -1,3 +1,4 @@
+import CommentWalk from "../../class/CommentWalk";
 import {
   KEY_ADD_URL_COMMENTED,
   KEY_CAN_COMMENT_WALK_THIS_POST,
@@ -216,7 +217,11 @@ async function CL_setDecidedInteractBeforePost(value) {
 
 /**
  *
- * @returns {Promise<CommentWalkSetting>}
+ * @returns {Promise<{
+ * setting: CommentWalkSetting,
+ * comment_walk: CommentWalk,
+ * list_comment_walk: CommentWalk[]
+ * }>}
  */
 async function CL_getAllMetadataCommentWalk() {
   try {
@@ -297,9 +302,9 @@ async function CL_getCanCommentThisPost(url) {
   }
 }
 
-async function CL_addUrlCommented(url) {
+async function CL_addUrlCommented(id, url) {
   try {
-    await sendMessageWithResponse(KEY_ADD_URL_COMMENTED, { url });
+    await sendMessageWithResponse(KEY_ADD_URL_COMMENTED, { id, url });
   } catch (error) {
     logErrorContent("Error at CL_addUrlCommented: ", error);
     CL_addLogRequest({
@@ -373,6 +378,30 @@ async function CL_updateLastTimeCommentWalk(time) {
     });
   }
 }
+/**
+ *
+ * @returns {Promise<CommentWalk | null>}
+ */
+async function CL_getCommentWalkNeverCommented(ids, url) {
+  try {
+    const res = await sendMessageWithResponse(
+      KEY_COMMENT_WALK_REQUEST.GET_COMMENT_WALK_NEVER_COMMENTED,
+      {
+        ids,
+        url,
+      },
+    );
+    return res.data;
+  } catch (error) {
+    logErrorContent("Error at CL_getCommentWalkNeverCommented: ", error);
+    CL_addLogRequest({
+      vi: error || "Lỗi khi lấy trạng thái bình luận",
+      en: error || "Error when getting comment status",
+      type: "error",
+    });
+    return null;
+  }
+}
 
 export {
   CL_getIsTest,
@@ -394,4 +423,5 @@ export {
   CL_getIsDevMode,
   CL_getObjectCanPostThisTab,
   CL_updateLastTimeCommentWalk,
+  CL_getCommentWalkNeverCommented,
 };

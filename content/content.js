@@ -1,5 +1,5 @@
 (() => {
-  // dist/contants/constant-extention.js
+  // contants/constant-extention.js
   var KEY_CLOSE_THIS_TAB = "CLOSE_THIS_TAB";
   var STATUS_RESPONSE = {
     SUCCESS: "SUCCESS",
@@ -30,13 +30,19 @@
   var KEY_ADD_URL_COMMENTED = "add_url_commented";
   var KEY_COMPLETED_COMMENT_WALK_THIS_BATCH = "completed_comment_walk_this_batch";
   var KEY_COMMENT_WALK_REQUEST = {
-    UPDATE_LAST_TIME_COMMENT: "update_last_time_comment"
+    UPDATE_LAST_TIME_COMMENT: "update_last_time_comment",
+    GET_COMMENT_WALK_NEVER_COMMENTED: "get_comment_walk_never_commented"
   };
   var KEY_STOP_TASK_REQUEST = {
     GET_IS_STOP_TASK: "get_is_stop_task"
   };
+  var KEY_COMMENT_WALK_AREA = {
+    SEARCH_PAGE: "SEARCH_PAGE",
+    HOME: "HOME",
+    RANDOM: "RANDOM"
+  };
 
-  // dist/contants/contants.js
+  // contants/contants.js
   var KEY_LANGUAGE = "language";
   var KEY_TIME_DELAY = "time_delay";
   var KEY_IS_TEST = "is_test";
@@ -55,6 +61,7 @@
     IS_ACTIVE: "is_comment_walk",
     COMMENT_WALK_SETTING_MAX_COMMENT_PER_BATCH: "max_comment_walk_per_batch",
     CURRENT_COMMENT_WALK_OBJECT: "current_comment_walk_object",
+    CURRENT_COMMENT_WALK_AREA: "current_comment_walk_area",
     COMMENT_WALK_SETTING_TIME_DELAY: "comment_walk_setting_time_delay",
     LIST_ID_COMMENT_WALK_ACTIVE: "list_ids_comment_walk_active",
     IS_COMMENT_WALK_PROCESSING: "is_comment_walk_processing",
@@ -65,7 +72,9 @@
     CONTENT_QUERY_INCLUDES_COMMON: "content_query_includes_common",
     CONTENT_QUERY_EXCLUDES_COMMON: "content_query_excludes_common",
     MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON: "match_rate_value_content_query_includes_common",
-    LAST_TIME_COMMENT_WALK: "last_time_comment_walk"
+    LAST_TIME_COMMENT_WALK: "last_time_comment_walk",
+    COMMENT_WALK_AREA: "comment_walk_area",
+    KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK: "keywords_certain_choice_comment_walk"
   };
   var STATUS_TASK = {
     PENDING: "pending",
@@ -83,8 +92,16 @@
     time_delay_post: 5,
     time_delay_open_new_tab: 2
   };
+  var DEFAULT_COMMENT_WALK_SETTING = {
+    max_comment_walk_per_batch: 1,
+    time_delay_fill_content_comment_walk_min: 100,
+    time_delay_fill_content_comment_walk_max: 200,
+    time_delay_fill_file_comment_walk: 5,
+    time_delay_submit_comment_walk: 11,
+    comment_walk_area: KEY_COMMENT_WALK_AREA.RANDOM
+  };
 
-  // dist/utils/api-helper.js
+  // utils/api-helper.js
   var _menuCommands = /* @__PURE__ */ new Map();
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === "menuCommandClicked" && _menuCommands.has(msg.id)) {
@@ -112,7 +129,7 @@
     }
   })();
 
-  // dist/utils/utils.js
+  // utils/utils.js
   async function sleep(duration) {
     return await new Promise((resolve) => {
       setTimeout(resolve, duration);
@@ -207,11 +224,25 @@
     const pattern = /^https:\/\/www\.facebook\.com\/groups\/[a-zA-Z0-9._-]+\/permalink\/[A-Za-z0-9_.-\\/]+(\/?)$/;
     return pattern.test(url);
   }
+  function splitString(str, key = ",") {
+    if (!str || typeof str !== "string" || !str.trim()) return [];
+    return str.split(key).map((item) => item.trim()).filter((item) => item.trim());
+  }
   function cvStringHigher(str) {
     return str.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").replace(/[^a-zA-Z0-9\s]/g, " ").replace(/\s+/g, " ").toLocaleLowerCase().trim();
   }
+  function matchQueryKeywords(tokens = [], target = "") {
+    const res = /* @__PURE__ */ new Set();
+    let normalTarget = cvStringHigher(target);
+    for (const token of tokens) {
+      if (normalTarget.includes(cvStringHigher(token))) {
+        res.add(token);
+      }
+    }
+    return Array.from(res);
+  }
 
-  // dist/content/elements/notify.js
+  // content/elements/notify.js
   var timeoutNotifyId = null;
   var container = document.createElement("div");
   var innerDiv = document.createElement("div");
@@ -247,7 +278,7 @@
     };
   }
 
-  // dist/content/utils/global.js
+  // content/utils/global.js
   var language = "vi";
   function getTextLanguageContent({ vi = "", en = "" }) {
     if (language === "vi") return vi;
@@ -262,7 +293,7 @@
     }
   }
 
-  // dist/content/utils/request.js
+  // content/utils/request.js
   async function sendMessage(type, data) {
     try {
       await chrome.runtime.sendMessage({
@@ -312,7 +343,7 @@
     }
   }
 
-  // dist/content/utils/utils.js
+  // content/utils/utils.js
   function getIsMatchUrl(url) {
     if (!url) return false;
     return location.href === url;
@@ -438,7 +469,7 @@
     addLogEntry(str, "error");
   }
 
-  // dist/content/elements/panel-log-content.js
+  // content/elements/panel-log-content.js
   function createPanelLogContent(container2 = document.body) {
     try {
       const exist = document.querySelector(".panel-log-content__container");
@@ -449,7 +480,7 @@
       panelEl.classList.add("panel-log-content__container");
       Object.assign(panelEl.style, {
         position: "fixed",
-        top: "60px",
+        top: "120px",
         left: "30px",
         width: "300px",
         height: "300px",
@@ -482,6 +513,45 @@
         fontSize: "11px",
         letterSpacing: "0.5px"
       });
+      const divBtn = document.createElement("div");
+      Object.assign(divBtn.style, {
+        display: "flex",
+        gap: "6px"
+      });
+      const btnHide = document.createElement("button");
+      Object.assign(btnHide.style, {
+        background: "transparent",
+        border: "1px solid #555577",
+        borderRadius: "4px",
+        color: "#888aaa",
+        fontSize: "10px",
+        cursor: "pointer",
+        padding: "2px 6px",
+        transition: "all 0.15s ease"
+      });
+      btnHide.textContent = "Hide";
+      btnHide.addEventListener("mouseenter", () => {
+        btnHide.style.borderColor = "#e06c75";
+        btnHide.style.color = "#e06c75";
+      });
+      btnHide.addEventListener("mouseleave", () => {
+        btnHide.style.borderColor = "#555577";
+        btnHide.style.color = "#888aaa";
+      });
+      let isHide = false;
+      btnHide.addEventListener("click", () => {
+        if (isHide) {
+          logListEl.style.display = "flex";
+          panelEl.style.height = "300px";
+          btnHide.textContent = "Hide";
+          isHide = false;
+        } else {
+          logListEl.style.display = "none";
+          panelEl.style.height = "auto";
+          btnHide.textContent = "Show";
+          isHide = true;
+        }
+      });
       const clearBtn = document.createElement("button");
       clearBtn.textContent = "Clear";
       Object.assign(clearBtn.style, {
@@ -502,8 +572,10 @@
         clearBtn.style.borderColor = "#555577";
         clearBtn.style.color = "#888aaa";
       });
+      divBtn.appendChild(btnHide);
+      divBtn.appendChild(clearBtn);
       headerEl.appendChild(titleEl);
-      headerEl.appendChild(clearBtn);
+      headerEl.appendChild(divBtn);
       const logListEl = document.createElement("div");
       logListEl.classList.add("panel-log-content__list");
       Object.assign(logListEl.style, {
@@ -582,7 +654,7 @@
     logListEl.innerHTML = "";
   }
 
-  // dist/content/contants/contants.js
+  // content/contants/contants.js
   var SELECTOR = {
     elementsToPost: [`.//span[contains(text(), "Write something...")]`],
     elementsPost: [`div[aria-label="Post"][role="button"]:not([aria-disabled])`],
@@ -606,6 +678,10 @@
     ],
     elementsPostedPendingAlert: [
       `.//span[contains(text(), "Thanks for your post! It's been submitted to the group admins for approval.")]`
+    ],
+    elementFeedPosts: [
+      './/h3[contains(text(), "Feed posts")]',
+      './/h3[contains(text(), "Feed Posts")]'
     ],
     loadingElements: [
       `div[aria-label="Loading..."][role="status"][data-visualcompletion="loading-state"]`
@@ -639,6 +715,10 @@
     elementsSpammed: [
       `.//div[contains(text(), "\u0110\u1EC3 b\u1EA3o v\u1EC7 c\u1ED9ng \u0111\u1ED3ng kh\u1ECFi spam, ch\xFAng t\xF4i gi\u1EDBi h\u1EA1n t\u1EA7n su\u1EA5t b\u1EA1n \u0111\u0103ng b\xE0i, b\xECnh lu\u1EADn ho\u1EB7c l\xE0m c\xE1c vi\u1EC7c kh\xE1c trong kho\u1EA3ng th\u1EDDi gian nh\u1EA5t \u0111\u1ECBnh. B\u1EA1n c\xF3 th\u1EC3 th\u1EED l\u1EA1i sau")]`,
       `.//div[contains(text(), "Ch\xFAng t\xF4i gi\u1EDBi h\u1EA1n t\u1EA7n su\u1EA5t b\u1EA1n \u0111\u0103ng b\xE0i, b\xECnh lu\u1EADn ho\u1EB7c l\xE0m c\xE1c vi\u1EC7c kh\xE1c trong kho\u1EA3ng th\u1EDDi gian nh\u1EA5t \u0111\u1ECBnh. B\u1EA1n c\xF3 th\u1EC3 th\u1EED l\u1EA1i sau")]`
+    ],
+    elementFeedPosts: [
+      './/h3[contains(text(), "B\xE0i vi\u1EBFt tr\xEAn B\u1EA3ng feed")]',
+      './/h3[contains(text(), "B\xE0i vi\u1EBFt tr\xEAn b\u1EA3ng feed")]'
     ],
     listElementContainers: [`div[aria-label="B\u1EA3n xem tr\u01B0\u1EDBc nh\xF3m"]`],
     waitingGroups: [`.//span[contains(text(),"Y\xEAu c\u1EA7u tham gia nh\xF3m \u0111ang ch\u1EDD")]`],
@@ -684,11 +764,11 @@
       `div[contenteditable="true"][role="textbox"][aria-label][data-lexical-editor=true][spellcheck="true"]`
     ],
     feed: [`div[role="feed"]`],
-    itemFeedSearchResults: [`div[data-ad-rendering-role="story_message"]`],
+    itemFeedContents: [`div[data-ad-rendering-role="story_message"]`],
     itemFeedSearchResultPreviewContents: [`div[data-ad-comet-preview="message"]`]
   };
 
-  // dist/content/utils/storage.js
+  // content/utils/storage.js
   async function CL_getIsTest() {
     try {
       const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
@@ -904,9 +984,9 @@
       return false;
     }
   }
-  async function CL_addUrlCommented(url) {
+  async function CL_addUrlCommented(id, url) {
     try {
-      await sendMessageWithResponse(KEY_ADD_URL_COMMENTED, { url });
+      await sendMessageWithResponse(KEY_ADD_URL_COMMENTED, { id, url });
     } catch (error) {
       logErrorContent("Error at CL_addUrlCommented: ", error);
       CL_addLogRequest({
@@ -972,8 +1052,28 @@
       });
     }
   }
+  async function CL_getCommentWalkNeverCommented(ids, url) {
+    try {
+      const res = await sendMessageWithResponse(
+        KEY_COMMENT_WALK_REQUEST.GET_COMMENT_WALK_NEVER_COMMENTED,
+        {
+          ids,
+          url
+        }
+      );
+      return res.data;
+    } catch (error) {
+      logErrorContent("Error at CL_getCommentWalkNeverCommented: ", error);
+      CL_addLogRequest({
+        vi: error || "L\u1ED7i khi l\u1EA5y tr\u1EA1ng th\xE1i b\xECnh lu\u1EADn",
+        en: error || "Error when getting comment status",
+        type: "error"
+      });
+      return null;
+    }
+  }
 
-  // dist/content/helpers/dom.js
+  // content/helpers/dom.js
   function checkIsUseEvaluate(selector = "") {
     return selector.includes(`//`);
   }
@@ -1235,12 +1335,12 @@
   }
   async function scrollElementIntoView(selector) {
     if (selector instanceof HTMLElement || selector instanceof Node) {
-      selector.scrollIntoView({ behavior: "smooth", block: "center" });
+      selector.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
     const element = document.querySelector(selector);
     if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
     }
     await sleep(1e3 + random(100, 500));
   }
@@ -1278,7 +1378,7 @@
     await sleep(random(2, 4) * 200);
   }
 
-  // dist/content/helpers/post.js
+  // content/helpers/post.js
   async function pasteContent(content) {
     try {
       const div = await findDivInputTextbox();
@@ -1650,7 +1750,7 @@
     return !content || !(typeof content === "string") || !content.trim().length || content === "<p></p>";
   }
 
-  // dist/content/helpers/comment-walk.js
+  // content/helpers/comment-walk.js
   async function findDivResultSearch() {
     try {
       const lang = getLanguage();
@@ -1662,6 +1762,28 @@
       return null;
     } catch (error) {
       logErrorContent("error in findDivResultSearch", error);
+      return null;
+    }
+  }
+  async function findDivMain() {
+    try {
+      return await waitForElement('div[role="main"]');
+    } catch (error) {
+      logErrorContent("error in findDivMain", error);
+      return null;
+    }
+  }
+  function findDivFeedMainContainer(mainElement) {
+    try {
+      const lang = getLanguage();
+      const selectors = lang === "vi" ? SELECTOR_VI.elementFeedPosts : SELECTOR.elementFeedPosts;
+      for (const selector of selectors) {
+        const div = findElement(selector, mainElement);
+        if (div) return div.parentElement;
+      }
+      return null;
+    } catch (error) {
+      logErrorContent("error in findDivFeedMainContainer", error);
       return null;
     }
   }
@@ -1678,9 +1800,19 @@
       return null;
     }
   }
-  async function findDivItemFeedSearchResultContent(divItemContainer) {
+  function findDivFeedFromMain(element) {
     try {
-      const selectors = SELECTOR_RAW.itemFeedSearchResults;
+      const selector = ".//div[not(@dir) and .//div[@data-ad-rendering-role]]";
+      const div = findElement(selector, element);
+      return div;
+    } catch (error) {
+      logErrorContent("error in findDivFeedFromMain", error);
+      return null;
+    }
+  }
+  async function findDivItemFeedContent(divItemContainer) {
+    try {
+      const selectors = SELECTOR_RAW.itemFeedContents;
       for await (const s of selectors) {
         const div = await waitForElement(s, divItemContainer);
         if (div) return div;
@@ -1775,36 +1907,90 @@
   }
   function findDivProfileName(divItemContainer) {
     try {
-      const selector = 'div[data-ad-rendering-role="profile_name"]';
+      const lang = getLanguage();
+      const label = lang === "vi" ? "\u0111\xE3 \u0111\u0103ng trong" : "posted in";
+      const selector = `.//div[@data-ad-rendering-role="profile_name" and not(contains(text(),'${label}'))]`;
       return findElement(selector, divItemContainer);
     } catch (error) {
       logErrorContent("error in findDivProfileName", error);
       return null;
     }
   }
-  async function CL_commentWalkHelper(setting, commentWalk) {
+  function findDivReloadPage() {
     try {
-      const divResult = await findDivResultSearch();
-      let countScroll = 0;
-      let maxCount = 20;
+      return findElement('a[aria-label="Facebook"]');
+    } catch (error) {
+      logErrorContent("error in findDivReloadPage", error);
+      return null;
+    }
+  }
+  async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
+    try {
+      let checkArea = function() {
+        const isHome = area === KEY_COMMENT_WALK_AREA.HOME;
+        const isSearch = area === KEY_COMMENT_WALK_AREA.SEARCH_PAGE;
+        return {
+          isHome,
+          isSearch
+        };
+      }, checkCanCommentInThisElement = function(element) {
+        if (!(element instanceof HTMLElement)) {
+          return false;
+        }
+        const hasRole = findElement("div[data-ad-rendering-role]", element);
+        if (!hasRole) {
+          return false;
+        }
+        return true;
+      }, logExcludeKeywords = function(keywords = []) {
+        logContent(
+          getTextLanguageContent({
+            en: "This post contains excluded keywords: " + keywords.join(", ") + ", skip it...",
+            vi: "B\xE0i vi\u1EBFt n\xE0y ch\u1EE9a c\xE1c t\u1EEB kh\xF3a b\u1ECB lo\u1EA1i tr\u1EEB: " + keywords.join(", ") + ", b\u1ECF qua..."
+          })
+        );
+      };
+      const VALUE_RATE_ADD_FOR_HOME = 1;
       const isDevMode = await CL_getIsDevMode();
       const isTest = await CL_getIsTest();
-      if (!divResult) {
-        throw new Error("Not found div result search");
+      let flagDone = false;
+      const max_comment = setting.max_comment_walk_per_batch;
+      const content_query_includes_common = setting?.content_query_includes_common_comment_walk || [];
+      const content_query_excludes_common = setting?.content_query_excludes_common_comment_walk || [];
+      const max_rate_common = setting?.match_rate_value_content_query_includes_common_comment_walk || 0;
+      const area = setting?.comment_walk_area;
+      const keywords_certain_choice = setting?.keywords_certain_choice_comment_walk || [];
+      async function closeDialog() {
+        await sleep(random(2e3, 4e3));
+        await handleCloseIfExistDialog();
+        await sleep(random(1500, 2500));
       }
-      const divFeed = findDivFeedFromSearchResult(divResult);
+      const areaComment = checkArea();
+      let countScroll = 0;
+      let maxCount = isDevMode ? 50 : areaComment.isHome ? 50 : 20;
+      async function findDivFeed() {
+        let divResult = null;
+        if (areaComment.isHome) {
+          const main2 = await findDivMain();
+          divResult = findDivFeedMainContainer(main2);
+        } else if (areaComment.isSearch) {
+          divResult = await findDivResultSearch();
+        }
+        if (!divResult) {
+          throw new Error("Not found div result search");
+        }
+        if (areaComment.isHome) {
+          return findDivFeedFromMain(divResult);
+        } else if (areaComment.isSearch) {
+          return findDivFeedFromSearchResult(divResult);
+        }
+        return null;
+      }
+      let divFeed = await findDivFeed();
       if (!divFeed) {
         throw new Error("Not found div feed");
       }
       await sleep(random(2e3, 4e3));
-      const childs = divFeed.children;
-      const max_comment = setting.max_comment_walk_per_batch;
-      const content_query_includes_common = setting?.content_query_includes_common_comment_walk || [];
-      const content_query_excludes_common = setting?.content_query_excludes_common_comment_walk || [];
-      const keyword_query_include_comment_walk = commentWalk?.keyword_query_includes || [];
-      const keyword_query_exclude_comment_walk = commentWalk?.keyword_query_excludes || [];
-      const max_rate_common = setting?.match_rate_value_content_query_includes_common_comment_walk || 0;
-      const max_rate_comment_walk = commentWalk?.match_rate_value_content_query_includes || 0;
       let isStopTool = await CL_getStopTool();
       if (isStopTool) {
         await CL_setProcessingCommentWalk(false);
@@ -1820,324 +2006,479 @@
         }
         return;
       }
-      for await (const child of childs) {
-        countScroll++;
-        const article = findElement('div[role="article"]', child);
-        if (article) {
-          logContent(
-            getTextLanguageContent({
-              en: "This post maybe is advertisement, skip it...",
-              vi: "B\xE0i vi\u1EBFt n\xE0y c\xF3 th\u1EC3 l\xE0 b\xE0i vi\u1EBFt \u0111\u01B0\u1EE3c qu\u1EA3ng c\xE1o, b\u1ECF qua..."
-            })
-          );
-          continue;
-        }
-        let isSkipPost = false;
-        const divProfileName = findDivProfileName(child);
-        const contentProfileName = divProfileName?.textContent || "";
-        const countComment = await CL_getCountCommentWalkPostedPerBatch();
-        isStopTool = await CL_getStopTool();
-        if (isStopTool) {
-          await CL_setProcessingCommentWalk(false);
-          if (!isDevMode) {
-            await sleep(2e3);
-            await CL_compeleteCommentWalkThisBatch();
-          }
-          return;
-        }
-        if (!checkIsSearchPageUrl(location.href) && !checkIsSearchPagePostUrl(location.href)) {
-          throw new Error("Not in search page");
-        }
-        logContent(
-          `${getTextLanguageContent({ en: "Commenting: ", vi: "\u0110ang b\xECnh lu\u1EADn: " })}: ${countComment}/${max_comment}`
-        );
-        logContent(
-          `${getTextLanguageContent({
-            vi: `B\xE0i vi\u1EBFt b\u1ECF qua: ${countScroll}/${maxCount}`,
-            en: `Number skipped posts: ${countScroll}/${maxCount}`
-          })}`
-        );
-        if (countComment >= max_comment || countScroll >= maxCount) {
-          logContent(
-            getTextLanguageContent({
-              en: "Max comment reached, close this tab after some seconds...",
-              vi: "\u0110\xE3 \u0111\u1EE7 s\u1ED1 b\xECnh lu\u1EADn, \u0111\xF3ng tab sau v\xE0i gi\xE2y..."
-            })
-          );
-          await sleep(random(4e3, 6e3));
-          await CL_compeleteCommentWalkThisBatch();
-          return;
-        }
-        await sleep(random(1e3, 1500));
-        scrollElementIntoView(child);
-        await sleep(random(2e3, 3e3));
-        const divFeedContent = await findDivItemFeedSearchResultContent(child);
-        const divPreview = findDivItemPreview(child);
-        if (!divFeedContent) {
-          logErrorContent("Not found div feed content, skip post");
-          continue;
-        }
-        if (divPreview) {
-          const btnShowMore = findButtonShowMore(divPreview);
-          if (btnShowMore) {
-            btnShowMore.click();
+      let childs = divFeed.children;
+      async function autoWalk(childs2, reloaded = false) {
+        try {
+          for await (const child of childs2) {
+            let existedDialog = findExistDialog();
+            if (existedDialog) {
+              await closeDialog();
+            }
             await sleep(random(2e3, 4e3));
-          }
-        }
-        const contentDiv = divFeedContent?.textContent || "";
-        if (!contentDiv || !contentDiv.trim()) {
-          logErrorContent("Content div is empty, next post");
-          continue;
-        }
-        let rate = 0;
-        let rate_comment_walk = 0;
-        const cvContent = cvStringHigher(contentDiv);
-        const keywordIncludeMatch = [];
-        const keywordExcludeMatch = [];
-        for (const keyword of content_query_excludes_common) {
-          const cvKey = cvStringHigher(keyword);
-          if (cvContent.includes(cvKey)) {
-            keywordExcludeMatch.push(keyword);
-            isSkipPost = true;
-            break;
-          }
-        }
-        for (const keyword of keyword_query_exclude_comment_walk) {
-          const cvKey = cvStringHigher(keyword);
-          if (cvContent.includes(cvKey)) {
-            keywordExcludeMatch.push(keyword);
-            isSkipPost = true;
-            break;
-          }
-        }
-        const includeCommonSet = /* @__PURE__ */ new Set();
-        const includeCommentWalkSet = /* @__PURE__ */ new Set();
-        const cvContentProfileName = cvStringHigher(contentProfileName);
-        for (const keyword of content_query_includes_common) {
-          const cvKey = cvStringHigher(keyword);
-          if (includeCommonSet.has(cvKey)) continue;
-          if (cvContent.includes(cvKey)) {
-            keywordIncludeMatch.push;
-            rate++;
-            includeCommonSet.add(cvKey);
-          }
-        }
-        for (const keyword of keyword_query_include_comment_walk) {
-          const cvKey = cvStringHigher(keyword);
-          if (includeCommentWalkSet.has(cvKey)) continue;
-          if (cvContent.includes(cvKey) || cvContentProfileName.includes(cvKey)) {
-            keywordIncludeMatch.push(keyword);
-            rate_comment_walk++;
-            includeCommentWalkSet.add(cvKey);
-          }
-        }
-        if (rate < max_rate_common) {
-          isSkipPost = true;
-        }
-        if (rate_comment_walk < max_rate_comment_walk) {
-          isSkipPost = true;
-        }
-        logContent(
-          getTextLanguageContent({
-            en: "Keyword Include: " + keywordIncludeMatch.join(", "),
-            vi: "T\u1EEB kh\xF3a bao g\u1ED3m: " + keywordIncludeMatch.join(", ")
-          })
-        );
-        logContent(
-          getTextLanguageContent({
-            en: "Keyword Exclude: " + keywordExcludeMatch.join(", "),
-            vi: "T\u1EEB kh\xF3a lo\u1EA1i tr\u1EEB: " + keywordExcludeMatch.join(", ")
-          })
-        );
-        logContent(
-          getTextLanguageContent({
-            en: `Rate: ${rate}/${max_rate_common}, Rate Comment Walk: ${rate_comment_walk}/${max_rate_comment_walk}`,
-            vi: `T\u1EC9 l\u1EC7 chung: ${rate}/${max_rate_common}, T\u1EC9 l\u1EC7 d\u1EEF li\u1EC7u c\u1EE7a b\u1EA1n: ${rate_comment_walk}/${max_rate_comment_walk}`
-          })
-        );
-        if (isSkipPost) {
-          logContent(
-            getTextLanguageContent({
-              en: "Skip post because not match rate or keyword",
-              vi: "B\u1ECF qua b\xE0i vi\u1EBFt v\xEC kh\xF4ng \u0111\xFAng t\u1EC9 l\u1EC7 ho\u1EB7c t\u1EEB kh\xF3a"
-            })
-          );
-          continue;
-        } else {
-          countScroll = 0;
-        }
-        const divButtonToPost = findButtonToPost(child);
-        if (!divButtonToPost) {
-          logContent(
-            getTextLanguageContent({
-              en: "Not found button to open dialog",
-              vi: "Kh\xF4ng t\xECm th\u1EA5y n\xFAt \u0111\u1EC3 m\u1EDF h\u1ED9p tho\u1EA1i"
-            })
-          );
-          continue;
-        }
-        await scrollElementIntoView(divButtonToPost);
-        await sleep(random(1e3, 2500));
-        divButtonToPost.click();
-        await sleep(random(2e3, 3e3));
-        const dialog = findExistDialog();
-        const inputEditor = await findInputEditor(dialog);
-        if (!dialog || !inputEditor) {
-          await sleep(2e3);
-          logContent(
-            getTextLanguageContent({
-              en: "Not found dialog or input editor",
-              vi: "Kh\xF4ng t\xECm th\u1EA5y h\u1ED9p tho\u1EA1i ho\u1EB7c tr\xECnh so\u1EA1n th\u1EA3o"
-            })
-          );
-          await handleCloseIfExistDialog();
-          continue;
-        }
-        const href = location.href;
-        const canComment = await CL_getCanCommentThisPost(href);
-        if (!canComment) {
-          logContent(
-            getTextLanguageContent({
-              en: "This post maybe can not comment because you already commented",
-              vi: "B\xE0i vi\u1EBFt n\xE0y c\xF3 th\u1EC3 kh\xF4ng b\xECnh lu\u1EADn \u0111\u01B0\u1EE3c v\xEC b\u1EA1n \u0111\xE3 b\xECnh lu\u1EADn r\u1ED3i"
-            })
-          );
-          await sleep(2e3);
-          await handleCloseIfExistDialog();
-          continue;
-        }
-        if (!checkContentInputEmpty(inputEditor)) {
-          logContent(
-            getTextLanguageContent({
-              en: "Input content is not empty, clear it...",
-              vi: "N\u1ED9i dung b\xECnh lu\u1EADn kh\xF4ng r\u1ED7ng, x\xF3a n\u1ED9i dung..."
-            })
-          );
-          await clearContentFromInputEditor(inputEditor);
-          await sleep(random(1e3, 2e3));
-          await clearFileFromInput(dialog);
-          await sleep(random(1500, 3e3));
-        }
-        logContent(
-          getTextLanguageContent({
-            en: "Filling content...",
-            vi: "\u0110ang nh\u1EADp n\u1ED9i dung..."
-          })
-        );
-        const content = commentWalk.contents[random(0, commentWalk.contents.length - 1)];
-        if (content) {
-          await sleep(random(1500, 3e3));
-          const success = await simulateTyping(inputEditor, content, {
-            minDelay: setting.time_delay_fill_content_comment_walk_min,
-            maxDelay: setting.time_delay_fill_content_comment_walk_max
-          });
-          if (!success) {
+            if (!checkCanCommentInThisElement(child)) {
+              continue;
+            }
+            countScroll++;
+            const article = findElement('div[role="article"]', child);
+            if (article) {
+              console.log({ article });
+              logContent(
+                getTextLanguageContent({
+                  en: "This post maybe is advertisement, skip it...",
+                  vi: "B\xE0i vi\u1EBFt n\xE0y c\xF3 th\u1EC3 l\xE0 b\xE0i vi\u1EBFt \u0111\u01B0\u1EE3c qu\u1EA3ng c\xE1o, b\u1ECF qua..."
+                })
+              );
+              continue;
+            }
+            let isSkipPost = false;
+            const divProfileName = findDivProfileName(child);
+            const contentProfileName = divProfileName?.textContent || "";
+            const countComment = await CL_getCountCommentWalkPostedPerBatch();
+            isStopTool = await CL_getStopTool();
+            if (isStopTool) {
+              await CL_setProcessingCommentWalk(false);
+              logContent(
+                getTextLanguageContent({
+                  en: "Stop tool, closing tab after few seconds...",
+                  vi: "D\u1EEBng c\xF4ng c\u1EE5, \u0111\xF3ng tab sau v\xE0i gi\xE2y..."
+                })
+              );
+              if (!isDevMode) {
+                await sleep(random(6e3, 9e3));
+                await CL_compeleteCommentWalkThisBatch();
+              }
+              return;
+            }
+            if (areaComment.isHome) {
+              if (!checkIsFacebookUrl(location.href)) {
+                throw new Error("Not in correct page");
+              }
+            } else if (!checkIsSearchPageUrl(location.href) && !checkIsSearchPagePostUrl(location.href)) {
+              throw new Error("Not in correct page");
+            }
+            logContent(
+              `${getTextLanguageContent({ en: "Commenting: ", vi: "\u0110ang b\xECnh lu\u1EADn: " })}: ${countComment}/${max_comment}`
+            );
+            logContent(
+              `${getTextLanguageContent({
+                vi: `B\xE0i vi\u1EBFt b\u1ECF qua: ${countScroll}/${maxCount}`,
+                en: `Number skipped posts: ${countScroll}/${maxCount}`
+              })}`
+            );
+            if (countComment >= max_comment || countScroll >= maxCount) {
+              if (countComment >= max_comment) {
+                flagDone = true;
+              }
+              logContent(
+                getTextLanguageContent({
+                  en: "Max comment reached, close this tab after some seconds...",
+                  vi: "\u0110\xE3 \u0111\u1EE7 s\u1ED1 b\xECnh lu\u1EADn, \u0111\xF3ng tab sau v\xE0i gi\xE2y..."
+                })
+              );
+              await sleep(random(4e3, 6e3));
+              await CL_compeleteCommentWalkThisBatch();
+              return;
+            }
+            if (countScroll >= maxCount / 2 && !reloaded) {
+              const reload = findDivReloadPage();
+              if (reload) {
+                const rd = randomRateBoolean(50);
+                if (rd) {
+                  reload.click();
+                  await sleep(random(1e4, 15e3));
+                  const newDivFeed = await findDivFeed();
+                  if (newDivFeed) {
+                    const newChilds = newDivFeed.children;
+                    return await autoWalk(newChilds, true);
+                  }
+                }
+              }
+            }
+            await sleep(random(1e3, 1500));
+            scrollElementIntoView(child);
+            await sleep(random(1500, 3e3));
+            const divButtonToPost = findButtonToPost(child);
+            if (!divButtonToPost) {
+              logContent(
+                getTextLanguageContent({
+                  en: "Not found button to open dialog",
+                  vi: "Kh\xF4ng t\xECm th\u1EA5y n\xFAt \u0111\u1EC3 m\u1EDF h\u1ED9p tho\u1EA1i"
+                })
+              );
+              continue;
+            }
+            await scrollElementIntoView(divButtonToPost);
+            await sleep(random(1e3, 2500));
+            if (!checkIsFeedItemInGroup(child)) {
+              logContent(
+                getTextLanguageContent({
+                  vi: "B\xE0i vi\u1EBFt n\xE0y kh\xF4ng n\u1EB1m trong group, c\xF3 th\u1EC3 l\xE0 b\xE0i vi\u1EBFt c\u1EE7a ng\u01B0\u1EDDi d\xF9ng kh\xE1c, qu\u1EA3ng c\xE1o,...",
+                  en: "This post is not in group, maybe is post of other user, ad,..."
+                })
+              );
+              continue;
+            }
+            const divFeedContent = await findDivItemFeedContent(child);
+            const divPreview = findDivItemPreview(child);
+            if (!divFeedContent) {
+              logErrorContent("Not found div feed content, skip post");
+              continue;
+            }
+            const btnShowMore = findButtonShowMore(child);
+            if (btnShowMore) {
+              btnShowMore.click();
+              await sleep(random(2e3, 4e3));
+            }
+            const contentDiv = divFeedContent?.textContent || "";
+            if (contentDiv.length >= 500) {
+              logContent(
+                getTextLanguageContent({
+                  vi: `B\xE0i vi\u1EBFt n\u1ED9i dung qu\xE1 d\xE0i (${contentDiv.length} k\xFD t\u1EF1), b\u1ECF qua...`,
+                  en: `Post content is too long (${contentDiv.length} characters), skip...`
+                })
+              );
+              continue;
+            }
+            const contentNameAndDiv = contentProfileName + " " + contentDiv;
+            if (!contentDiv || !contentDiv.trim()) {
+              logErrorContent("Content div is empty, next post");
+              continue;
+            }
+            const listMatch = [];
+            const keywordIncludeMatch = [];
+            const keywordExcludeMatch = [];
+            const keywordExcludeCommons = matchQueryKeywords(
+              content_query_excludes_common,
+              contentDiv
+            );
+            keywordExcludeMatch.push(...keywordExcludeCommons);
+            if (keywordExcludeCommons.length) {
+              logExcludeKeywords(keywordExcludeCommons);
+              continue;
+            }
+            const keywordIncludeCommons = matchQueryKeywords(
+              content_query_includes_common,
+              contentDiv
+            );
+            keywordIncludeMatch.push(...keywordIncludeCommons);
+            if (keywordIncludeCommons.length < max_rate_common) {
+              if (areaComment.isHome) {
+                let flag = false;
+                for (const keyword of keywords_certain_choice) {
+                  if (contentDiv.toLowerCase().includes(keyword.toLowerCase())) {
+                    keywordIncludeMatch.push(keyword);
+                    flag = true;
+                    break;
+                  }
+                }
+                if (!flag) {
+                  isSkipPost = true;
+                }
+              } else {
+                isSkipPost = true;
+              }
+            }
+            if (!isSkipPost) {
+              if (areaComment.isSearch) {
+                const keyword_query_exclude_comment_walk = commentWalk?.keyword_query_excludes || [];
+                const keyword_query_include_comment_walk = commentWalk?.keyword_query_includes || [];
+                const max_rate_comment_walk = commentWalk?.match_rate_value_content_query_includes || 0;
+                const keywordExcludeCommentWalkMatch = matchQueryKeywords(
+                  keyword_query_exclude_comment_walk,
+                  contentDiv
+                );
+                keywordExcludeMatch.push(...keywordExcludeCommentWalkMatch);
+                if (keywordExcludeCommentWalkMatch.length) {
+                  logExcludeKeywords(keywordExcludeCommentWalkMatch);
+                  continue;
+                }
+                const keywordIncludeCommentWalkMatch = matchQueryKeywords(
+                  keyword_query_include_comment_walk,
+                  contentNameAndDiv
+                );
+                keywordIncludeMatch.push(...keywordIncludeCommentWalkMatch);
+                if (keywordIncludeCommentWalkMatch.length < max_rate_comment_walk) {
+                  isSkipPost = true;
+                }
+                logContent(
+                  getTextLanguageContent({
+                    en: "Keyword Include: " + keywordIncludeMatch.join(", "),
+                    vi: "T\u1EEB kh\xF3a bao g\u1ED3m: " + keywordIncludeMatch.join(", ")
+                  })
+                );
+                logContent(
+                  getTextLanguageContent({
+                    en: `Rate: ${keywordIncludeCommons.length}/${max_rate_common}, Rate Comment Walk: ${keywordIncludeCommentWalkMatch.length}/${max_rate_comment_walk}`,
+                    vi: `T\u1EC9 l\u1EC7 chung: ${keywordIncludeCommons.length}/${max_rate_common}, T\u1EC9 l\u1EC7 d\u1EEF li\u1EC7u c\u1EE7a b\u1EA1n: ${keywordIncludeCommentWalkMatch.length}/${max_rate_comment_walk}`
+                  })
+                );
+              } else if (areaComment.isHome) {
+                for (const comment of listCommentWalk) {
+                  const keywordExclude = comment.keyword_query_excludes;
+                  const contentExcludeMatch = matchQueryKeywords(
+                    keywordExclude,
+                    contentDiv
+                  );
+                  if (contentExcludeMatch.length) {
+                    continue;
+                  }
+                  const keywordInclude = comment.keyword_query_includes;
+                  const rateComment = Number(comment.match_rate_value_content_query_includes) + VALUE_RATE_ADD_FOR_HOME;
+                  const contentMatchs = matchQueryKeywords(
+                    keywordInclude,
+                    contentNameAndDiv
+                  );
+                  if (contentMatchs.length >= rateComment) {
+                    listMatch.push({
+                      id: comment.id,
+                      rate: contentMatchs.length,
+                      match: [...contentMatchs]
+                    });
+                  }
+                }
+                if (!listMatch.length) {
+                  logContent(
+                    getTextLanguageContent({
+                      en: "Skip post because not data comment match",
+                      vi: "B\u1ECF qua b\xE0i vi\u1EBFt v\xEC kh\xF4ng c\xF3 d\u1EEF li\u1EC7u b\xECnh lu\u1EADn ph\xF9 h\u1EE3p"
+                    })
+                  );
+                  continue;
+                }
+              }
+            }
+            if (isSkipPost) {
+              logContent(
+                getTextLanguageContent({
+                  en: "Keyword Exclude: " + keywordExcludeMatch.join(", "),
+                  vi: "T\u1EEB kh\xF3a lo\u1EA1i tr\u1EEB: " + keywordExcludeMatch.join(", ")
+                })
+              );
+              logContent(
+                getTextLanguageContent({
+                  en: "Skip post because not enough rate or not keyword match",
+                  vi: "B\u1ECF qua b\xE0i vi\u1EBFt v\xEC kh\xF4ng \u0111\u1EE7 t\u1EC9 l\u1EC7 ho\u1EB7c kh\xF4ng \u0111\xFAng t\u1EEB kh\xF3a"
+                })
+              );
+              continue;
+            } else {
+              if (areaComment.isSearch) {
+                countScroll = 0;
+              }
+            }
+            await sleep(random(1e3, 2500));
+            divButtonToPost.click();
+            await sleep(random(2e3, 3e3));
+            if (areaComment.isHome) {
+              if (listMatch.length) {
+                const listId = listMatch.sort((a, b) => b.rate - a.rate).map((i) => i.id);
+                const commentWalkNeverComment = await CL_getCommentWalkNeverCommented(listId, location.href);
+                if (commentWalkNeverComment) {
+                  commentWalk = commentWalkNeverComment;
+                  const matchOfPost = listMatch.find(
+                    (i) => i.id === commentWalkNeverComment.id
+                  );
+                  logContent(
+                    getTextLanguageContent({
+                      en: "Keyword match: " + matchOfPost.match.join(", "),
+                      vi: "T\u1EEB kh\xF3a kh\u1EDBp: " + matchOfPost.match.join(", ")
+                    })
+                  );
+                  logContent(
+                    getTextLanguageContent({
+                      en: "Score match: " + matchOfPost.rate,
+                      vi: "T\u1EF7 l\u1EC7 kh\u1EDBp: " + matchOfPost.rate
+                    })
+                  );
+                  logContent(
+                    getTextLanguageContent({
+                      en: "Data match for post: " + commentWalkNeverComment.name,
+                      vi: "D\u1EEF li\u1EC7u kh\u1EDBp cho b\xE0i vi\u1EBFt: " + commentWalkNeverComment.name
+                    })
+                  );
+                } else {
+                  logContent(
+                    getTextLanguageContent({
+                      en: "Skip post because you already commented on post",
+                      vi: "B\u1ECF qua b\xE0i vi\u1EBFt v\xEC b\u1EA1n \u0111\xE3 b\xECnh lu\u1EADn v\xE0o b\xE0i vi\u1EBFt n\xE0y r\u1ED3i"
+                    })
+                  );
+                  await closeDialog();
+                  continue;
+                }
+              }
+            }
+            const dialog = findExistDialog();
+            const inputEditor = await findInputEditor(dialog);
+            if (!dialog || !inputEditor) {
+              await sleep(2e3);
+              logContent(
+                getTextLanguageContent({
+                  en: "Not found dialog or input editor",
+                  vi: "Kh\xF4ng t\xECm th\u1EA5y h\u1ED9p tho\u1EA1i ho\u1EB7c tr\xECnh so\u1EA1n th\u1EA3o"
+                })
+              );
+              await handleCloseIfExistDialog();
+              continue;
+            }
+            const href = location.href;
+            if (areaComment.isSearch) {
+              const canComment = await CL_getCanCommentThisPost(href);
+              if (!canComment) {
+                logContent(
+                  getTextLanguageContent({
+                    en: "This post maybe can not comment because you already commented",
+                    vi: "B\xE0i vi\u1EBFt n\xE0y c\xF3 th\u1EC3 kh\xF4ng b\xECnh lu\u1EADn \u0111\u01B0\u1EE3c v\xEC b\u1EA1n \u0111\xE3 b\xECnh lu\u1EADn r\u1ED3i"
+                  })
+                );
+                await sleep(random(2e3, 4e3));
+                await handleCloseIfExistDialog();
+                await sleep(random(1500, 2500));
+                continue;
+              }
+            }
+            if (!checkContentInputEmpty(inputEditor)) {
+              logContent(
+                getTextLanguageContent({
+                  en: "Input content is not empty, clear it...",
+                  vi: "N\u1ED9i dung b\xECnh lu\u1EADn kh\xF4ng r\u1ED7ng, x\xF3a n\u1ED9i dung..."
+                })
+              );
+              await clearContentFromInputEditor(inputEditor);
+              await sleep(random(1e3, 2e3));
+              await clearFileFromInput(dialog);
+              await sleep(random(1500, 3e3));
+            }
             logContent(
               getTextLanguageContent({
-                en: "Failed to fill content, clear it...",
-                vi: "Nh\u1EADp n\u1ED9i dung th\u1EA5t b\u1EA1i, x\xF3a n\u1ED9i dung..."
+                en: "Filling content...",
+                vi: "\u0110ang nh\u1EADp n\u1ED9i dung..."
               })
             );
-            await clearContentFromInputEditor(inputEditor);
-            await sleep(random(1e3, 2e3));
-            await clearFileFromInput(dialog);
-            await sleep(random(1500, 3e3));
+            const content = commentWalk?.contents?.[random(0, commentWalk.contents.length - 1)];
+            if (content) {
+              await sleep(random(1500, 3e3));
+              const success = await simulateTyping(inputEditor, content, {
+                minDelay: setting.time_delay_fill_content_comment_walk_min,
+                maxDelay: setting.time_delay_fill_content_comment_walk_max
+              });
+              if (!success) {
+                logContent(
+                  getTextLanguageContent({
+                    en: "Failed to fill content, clear it...",
+                    vi: "Nh\u1EADp n\u1ED9i dung th\u1EA5t b\u1EA1i, x\xF3a n\u1ED9i dung..."
+                  })
+                );
+                await clearContentFromInputEditor(inputEditor);
+                await sleep(random(1e3, 2e3));
+                await clearFileFromInput(dialog);
+                await sleep(random(1500, 3e3));
+                logContent(
+                  getTextLanguageContent({
+                    en: "Close dialog...",
+                    vi: "\u0110ang \u0111\xF3ng h\u1ED9p tho\u1EA1i"
+                  })
+                );
+                await closeDialog();
+                continue;
+              }
+              await sleep(random(1e3, 2e3));
+            }
             logContent(
               getTextLanguageContent({
-                en: "Close dialog...",
+                en: "Filling file...",
+                vi: "\u0110ang t\u1EA3i file"
+              })
+            );
+            const files = commentWalk.files;
+            const parses = await CL_getParseFileRequest(files);
+            if (parses && parses.length) {
+              const parseRandom = parses[random(0, parses.length - 1)];
+              await sleep(setting.time_delay_fill_file_comment_walk * 1e3);
+              const fileParse = parseBase64ToFile(parseRandom);
+              const dt = new DataTransfer();
+              dt.items.add(fileParse);
+              const pasteEvent = new ClipboardEvent("paste", {
+                bubbles: true,
+                cancelable: true,
+                clipboardData: dt
+              });
+              inputEditor.dispatchEvent(pasteEvent);
+              await sleep(
+                setting.time_delay_fill_file_comment_walk * 1e3 + random(1e3, 2e3)
+              );
+            }
+            logContent(
+              getTextLanguageContent({
+                en: "Submitting...",
+                vi: "\u0110ang g\u1EEDi..."
+              })
+            );
+            await sleep(random(2e3, 4e3));
+            if (!isTest) {
+              await handleSubmitComment(inputEditor);
+              await sleep((setting.time_delay_submit_comment_walk + 1) * 1e3);
+            }
+            if (!checkContentInputEmpty(inputEditor)) {
+              if (!isTest) {
+                logContent(
+                  getTextLanguageContent({
+                    en: "Input content is not empty, can not submit or submit failure, clear it...",
+                    vi: "N\u1ED9i dung b\xECnh lu\u1EADn kh\xF4ng r\u1ED7ng, kh\xF4ng th\u1EC3 g\u1EEDi ho\u1EB7c g\u1EEDi th\u1EA5t b\u1EA1i, x\xF3a n\xF3..."
+                  })
+                );
+                CL_addLogRequest({
+                  vi: "B\xECnh lu\u1EADn th\u1EA5t b\u1EA1i v\xE0o b\xE0i vi\u1EBFt: " + href,
+                  en: "Commented failure in this post: " + href
+                });
+              } else {
+                logContent(
+                  getTextLanguageContent({
+                    en: "Test mode, skipping submit action...",
+                    vi: "\u0110ang test, b\u1ECF qua h\xE0nh \u0111\u1ED9ng g\u1EEDi..."
+                  })
+                );
+              }
+              await clearContentFromInputEditor(inputEditor);
+              await sleep(random(1e3, 2e3));
+              await clearFileFromInput(dialog);
+              await sleep(random(1500, 3e3));
+            } else {
+              CL_addLogRequest({
+                vi: "\u0110\xE3 b\xECnh lu\u1EADn th\xE0nh c\xF4ng v\xE0o b\xE0i vi\u1EBFt: " + href,
+                en: "Commented successfully on post: " + href
+              });
+              await CL_updateLastTimeCommentWalk(Date.now());
+            }
+            logContent(
+              getTextLanguageContent({
+                en: "Closing dialog...",
                 vi: "\u0110ang \u0111\xF3ng h\u1ED9p tho\u1EA1i"
               })
             );
-            await handleCloseIfExistDialog();
-            continue;
+            await sleep(random(1e3, 3e3));
+            await closeDialog();
+            await CL_setCountCommentWalkPostedPerBatch(countComment + 1);
+            await sleep(random(2e3, 3e3));
+            if (!isTest) {
+              await CL_addUrlCommented(commentWalk.id, href);
+            }
           }
-          await sleep(random(1e3, 2e3));
+        } catch (error) {
+          throw error;
         }
-        logContent(
-          getTextLanguageContent({
-            en: "Filling file...",
-            vi: "\u0110ang t\u1EA3i file"
-          })
-        );
-        const files = commentWalk.files;
-        const parses = await CL_getParseFileRequest(files);
-        if (parses && parses.length) {
-          const parseRandom = parses[random(0, parses.length - 1)];
-          await sleep(setting.time_delay_fill_file_comment_walk * 1e3);
-          const fileParse = parseBase64ToFile(parseRandom);
-          const dt = new DataTransfer();
-          dt.items.add(fileParse);
-          const pasteEvent = new ClipboardEvent("paste", {
-            bubbles: true,
-            cancelable: true,
-            clipboardData: dt
-          });
-          inputEditor.dispatchEvent(pasteEvent);
-          await sleep(random(2e3, 4e3));
-        }
-        logContent(
-          getTextLanguageContent({
-            en: "Submitting...",
-            vi: "\u0110ang g\u1EEDi..."
-          })
-        );
-        await sleep(random(2e3, 4e3));
-        if (!isTest) {
-          await handleSubmitComment(inputEditor);
-          await sleep((setting.time_delay_submit_comment_walk + 1) * 1e3);
-        }
-        if (!checkContentInputEmpty(inputEditor)) {
-          if (!isTest) {
-            logContent(
-              getTextLanguageContent({
-                en: "Input content is not empty, can not submit or submit failure, clear it...",
-                vi: "N\u1ED9i dung b\xECnh lu\u1EADn kh\xF4ng r\u1ED7ng, kh\xF4ng th\u1EC3 g\u1EEDi ho\u1EB7c g\u1EEDi th\u1EA5t b\u1EA1i, x\xF3a n\xF3..."
-              })
-            );
-            CL_addLogRequest({
-              vi: "B\xECnh lu\u1EADn th\u1EA5t b\u1EA1i v\xE0o b\xE0i vi\u1EBFt: " + href,
-              en: "Commented failure in this post: " + href
-            });
-          } else {
-            logContent(
-              getTextLanguageContent({
-                en: "Test mode, skipping submit action...",
-                vi: "\u0110ang test, b\u1ECF qua h\xE0nh \u0111\u1ED9ng g\u1EEDi..."
-              })
-            );
-          }
-          await clearContentFromInputEditor(inputEditor);
-          await sleep(random(1e3, 2e3));
-          await clearFileFromInput(dialog);
-          await sleep(random(1500, 3e3));
-        } else {
-          CL_addLogRequest({
-            vi: "\u0110\xE3 b\xECnh lu\u1EADn th\xE0nh c\xF4ng v\xE0o b\xE0i vi\u1EBFt: " + href,
-            en: "Commented successfully on post: " + href
-          });
-          await CL_updateLastTimeCommentWalk(Date.now());
-        }
-        await CL_addUrlCommented(href);
-        logContent(
-          getTextLanguageContent({
-            en: "Closing dialog...",
-            vi: "\u0110ang \u0111\xF3ng h\u1ED9p tho\u1EA1i"
-          })
-        );
-        await sleep(random(1e3, 3e3));
-        await handleCloseIfExistDialog();
-        await CL_setCountCommentWalkPostedPerBatch(countComment + 1);
-        await sleep(random(2e3, 3e3));
-        await CL_addUrlCommented(href);
       }
-      logContent(
-        getTextLanguageContent({
-          vi: "\u0110\u1EE3t b\xECnh lu\u1EADn \u0111\xE3 k\u1EBFt th\xFAc, tab n\xE0y s\u1EBD \u0111\xF3ng sau v\xE0i gi\xE2y",
-          en: "This batch comment has ended, this tab will be closed after a few seconds"
-        })
-      );
-      await sleep(random(3e3, 5e3));
-      await CL_compeleteCommentWalkThisBatch();
+      await autoWalk(childs, false);
+      if (!flagDone) {
+        logContent(
+          getTextLanguageContent({
+            vi: "\u0110\u1EE3t b\xECnh lu\u1EADn \u0111\xE3 k\u1EBFt th\xFAc, tab n\xE0y s\u1EBD \u0111\xF3ng sau v\xE0i gi\xE2y",
+            en: "This batch comment has ended, this tab will be closed after a few seconds"
+          })
+        );
+        await sleep(random(3e3, 5e3));
+        await CL_compeleteCommentWalkThisBatch();
+      }
     } catch (error) {
       CL_addLogRequest({
         vi: "L\u1ED7i khi b\xECnh lu\u1EADn v\xE0o b\xE0i vi\u1EBFt, " + error?.message || error,
@@ -2145,17 +2486,18 @@
         type: "error"
       });
       logContent("This tab maybe will be closed after some seconds...");
-      await sleep(random(3e3, 5e3));
+      await sleep(random(8e3, 12e3));
       await CL_compeleteCommentWalkThisBatch();
     }
   }
   async function handleCloseIfExistDialog() {
     try {
-      const dialog = findExistDialog();
+      let dialog = findExistDialog();
       if (dialog) {
         clickOutSideHideDialog();
-        await sleep(1e3);
-        if (getIsExistDialog()) {
+        await sleep(random(2e3, 4e3));
+        dialog = findExistDialog();
+        if (dialog) {
           await sleep(3e3);
           logContent("dialog existed, force close");
           const btnExitPage = findBtnExitPageWhenExistDialog();
@@ -2213,6 +2555,16 @@
       return element?.textContent.trim() === "";
     } catch (error) {
       logErrorContent("error in checkContentInputEmpty", error);
+      return false;
+    }
+  }
+  function checkIsFeedItemInGroup(container2) {
+    try {
+      if (!container2) return false;
+      const div = findElement('.//a[contains(@href, "group")]', container2);
+      return !!div;
+    } catch (error) {
+      logErrorContent("error in checkIsFeedItemInGroup", error);
       return false;
     }
   }
@@ -2281,7 +2633,7 @@
     }
   }
 
-  // dist/content/helpers/groups.js
+  // content/helpers/groups.js
   async function getListElementContainer() {
     try {
       const lang = getLanguage();
@@ -2505,7 +2857,7 @@
     }
   }
 
-  // dist/content/content-src.js
+  // content/content-src.js
   async function main() {
     try {
       console.log("content script is running...");
@@ -2514,31 +2866,10 @@
         return;
       }
       notificationContainer({});
+      test();
       const isDevMode = await CL_getIsDevMode();
       if (isDevMode) {
         await initWithMyTool();
-      }
-      if (checkIsSearchPageUrl(href) || checkIsSearchPagePostUrl(href)) {
-        await sleep(4e3);
-        const response = await CL_getCanCommentWalkThisTab();
-        if (!response) return;
-        await initWithMyTool();
-        await sleep(2e3);
-        const textLang = {
-          vi: `B\u1EAFt \u0111\u1EA7u \u0111\u1EE3t b\xECnh lu\u1EADn d\u1EA1o...`,
-          en: `Start comment walk...`
-        };
-        logContent(getTextLanguageContent(textLang));
-        const commentWalk = response.data;
-        const metadataSettingCommentWalk = await CL_getAllMetadataCommentWalk();
-        logContent(
-          getTextLanguageContent({
-            vi: `D\u1EEF li\u1EC7u b\xECnh lu\u1EADn \u0111\u1EE3t n\xE0y: ${commentWalk?.name || commentWalk.title}`,
-            en: `Comment data for this batch: ${commentWalk?.name || commentWalk.title}`
-          })
-        );
-        await CL_commentWalkHelper(metadataSettingCommentWalk, commentWalk);
-        return;
       }
       if (getIsMatchUrl(URL_LIST_GROUPS)) {
         const isGetList = await CL_getValue(KEY_IS_SCROLL_DETECT_LIST_GROUP);
@@ -2564,79 +2895,232 @@
         }
         return;
       }
-      if (!getIsCorrectPostURL(href)) {
+      if (getIsCorrectPostURL(href)) {
+        try {
+          const isProgress = await CL_getProgressTool();
+          if (!isProgress) {
+            logContent("TOOL IS NOT PROGRESS");
+            return;
+          }
+          const object = await CL_getObjectCanPostThisTab();
+          logContent("Response can post this tab", object);
+          const canPost = object.can_post;
+          if (canPost) {
+            await initWithMyTool();
+            await sleep(2e3);
+            const task = object.data;
+            await interactBeforePost();
+            CL_addLogRequest({
+              vi: `B\u1EAFt \u0111\u1EA7u \u0111\u0103ng b\xE0i trong nh\xF3m ${task?.id_href}`,
+              en: `Start posting in group ${task?.id_href}`
+            });
+            const isSuccess = await postHelper(task);
+            if (isSuccess) {
+              await commentToJustPostedHelper();
+            }
+            const timeDelay = await CL_getTimeDelayData();
+            const timeDelayNext = timeDelay.openNewTab % 2 === 0 ? timeDelay.openNewTab / 2 : (timeDelay.openNewTab + 1) / 2;
+            await sleep(timeDelayNext * 1e3 + random(500, 2e3));
+            sendMessage(KEY_NEXT_POST_GROUP, {});
+            const isTest = await CL_getValue(KEY_IS_TEST, false);
+            if (isTest) {
+              logContent(
+                getTextLanguageContent({
+                  vi: "\u0110ang test, tab s\u1EBD \u0111\xF3ng sau 15s",
+                  en: "Is test, tab will close after 15s"
+                })
+              );
+              setTimeout(() => {
+                sendMessage(KEY_CLOSE_THIS_TAB, {});
+              }, 15 * 1e3);
+            } else {
+              const closeDelay = random(35, 55);
+              logContent(
+                getTextLanguageContent({
+                  vi: `C\xF4ng vi\u1EC7c \u0111\xE3 ho\xE0n th\xE0nh, tab n\xE0y s\u1EBD \u0111\xF3ng sau ${closeDelay}s`,
+                  en: `Task completed, this tab will close after ${closeDelay}s`
+                })
+              );
+              setTimeout(() => {
+                sendMessage(KEY_CLOSE_THIS_TAB, {});
+              }, closeDelay * 1e3);
+              setTimeout(
+                async () => {
+                  if (getIsExistDialog()) {
+                    const isSpammed = checkIsSpammed();
+                    if (isSpammed) {
+                      sendMessage(KEY_UPDATE_IS_SPAMMED, {
+                        isSpammed
+                      });
+                      await sleep(2e3);
+                    }
+                    clickOutSideHideDialog();
+                  }
+                },
+                random(10, 20) * 1e3
+              );
+            }
+          }
+        } catch (error) {
+          logErrorContent("Error at content posting main: ", error);
+        }
         return;
       }
-      try {
-        const isProgress = await CL_getProgressTool();
-        if (!isProgress) {
-          logContent("TOOL IS NOT PROGRESS");
-          return;
+      if (checkIsSearchPageUrl(href) || checkIsSearchPagePostUrl(href) || checkIsFacebookUrl(href)) {
+        await sleep(4e3);
+        const response = await CL_getCanCommentWalkThisTab();
+        if (!response) return;
+        await initWithMyTool();
+        await sleep(2e3);
+        const textLang = {
+          vi: `B\u1EAFt \u0111\u1EA7u \u0111\u1EE3t b\xECnh lu\u1EADn d\u1EA1o...`,
+          en: `Start comment walk...`
+        };
+        logContent(getTextLanguageContent(textLang));
+        const metadataCommentWalk = await CL_getAllMetadataCommentWalk();
+        const setting = metadataCommentWalk.setting;
+        const commentWalk = metadataCommentWalk.comment_walk;
+        const listCommentWalk = metadataCommentWalk.list_comment_walk;
+        if (setting.comment_walk_area === KEY_COMMENT_WALK_AREA.SEARCH_PAGE) {
+          logContent(
+            getTextLanguageContent({
+              vi: `D\u1EEF li\u1EC7u b\xECnh lu\u1EADn \u0111\u1EE3t n\xE0y: ${commentWalk?.name || commentWalk.title}`,
+              en: `Comment data for this batch: ${commentWalk?.name || commentWalk.title}`
+            })
+          );
         }
-        const object = await CL_getObjectCanPostThisTab();
-        logContent("Response can post this tab", object);
-        const canPost = object.can_post;
-        if (canPost) {
-          await initWithMyTool();
-          await sleep(2e3);
-          const task = object.data;
-          await interactBeforePost();
-          CL_addLogRequest({
-            vi: `B\u1EAFt \u0111\u1EA7u \u0111\u0103ng b\xE0i trong nh\xF3m ${task?.id_href}`,
-            en: `Start posting in group ${task?.id_href}`
-          });
-          const isSuccess = await postHelper(task);
-          if (isSuccess) {
-            await commentToJustPostedHelper();
-          }
-          const timeDelay = await CL_getTimeDelayData();
-          const timeDelayNext = timeDelay.openNewTab % 2 === 0 ? timeDelay.openNewTab / 2 : (timeDelay.openNewTab + 1) / 2;
-          await sleep(timeDelayNext * 1e3 + random(500, 2e3));
-          sendMessage(KEY_NEXT_POST_GROUP, {});
-          const isTest = await CL_getValue(KEY_IS_TEST, false);
-          if (isTest) {
-            logContent(
-              getTextLanguageContent({
-                vi: "\u0110ang test, tab s\u1EBD \u0111\xF3ng sau 15s",
-                en: "Is test, tab will close after 15s"
-              })
-            );
-            setTimeout(() => {
-              sendMessage(KEY_CLOSE_THIS_TAB, {});
-            }, 15 * 1e3);
-          } else {
-            const closeDelay = random(35, 55);
-            logContent(
-              getTextLanguageContent({
-                vi: `C\xF4ng vi\u1EC7c \u0111\xE3 ho\xE0n th\xE0nh, tab n\xE0y s\u1EBD \u0111\xF3ng sau ${closeDelay}s`,
-                en: `Task completed, this tab will close after ${closeDelay}s`
-              })
-            );
-            setTimeout(() => {
-              sendMessage(KEY_CLOSE_THIS_TAB, {});
-            }, closeDelay * 1e3);
-            setTimeout(
-              async () => {
-                if (getIsExistDialog()) {
-                  const isSpammed = checkIsSpammed();
-                  if (isSpammed) {
-                    sendMessage(KEY_UPDATE_IS_SPAMMED, {
-                      isSpammed
-                    });
-                    await sleep(2e3);
-                  }
-                  clickOutSideHideDialog();
-                }
-              },
-              random(10, 20) * 1e3
-            );
-          }
+        if (setting.comment_walk_area === KEY_COMMENT_WALK_AREA.HOME) {
+          logContent(
+            getTextLanguageContent({
+              vi: `Khu v\u1EF1c b\xECnh lu\u1EADn l\xE0 trang ch\u1EE7, d\u1EEF li\u1EC7u s\u1EBD \u0111\u01B0\u1EE3c ch\u1ECDn ph\xF9 h\u1EE3p v\u1EDBi c\xE1c b\xE0i vi\u1EBFt`,
+              en: `Comment walk area is your feed, data will be selected appropriately for posts`
+            })
+          );
         }
-      } catch (error) {
-        logErrorContent("Error at content posting main: ", error);
+        await CL_commentWalkHelper(setting, commentWalk, listCommentWalk);
+        return;
       }
     } catch (error) {
       logErrorContent("Error at content main: ", error);
+    }
+  }
+  async function test() {
+    try {
+      const isDevMode = await CL_getValue(KEY_IS_DEVELOPER_MODE);
+      if (!isDevMode) return;
+      const divBtn = document.createElement("div");
+      const btnTest = document.createElement("button");
+      btnTest.textContent = "test";
+      btnTest.addEventListener("click", handleClick);
+      btnTest.style.padding = "10px";
+      btnTest.style.cursor = "pointer";
+      const btnTest2 = document.createElement("button");
+      btnTest2.textContent = "test2";
+      btnTest2.addEventListener("click", handleClick2);
+      btnTest2.style.padding = "10px";
+      btnTest2.style.cursor = "pointer";
+      divBtn.style.position = "fixed";
+      divBtn.style.top = "60px";
+      divBtn.style.right = "60px";
+      divBtn.style.zIndex = "1000";
+      divBtn.style.padding = "10px";
+      divBtn.style.display = "flex";
+      divBtn.style.gap = "10px";
+      divBtn.appendChild(btnTest);
+      divBtn.appendChild(btnTest2);
+      async function handleClick() {
+        const divFeedContainer = document.evaluate(
+          '//h3[contains(text(), "B\xE0i vi\u1EBFt tr\xEAn B\u1EA3ng feed")]',
+          document,
+          null,
+          XPathResult.FIRST_ORDERED_NODE_TYPE,
+          null
+        )?.singleNodeValue?.parentElement;
+        if (!divFeedContainer) {
+          return;
+        }
+        console.log("divFeedContainer", { divFeedContainer });
+        const divFeed = document.evaluate(
+          ".//div[not(@dir) and .//div[@data-ad-rendering-role]]",
+          divFeedContainer,
+          null,
+          XPathResult.FIRST_ORDERED_NODE_TYPE,
+          null
+        )?.singleNodeValue;
+        console.log("divFeed", { divFeed });
+        if (!divFeed) return;
+        const childs = divFeed.children;
+        let firstClass = childs.length ? childs[0].getAttribute("class") : "";
+        console.log(firstClass);
+        let cnt = 0;
+        for (const child of childs) {
+          if (cnt >= 20) break;
+          if (child instanceof HTMLElement) {
+            const hasRole = child.querySelector("div[data-ad-rendering-role]");
+            if (hasRole) {
+              await scrollElementIntoView(child);
+              await sleep(2e3);
+              const isFeedItemInGroup = document.evaluate(
+                './/a[contains(@href, "group")]',
+                child,
+                null,
+                XPathResult.FIRST_ORDERED_NODE_TYPE,
+                null
+              ).singleNodeValue;
+              if (isFeedItemInGroup) {
+                logContent("This is feed item in group");
+                await sleep(2e3);
+                const divProfileName = child.querySelector(
+                  'div[data-ad-rendering-role="profile_name"]'
+                );
+                const divContent = child.querySelector(
+                  'div[data-ad-rendering-role="story_message"]'
+                );
+                const profileNameTextContent = divProfileName?.textContent;
+                const itemTextContent = divContent?.textContent;
+                const textQuery = "T\xECm ph\xF2ng tr\u1ECD, c\u1EA7n t\xECm ph\xF2ng, t\xECm ph\xF2ng, t\xE0i ch\xEDnh, budget";
+                const textQuery1 = "M\u1EF9 \u0111\xECnh, nguy\u1EC5n ho\xE0ng, 9tr, 2n1k, 1n1k";
+                logContent(
+                  "Match-1: ",
+                  matchQueryKeywords(splitString(textQuery), itemTextContent, 1)
+                );
+                logContent(
+                  "Match-2: ",
+                  matchQueryKeywords(
+                    splitString(textQuery1),
+                    profileNameTextContent,
+                    1
+                  )
+                );
+                logContent(
+                  "Match-3: ",
+                  matchQueryKeywords(splitString(textQuery1), itemTextContent, 1)
+                );
+                logContent("profile name: ", divProfileName?.textContent);
+                logContent("content: ", divContent?.textContent);
+                const btnToPost = findButtonToPost(child);
+                if (btnToPost) {
+                  btnToPost.click();
+                  await sleep(2e3);
+                  const dialog = findExistDialog();
+                  const inputEditor = await findInputEditor(dialog);
+                  console.log("inputEditor", { inputEditor });
+                  break;
+                }
+                await sleep(2e3);
+              } else {
+                logContent("This is not feed item in group");
+              }
+            }
+          }
+          ++cnt;
+        }
+      }
+      async function handleClick2() {
+      }
+      document.body.appendChild(divBtn);
+    } catch (error) {
+      logError("Error at content test: ", error);
     }
   }
   async function initWithMyTool() {

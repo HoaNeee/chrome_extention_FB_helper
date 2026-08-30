@@ -28,6 +28,17 @@ const commentWalkHelper = {
     }
   },
 
+  async gotoPageHome() {
+    try {
+      const urlTest = `https://www.facebook.com/`;
+      await openNewTabHelper(urlTest, async (tabId) => {
+        await commentWalkService.setTabIdCommentWalk(tabId);
+      });
+    } catch (error) {
+      logError("gotoPageHome", error);
+    }
+  },
+
   /**
    * @param {CommentWalk | CommentWalk[]} data
    */

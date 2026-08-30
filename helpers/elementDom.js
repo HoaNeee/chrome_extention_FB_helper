@@ -68,6 +68,10 @@ function getAllFieldsSetting(root = document) {
     `#tm_input-match-rate-value-content-query-includes-common-comment-walk`,
   );
 
+  const inputKeywordsCertainChoiceCommentWalk = root.querySelector(
+    `#tm_input-keywords-certain-choice-comment-walk`,
+  );
+
   const checkboxStatusTool = root.querySelector(`#tm_switch-status-tool`);
 
   const inputPriorityTaskPost = root.querySelector(
@@ -80,6 +84,16 @@ function getAllFieldsSetting(root = document) {
   const checkboxIsExecutePriorityTask = root.querySelector(
     `#tm_checkbox-is-execute-priority-task`,
   );
+
+  function getKeywordsCertainChoiceCommentWalk() {
+    return inputKeywordsCertainChoiceCommentWalk.value.split(",");
+  }
+
+  function setKeywordsCertainChoiceCommentWalk(val) {
+    if (inputKeywordsCertainChoiceCommentWalk) {
+      inputKeywordsCertainChoiceCommentWalk.value = val;
+    }
+  }
 
   function getPriorityTaskPost() {
     return parseInt(inputPriorityTaskPost.value);
@@ -315,6 +329,8 @@ function getAllFieldsSetting(root = document) {
     setPriorityTaskCommentWalk: setPriorityTaskCommentWalk,
     getIsExecutePriorityTask: getIsExecutePriorityTask,
     setIsExecutePriorityTask: setIsExecutePriorityTask,
+    getKeywordsCertainChoiceCommentWalk: getKeywordsCertainChoiceCommentWalk,
+    setKeywordsCertainChoiceCommentWalk: setKeywordsCertainChoiceCommentWalk,
   };
 }
 

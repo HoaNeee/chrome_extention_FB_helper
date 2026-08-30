@@ -35,6 +35,11 @@ const SELECTOR = {
     `.//span[contains(text(), "Thanks for your post! It's been submitted to the group admins for approval.")]`,
   ],
 
+  elementFeedPosts: [
+    './/h3[contains(text(), "Feed posts")]',
+    './/h3[contains(text(), "Feed Posts")]',
+  ],
+
   loadingElements: [
     `div[aria-label="Loading..."][role="status"][data-visualcompletion="loading-state"]`,
   ],
@@ -79,6 +84,11 @@ const SELECTOR_VI = {
   elementsSpammed: [
     `.//div[contains(text(), "Để bảo vệ cộng đồng khỏi spam, chúng tôi giới hạn tần suất bạn đăng bài, bình luận hoặc làm các việc khác trong khoảng thời gian nhất định. Bạn có thể thử lại sau")]`,
     `.//div[contains(text(), "Chúng tôi giới hạn tần suất bạn đăng bài, bình luận hoặc làm các việc khác trong khoảng thời gian nhất định. Bạn có thể thử lại sau")]`,
+  ],
+
+  elementFeedPosts: [
+    './/h3[contains(text(), "Bài viết trên Bảng feed")]',
+    './/h3[contains(text(), "Bài viết trên bảng feed")]',
   ],
 
   listElementContainers: [`div[aria-label="Bản xem trước nhóm"]`],
@@ -144,7 +154,7 @@ const SELECTOR_RAW = {
 
   feed: [`div[role="feed"]`],
 
-  itemFeedSearchResults: [`div[data-ad-rendering-role="story_message"]`],
+  itemFeedContents: [`div[data-ad-rendering-role="story_message"]`],
 
   itemFeedSearchResultPreviewContents: [`div[data-ad-comet-preview="message"]`],
 };

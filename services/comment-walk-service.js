@@ -1,8 +1,13 @@
+import CommentWalk from "../class/CommentWalk.js";
 import {
   ERROR_CODE,
+  KEY_COMMENT_WALK_AREA,
   KEY_IMPORT_EXPORT_TYPE,
 } from "../contants/constant-extention.js";
-import { KEY_COMMENT_WALK } from "../contants/contants.js";
+import {
+  DEFAULT_COMMENT_WALK_SETTING,
+  KEY_COMMENT_WALK,
+} from "../contants/contants.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import { DataCommentWalkDB } from "../utils/data-comment-walk-db.js";
 import { CustomError } from "../utils/exception.js";
@@ -13,11 +18,14 @@ import {
   random,
 } from "../utils/utils.js";
 import {
+  getCommentWalkAreaData,
   getContentQueryExcludesCommonData,
   getContentQueryIncludesCommonData,
+  getKeywordsCertainChoiceCommentWalkData,
   getMatchRateValueContentQueryIncludesCommonData,
   getMaxCommentWalkPerBatchData,
   getTimeDelayCommentWalk,
+  setCommentWalkAreaData,
 } from "./setting-service.js";
 
 /**
@@ -35,6 +43,8 @@ import {
  * @property {Array<string>} content_query_includes_common_comment_walk
  * @property {Array<string>} content_query_excludes_common_comment_walk
  * @property {number} match_rate_value_content_query_includes_common_comment_walk
+ * @property {string} comment_walk_area
+ * @property {Array<string>} keywords_certain_choice_comment_walk
  */
 
 /**
@@ -202,7 +212,11 @@ const commentWalkService = {
 
   /**
    *
-   * @returns {Promise<CommentWalkSetting>} - Metadata comment walk
+   * @returns {Promise<{
+   * setting: CommentWalkSetting,
+   * comment_walk: CommentWalk,
+   * list_comment_walk: CommentWalk[],
+   * }>} - Metadata comment walk
    */
   async getAllMetadataCommentWalk() {
     try {
@@ -217,24 +231,59 @@ const commentWalkService = {
       const match_rate_value_content_query_includes =
         await getMatchRateValueContentQueryIncludesCommonData();
 
-      const data = {};
+      const keywords_certain_choice_comment_walk =
+        await getKeywordsCertainChoiceCommentWalkData();
+
+      const setting = {};
 
       Object.keys(timeDelay).forEach((key) => {
-        data[key] = timeDelay[key];
+        setting[key] = timeDelay[key];
       });
 
-      data.max_comment_walk_per_batch = Number(maxComment);
-      data.content_query_includes_common_comment_walk =
+      const area = await this.getCurrentCommentWalkArea();
+
+      setting.max_comment_walk_per_batch = Number(maxComment);
+      setting.content_query_includes_common_comment_walk =
         content_query_includes_common;
-      data.content_query_excludes_common_comment_walk =
+      setting.content_query_excludes_common_comment_walk =
         content_query_excludes_common;
-      data.match_rate_value_content_query_includes_common_comment_walk =
+      setting.match_rate_value_content_query_includes_common_comment_walk =
         match_rate_value_content_query_includes;
+      setting.comment_walk_area = area;
+      setting.keywords_certain_choice_comment_walk =
+        keywords_certain_choice_comment_walk;
+
+      const currentId =
+        await commentWalkService.getCurrentIdCommentWalkActive();
+      if (!currentId && area === KEY_COMMENT_WALK_AREA.SEARCH_PAGE) {
+        throw new CustomError(ERROR_CODE.SELF, "Not found id comment walk");
+      }
+
+      const commentWalk = await this.getCommentWalkById(currentId);
+      if (!commentWalk && area === KEY_COMMENT_WALK_AREA.SEARCH_PAGE) {
+        throw new CustomError(ERROR_CODE.SELF, "Not found comment walk data");
+      }
+
+      const ids = await this.getListIdCommentWalkActive();
+
+      const listCommentWalkActive = [];
+
+      for (const id of ids) {
+        const commentWalk = await this.getCommentWalkById(id);
+        if (commentWalk) {
+          listCommentWalkActive.push(commentWalk);
+        }
+      }
+
+      const data = {
+        setting,
+        comment_walk: commentWalk,
+        list_comment_walk: listCommentWalkActive,
+      };
 
       return data;
     } catch (error) {
-      logError("Error at getAllMetadataCommentWalk: ", error);
-      return null;
+      throw error;
     }
   },
 
@@ -266,11 +315,18 @@ const commentWalkService = {
     await DB_setValue(KEY_COMMENT_WALK.LIST_URL_COMMENT_WALK_COMMENTED, list);
   },
 
-  async addUrlCommented(url) {
+  async addUrlCommented(id, url) {
     const listUrlCommented = await this.getListUrlCommented();
-    const id = await this.getCurrentIdCommentWalkActive();
     const matchIndex = listUrlCommented.findIndex((i) => i.id === id);
+
+    const maxLength = 1000;
+    const maxSub = 50;
+
     if (matchIndex !== -1) {
+      if (listUrlCommented[matchIndex].urls.length >= maxLength) {
+        listUrlCommented[matchIndex].urls =
+          listUrlCommented[matchIndex].urls.slice(maxSub); // remove 50 url oldest
+      }
       listUrlCommented[matchIndex].urls.push(url);
     } else {
       listUrlCommented.push({
@@ -281,8 +337,7 @@ const commentWalkService = {
     await this.setListUrlCommented(listUrlCommented);
   },
 
-  async checkUrlCommented(url) {
-    const id = await this.getCurrentIdCommentWalkActive();
+  async checkUrlCommented(id, url) {
     const listUrlCommented = await this.getListUrlCommented();
     const match = listUrlCommented.find((i) => i.id === id);
     if (match) {
@@ -353,6 +408,48 @@ const commentWalkService = {
 
   async setLastTimeCommentWalkSuccess(time) {
     await DB_setValue(KEY_COMMENT_WALK.LAST_TIME_COMMENT_WALK, time);
+  },
+
+  async getCommentWalkArea() {
+    return await getCommentWalkAreaData();
+  },
+
+  async setCommentWalkArea(commentWalkArea) {
+    return await setCommentWalkAreaData(commentWalkArea);
+  },
+
+  /**
+   *
+   * @param {string} area
+   * @returns {Promise<void>}
+   */
+  async setCurrentCommentWalkArea(area) {
+    await DB_setValue(KEY_COMMENT_WALK.CURRENT_COMMENT_WALK_AREA, area);
+  },
+
+  /**
+   *
+   * @returns {Promise<string>}
+   */
+  async getCurrentCommentWalkArea() {
+    return await DB_getValue(
+      KEY_COMMENT_WALK.CURRENT_COMMENT_WALK_AREA,
+      KEY_COMMENT_WALK_AREA.HOME,
+    );
+  },
+
+  /**
+   *
+   * @returns {typeof KEY_COMMENT_WALK_AREA}
+   */
+  getRandomCommentWalkArea() {
+    const areas = [];
+    for (const key in KEY_COMMENT_WALK_AREA) {
+      if (KEY_COMMENT_WALK_AREA[key] !== KEY_COMMENT_WALK_AREA.RANDOM) {
+        areas.push(KEY_COMMENT_WALK_AREA[key]);
+      }
+    }
+    return areas[random(0, areas.length - 1)];
   },
 };
 

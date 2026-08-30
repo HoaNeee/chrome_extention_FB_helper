@@ -1,10 +1,14 @@
+import CommentWalk from "../../class/CommentWalk";
+import { KEY_COMMENT_WALK_AREA } from "../../contants/constant-extention";
 import {
+  checkIsFacebookUrl,
   checkIsSearchPagePostUrl,
   checkIsSearchPageUrl,
-  cvStringHigher,
   getLanguage,
+  matchQueryKeywords,
   parseBase64ToFile,
   random,
+  randomRateBoolean,
   sleep,
 } from "../../utils/utils";
 import { SELECTOR, SELECTOR_RAW, SELECTOR_VI } from "../contants/contants";
@@ -14,6 +18,7 @@ import {
   CL_addUrlCommented,
   CL_compeleteCommentWalkThisBatch,
   CL_getCanCommentThisPost,
+  CL_getCommentWalkNeverCommented,
   CL_getCountCommentWalkPostedPerBatch,
   CL_getIsDevMode,
   CL_getIsTest,
@@ -30,7 +35,6 @@ import {
 import {
   clickOutSideHideDialog,
   findElement,
-  getIsExistDialog,
   mouseHoverElement,
   scrollElementIntoView,
   waitForElement,
@@ -62,6 +66,31 @@ async function findDivResultSearch() {
   }
 }
 
+async function findDivMain() {
+  try {
+    return await waitForElement('div[role="main"]');
+  } catch (error) {
+    logErrorContent("error in findDivMain", error);
+    return null;
+  }
+}
+
+function findDivFeedMainContainer(mainElement) {
+  try {
+    const lang = getLanguage();
+    const selectors =
+      lang === "vi" ? SELECTOR_VI.elementFeedPosts : SELECTOR.elementFeedPosts;
+    for (const selector of selectors) {
+      const div = findElement(selector, mainElement);
+      if (div) return div.parentElement;
+    }
+    return null;
+  } catch (error) {
+    logErrorContent("error in findDivFeedMainContainer", error);
+    return null;
+  }
+}
+
 function findDivFeedFromSearchResult(divResult) {
   try {
     const selectors = SELECTOR_RAW.feed;
@@ -76,9 +105,20 @@ function findDivFeedFromSearchResult(divResult) {
   }
 }
 
-async function findDivItemFeedSearchResultContent(divItemContainer) {
+function findDivFeedFromMain(element) {
   try {
-    const selectors = SELECTOR_RAW.itemFeedSearchResults;
+    const selector = ".//div[not(@dir) and .//div[@data-ad-rendering-role]]";
+    const div = findElement(selector, element);
+    return div;
+  } catch (error) {
+    logErrorContent("error in findDivFeedFromMain", error);
+    return null;
+  }
+}
+
+async function findDivItemFeedContent(divItemContainer) {
+  try {
+    const selectors = SELECTOR_RAW.itemFeedContents;
     for await (const s of selectors) {
       const div = await waitForElement(s, divItemContainer);
       if (div) return div;
@@ -189,7 +229,10 @@ function findBtnExitPageWhenExistDialog() {
 
 function findDivProfileName(divItemContainer) {
   try {
-    const selector = 'div[data-ad-rendering-role="profile_name"]';
+    const lang = getLanguage();
+
+    const label = lang === "vi" ? "đã đăng trong" : "posted in";
+    const selector = `.//div[@data-ad-rendering-role="profile_name" and not(contains(text(),'${label}'))]`;
     return findElement(selector, divItemContainer);
   } catch (error) {
     logErrorContent("error in findDivProfileName", error);
@@ -197,46 +240,118 @@ function findDivProfileName(divItemContainer) {
   }
 }
 
+function findDivReloadPage() {
+  try {
+    return findElement('a[aria-label="Facebook"]');
+  } catch (error) {
+    logErrorContent("error in findDivReloadPage", error);
+    return null;
+  }
+}
+
 /**
  * @param {CommentWalkSetting} setting
  * @param {CommentWalk} commentWalk
+ * @param {CommentWalk[]} listCommentWalk
  */
-async function CL_commentWalkHelper(setting, commentWalk) {
+async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
   try {
-    const divResult = await findDivResultSearch();
-    let countScroll = 0;
-    let maxCount = 20;
+    const VALUE_RATE_ADD_FOR_HOME = 1;
 
     const isDevMode = await CL_getIsDevMode();
     const isTest = await CL_getIsTest();
 
-    if (!divResult) {
-      throw new Error("Not found div result search");
+    let flagDone = false;
+
+    //common
+    const max_comment = setting.max_comment_walk_per_batch;
+    const content_query_includes_common =
+      setting?.content_query_includes_common_comment_walk || [];
+    const content_query_excludes_common =
+      setting?.content_query_excludes_common_comment_walk || [];
+    const max_rate_common =
+      setting?.match_rate_value_content_query_includes_common_comment_walk || 0;
+    const area = setting?.comment_walk_area;
+    const keywords_certain_choice =
+      setting?.keywords_certain_choice_comment_walk || [];
+
+    function checkArea() {
+      const isHome = area === KEY_COMMENT_WALK_AREA.HOME;
+      const isSearch = area === KEY_COMMENT_WALK_AREA.SEARCH_PAGE;
+
+      return {
+        isHome,
+        isSearch,
+      };
     }
 
-    const divFeed = findDivFeedFromSearchResult(divResult);
+    function checkCanCommentInThisElement(element) {
+      if (!(element instanceof HTMLElement)) {
+        return false;
+      }
+      const hasRole = findElement("div[data-ad-rendering-role]", element);
+      if (!hasRole) {
+        return false;
+      }
+      return true;
+    }
+
+    function logExcludeKeywords(keywords = []) {
+      logContent(
+        getTextLanguageContent({
+          en:
+            "This post contains excluded keywords: " +
+            keywords.join(", ") +
+            ", skip it...",
+          vi:
+            "Bài viết này chứa các từ khóa bị loại trừ: " +
+            keywords.join(", ") +
+            ", bỏ qua...",
+        }),
+      );
+    }
+
+    async function closeDialog() {
+      await sleep(random(2000, 4000));
+      await handleCloseIfExistDialog();
+      await sleep(random(1500, 2500));
+    }
+
+    const areaComment = checkArea();
+
+    let countScroll = 0;
+    let maxCount = isDevMode ? 50 : areaComment.isHome ? 50 : 20;
+
+    async function findDivFeed() {
+      let divResult = null;
+
+      //type home
+      if (areaComment.isHome) {
+        const main = await findDivMain();
+        divResult = findDivFeedMainContainer(main);
+      } else if (areaComment.isSearch) {
+        divResult = await findDivResultSearch();
+      }
+
+      if (!divResult) {
+        throw new Error("Not found div result search");
+      }
+
+      if (areaComment.isHome) {
+        return findDivFeedFromMain(divResult);
+      } else if (areaComment.isSearch) {
+        return findDivFeedFromSearchResult(divResult);
+      }
+      return null;
+    }
+
+    let divFeed = await findDivFeed();
 
     if (!divFeed) {
       throw new Error("Not found div feed");
     }
 
     await sleep(random(2000, 4000));
-
-    const childs = divFeed.children;
-
-    const max_comment = setting.max_comment_walk_per_batch;
-    const content_query_includes_common =
-      setting?.content_query_includes_common_comment_walk || [];
-    const content_query_excludes_common =
-      setting?.content_query_excludes_common_comment_walk || [];
-    const keyword_query_include_comment_walk =
-      commentWalk?.keyword_query_includes || [];
-    const keyword_query_exclude_comment_walk =
-      commentWalk?.keyword_query_excludes || [];
-    const max_rate_common =
-      setting?.match_rate_value_content_query_includes_common_comment_walk || 0;
-    const max_rate_comment_walk =
-      commentWalk?.match_rate_value_content_query_includes || 0;
 
     let isStopTool = await CL_getStopTool();
     if (isStopTool) {
@@ -254,396 +369,597 @@ async function CL_commentWalkHelper(setting, commentWalk) {
       return;
     }
 
-    for await (const child of childs) {
-      countScroll++;
+    let childs = divFeed.children;
 
-      const article = findElement('div[role="article"]', child);
+    async function autoWalk(childs, reloaded = false) {
+      try {
+        for await (const child of childs) {
+          let existedDialog = findExistDialog();
+          if (existedDialog) {
+            await closeDialog();
+          }
 
-      if (article) {
-        logContent(
-          getTextLanguageContent({
-            en: "This post maybe is advertisement, skip it...",
-            vi: "Bài viết này có thể là bài viết được quảng cáo, bỏ qua...",
-          }),
-        );
-        continue;
-      }
-
-      let isSkipPost = false;
-
-      const divProfileName = findDivProfileName(child);
-      const contentProfileName = divProfileName?.textContent || "";
-      // logContent("Content profile name: " + contentProfileName);
-
-      const countComment = await CL_getCountCommentWalkPostedPerBatch();
-
-      isStopTool = await CL_getStopTool();
-      if (isStopTool) {
-        await CL_setProcessingCommentWalk(false);
-        if (!isDevMode) {
-          await sleep(2000);
-          await CL_compeleteCommentWalkThisBatch();
-        }
-        return;
-      }
-
-      if (
-        !checkIsSearchPageUrl(location.href) &&
-        !checkIsSearchPagePostUrl(location.href)
-      ) {
-        throw new Error("Not in search page");
-      }
-
-      logContent(
-        `${getTextLanguageContent({ en: "Commenting: ", vi: "Đang bình luận: " })}: ${countComment}/${max_comment}`,
-      );
-
-      logContent(
-        `${getTextLanguageContent({
-          vi: `Bài viết bỏ qua: ${countScroll}/${maxCount}`,
-          en: `Number skipped posts: ${countScroll}/${maxCount}`,
-        })}`,
-      );
-
-      if (countComment >= max_comment || countScroll >= maxCount) {
-        logContent(
-          getTextLanguageContent({
-            en: "Max comment reached, close this tab after some seconds...",
-            vi: "Đã đủ số bình luận, đóng tab sau vài giây...",
-          }),
-        );
-        await sleep(random(4000, 6000));
-        await CL_compeleteCommentWalkThisBatch();
-        return;
-      }
-
-      await sleep(random(1000, 1500));
-      scrollElementIntoView(child);
-      await sleep(random(2000, 3000));
-
-      const divFeedContent = await findDivItemFeedSearchResultContent(child);
-      const divPreview = findDivItemPreview(child);
-
-      if (!divFeedContent) {
-        logErrorContent("Not found div feed content, skip post");
-        continue;
-      }
-
-      if (divPreview) {
-        const btnShowMore = findButtonShowMore(divPreview);
-        if (btnShowMore) {
-          btnShowMore.click();
           await sleep(random(2000, 4000));
-        }
-      }
 
-      const contentDiv = divFeedContent?.textContent || "";
-      if (!contentDiv || !contentDiv.trim()) {
-        logErrorContent("Content div is empty, next post");
-        continue;
-      }
+          if (!checkCanCommentInThisElement(child)) {
+            continue;
+          }
 
-      let rate = 0;
-      let rate_comment_walk = 0;
-      const cvContent = cvStringHigher(contentDiv);
+          countScroll++;
 
-      const keywordIncludeMatch = [];
-      const keywordExcludeMatch = [];
+          const article = findElement('div[role="article"]', child);
 
-      for (const keyword of content_query_excludes_common) {
-        const cvKey = cvStringHigher(keyword);
-        if (cvContent.includes(cvKey)) {
-          keywordExcludeMatch.push(keyword);
-          isSkipPost = true;
-          break;
-        }
-      }
+          if (article) {
+            console.log({ article });
+            logContent(
+              getTextLanguageContent({
+                en: "This post maybe is advertisement, skip it...",
+                vi: "Bài viết này có thể là bài viết được quảng cáo, bỏ qua...",
+              }),
+            );
+            continue;
+          }
 
-      for (const keyword of keyword_query_exclude_comment_walk) {
-        const cvKey = cvStringHigher(keyword);
-        if (cvContent.includes(cvKey)) {
-          keywordExcludeMatch.push(keyword);
-          isSkipPost = true;
-          break;
-        }
-      }
+          let isSkipPost = false;
 
-      const includeCommonSet = new Set();
-      const includeCommentWalkSet = new Set();
+          const divProfileName = findDivProfileName(child);
+          const contentProfileName = divProfileName?.textContent || "";
 
-      const cvContentProfileName = cvStringHigher(contentProfileName);
+          const countComment = await CL_getCountCommentWalkPostedPerBatch();
 
-      for (const keyword of content_query_includes_common) {
-        const cvKey = cvStringHigher(keyword);
-        if (includeCommonSet.has(cvKey)) continue;
-        if (cvContent.includes(cvKey)) {
-          keywordIncludeMatch.push;
-          rate++;
-          includeCommonSet.add(cvKey);
-        }
-      }
+          isStopTool = await CL_getStopTool();
+          if (isStopTool) {
+            await CL_setProcessingCommentWalk(false);
+            logContent(
+              getTextLanguageContent({
+                en: "Stop tool, closing tab after few seconds...",
+                vi: "Dừng công cụ, đóng tab sau vài giây...",
+              }),
+            );
+            if (!isDevMode) {
+              await sleep(random(6000, 9000));
+              await CL_compeleteCommentWalkThisBatch();
+            }
+            return;
+          }
 
-      for (const keyword of keyword_query_include_comment_walk) {
-        const cvKey = cvStringHigher(keyword);
-        if (includeCommentWalkSet.has(cvKey)) continue;
-        if (cvContent.includes(cvKey) || cvContentProfileName.includes(cvKey)) {
-          keywordIncludeMatch.push(keyword);
-          rate_comment_walk++;
-          includeCommentWalkSet.add(cvKey);
-        }
-      }
+          //correct href
+          if (areaComment.isHome) {
+            if (!checkIsFacebookUrl(location.href)) {
+              throw new Error("Not in correct page");
+            }
+          } else if (
+            !checkIsSearchPageUrl(location.href) &&
+            !checkIsSearchPagePostUrl(location.href)
+          ) {
+            throw new Error("Not in correct page");
+          }
 
-      if (rate < max_rate_common) {
-        isSkipPost = true;
-      }
-
-      if (rate_comment_walk < max_rate_comment_walk) {
-        isSkipPost = true;
-      }
-
-      logContent(
-        getTextLanguageContent({
-          en: "Keyword Include: " + keywordIncludeMatch.join(", "),
-          vi: "Từ khóa bao gồm: " + keywordIncludeMatch.join(", "),
-        }),
-      );
-
-      logContent(
-        getTextLanguageContent({
-          en: "Keyword Exclude: " + keywordExcludeMatch.join(", "),
-          vi: "Từ khóa loại trừ: " + keywordExcludeMatch.join(", "),
-        }),
-      );
-
-      logContent(
-        getTextLanguageContent({
-          en: `Rate: ${rate}/${max_rate_common}, Rate Comment Walk: ${rate_comment_walk}/${max_rate_comment_walk}`,
-          vi: `Tỉ lệ chung: ${rate}/${max_rate_common}, Tỉ lệ dữ liệu của bạn: ${rate_comment_walk}/${max_rate_comment_walk}`,
-        }),
-      );
-
-      if (isSkipPost) {
-        logContent(
-          getTextLanguageContent({
-            en: "Skip post because not match rate or keyword",
-            vi: "Bỏ qua bài viết vì không đúng tỉ lệ hoặc từ khóa",
-          }),
-        );
-        continue;
-      } else {
-        countScroll = 0;
-      }
-
-      const divButtonToPost = findButtonToPost(child);
-      if (!divButtonToPost) {
-        logContent(
-          getTextLanguageContent({
-            en: "Not found button to open dialog",
-            vi: "Không tìm thấy nút để mở hộp thoại",
-          }),
-        );
-        continue;
-      }
-
-      await scrollElementIntoView(divButtonToPost);
-      await sleep(random(1000, 2500));
-
-      divButtonToPost.click();
-      await sleep(random(2000, 3000));
-
-      const dialog = findExistDialog();
-      const inputEditor = await findInputEditor(dialog);
-
-      if (!dialog || !inputEditor) {
-        await sleep(2000);
-        logContent(
-          getTextLanguageContent({
-            en: "Not found dialog or input editor",
-            vi: "Không tìm thấy hộp thoại hoặc trình soạn thảo",
-          }),
-        );
-        await handleCloseIfExistDialog();
-        continue;
-      }
-
-      const href = location.href;
-      const canComment = await CL_getCanCommentThisPost(href);
-
-      if (!canComment) {
-        logContent(
-          getTextLanguageContent({
-            en: "This post maybe can not comment because you already commented",
-            vi: "Bài viết này có thể không bình luận được vì bạn đã bình luận rồi",
-          }),
-        );
-        await sleep(2000);
-        await handleCloseIfExistDialog();
-        continue;
-      }
-
-      if (!checkContentInputEmpty(inputEditor)) {
-        logContent(
-          getTextLanguageContent({
-            en: "Input content is not empty, clear it...",
-            vi: "Nội dung bình luận không rỗng, xóa nội dung...",
-          }),
-        );
-        await clearContentFromInputEditor(inputEditor);
-        await sleep(random(1000, 2000));
-        await clearFileFromInput(dialog);
-        await sleep(random(1500, 3000));
-      }
-
-      logContent(
-        getTextLanguageContent({
-          en: "Filling content...",
-          vi: "Đang nhập nội dung...",
-        }),
-      );
-
-      const content =
-        commentWalk.contents[random(0, commentWalk.contents.length - 1)];
-
-      if (content) {
-        await sleep(random(1500, 3000));
-
-        const success = await simulateTyping(inputEditor, content, {
-          minDelay: setting.time_delay_fill_content_comment_walk_min,
-          maxDelay: setting.time_delay_fill_content_comment_walk_max,
-        });
-
-        if (!success) {
           logContent(
-            getTextLanguageContent({
-              en: "Failed to fill content, clear it...",
-              vi: "Nhập nội dung thất bại, xóa nội dung...",
-            }),
+            `${getTextLanguageContent({ en: "Commenting: ", vi: "Đang bình luận: " })}: ${countComment}/${max_comment}`,
           );
-          await clearContentFromInputEditor(inputEditor);
-          await sleep(random(1000, 2000));
-          await clearFileFromInput(dialog);
+
+          logContent(
+            `${getTextLanguageContent({
+              vi: `Bài viết bỏ qua: ${countScroll}/${maxCount}`,
+              en: `Number skipped posts: ${countScroll}/${maxCount}`,
+            })}`,
+          );
+
+          //end tasks
+          if (countComment >= max_comment || countScroll >= maxCount) {
+            if (countComment >= max_comment) {
+              flagDone = true;
+            }
+            logContent(
+              getTextLanguageContent({
+                en: "Max comment reached, close this tab after some seconds...",
+                vi: "Đã đủ số bình luận, đóng tab sau vài giây...",
+              }),
+            );
+            await sleep(random(4000, 6000));
+            await CL_compeleteCommentWalkThisBatch();
+            return;
+          }
+
+          if (countScroll >= maxCount / 2 && !reloaded) {
+            //try reload
+            const reload = findDivReloadPage();
+            if (reload) {
+              const rd = randomRateBoolean(50);
+              if (rd) {
+                reload.click();
+                await sleep(random(10000, 15000));
+                const newDivFeed = await findDivFeed();
+                if (newDivFeed) {
+                  const newChilds = newDivFeed.children;
+                  return await autoWalk(newChilds, true);
+                }
+              }
+            }
+          }
+
+          await sleep(random(1000, 1500));
+          scrollElementIntoView(child);
           await sleep(random(1500, 3000));
 
+          const divButtonToPost = findButtonToPost(child);
+          if (!divButtonToPost) {
+            logContent(
+              getTextLanguageContent({
+                en: "Not found button to open dialog",
+                vi: "Không tìm thấy nút để mở hộp thoại",
+              }),
+            );
+            continue;
+          }
+
+          await scrollElementIntoView(divButtonToPost);
+
+          await sleep(random(1000, 2500));
+
+          if (!checkIsFeedItemInGroup(child)) {
+            logContent(
+              getTextLanguageContent({
+                vi: "Bài viết này không nằm trong group, có thể là bài viết của người dùng khác, quảng cáo,...",
+                en: "This post is not in group, maybe is post of other user, ad,...",
+              }),
+            );
+            continue;
+          }
+
+          const divFeedContent = await findDivItemFeedContent(child);
+          const divPreview = findDivItemPreview(child);
+
+          if (!divFeedContent) {
+            logErrorContent("Not found div feed content, skip post");
+            continue;
+          }
+          const btnShowMore = findButtonShowMore(child);
+          if (btnShowMore) {
+            btnShowMore.click();
+            await sleep(random(2000, 4000));
+          }
+
+          // if (divPreview) {
+          // }
+
+          const contentDiv = divFeedContent?.textContent || "";
+          if (contentDiv.length >= 500) {
+            logContent(
+              getTextLanguageContent({
+                vi: `Bài viết nội dung quá dài (${contentDiv.length} ký tự), bỏ qua...`,
+                en: `Post content is too long (${contentDiv.length} characters), skip...`,
+              }),
+            );
+            continue;
+          }
+          const contentNameAndDiv = contentProfileName + " " + contentDiv;
+
+          if (!contentDiv || !contentDiv.trim()) {
+            logErrorContent("Content div is empty, next post");
+            continue;
+          }
+
+          const listMatch = [];
+
+          const keywordIncludeMatch = [];
+          const keywordExcludeMatch = [];
+
+          const keywordExcludeCommons = matchQueryKeywords(
+            content_query_excludes_common,
+            contentDiv,
+          );
+          keywordExcludeMatch.push(...keywordExcludeCommons);
+          if (keywordExcludeCommons.length) {
+            logExcludeKeywords(keywordExcludeCommons);
+            continue;
+          }
+
+          const keywordIncludeCommons = matchQueryKeywords(
+            content_query_includes_common,
+            contentDiv,
+          );
+          keywordIncludeMatch.push(...keywordIncludeCommons);
+
+          if (keywordIncludeCommons.length < max_rate_common) {
+            //check certain_choice_keywords with lowercase
+            if (areaComment.isHome) {
+              let flag = false;
+              for (const keyword of keywords_certain_choice) {
+                if (contentDiv.toLowerCase().includes(keyword.toLowerCase())) {
+                  keywordIncludeMatch.push(keyword);
+                  flag = true;
+                  break;
+                }
+              }
+              if (!flag) {
+                isSkipPost = true;
+              }
+            } else {
+              isSkipPost = true;
+            }
+          }
+
+          if (!isSkipPost) {
+            if (areaComment.isSearch) {
+              //comment walk
+              const keyword_query_exclude_comment_walk =
+                commentWalk?.keyword_query_excludes || [];
+              const keyword_query_include_comment_walk =
+                commentWalk?.keyword_query_includes || [];
+              const max_rate_comment_walk =
+                commentWalk?.match_rate_value_content_query_includes || 0;
+
+              //maybe never use
+              const keywordExcludeCommentWalkMatch = matchQueryKeywords(
+                keyword_query_exclude_comment_walk,
+                contentDiv,
+              );
+              keywordExcludeMatch.push(...keywordExcludeCommentWalkMatch);
+              if (keywordExcludeCommentWalkMatch.length) {
+                logExcludeKeywords(keywordExcludeCommentWalkMatch);
+                continue;
+              }
+
+              const keywordIncludeCommentWalkMatch = matchQueryKeywords(
+                keyword_query_include_comment_walk,
+                contentNameAndDiv,
+              );
+              keywordIncludeMatch.push(...keywordIncludeCommentWalkMatch);
+
+              if (
+                keywordIncludeCommentWalkMatch.length < max_rate_comment_walk
+              ) {
+                isSkipPost = true;
+              }
+
+              logContent(
+                getTextLanguageContent({
+                  en: "Keyword Include: " + keywordIncludeMatch.join(", "),
+                  vi: "Từ khóa bao gồm: " + keywordIncludeMatch.join(", "),
+                }),
+              );
+
+              logContent(
+                getTextLanguageContent({
+                  en: `Rate: ${keywordIncludeCommons.length}/${max_rate_common}, Rate Comment Walk: ${keywordIncludeCommentWalkMatch.length}/${max_rate_comment_walk}`,
+                  vi: `Tỉ lệ chung: ${keywordIncludeCommons.length}/${max_rate_common}, Tỉ lệ dữ liệu của bạn: ${keywordIncludeCommentWalkMatch.length}/${max_rate_comment_walk}`,
+                }),
+              );
+            } else if (areaComment.isHome) {
+              for (const comment of listCommentWalk) {
+                const keywordExclude = comment.keyword_query_excludes;
+                const contentExcludeMatch = matchQueryKeywords(
+                  keywordExclude,
+                  contentDiv,
+                );
+                if (contentExcludeMatch.length) {
+                  continue;
+                }
+
+                const keywordInclude = comment.keyword_query_includes;
+                const rateComment =
+                  Number(comment.match_rate_value_content_query_includes) +
+                  VALUE_RATE_ADD_FOR_HOME;
+
+                const contentMatchs = matchQueryKeywords(
+                  keywordInclude,
+                  contentNameAndDiv,
+                );
+
+                if (contentMatchs.length >= rateComment) {
+                  listMatch.push({
+                    id: comment.id,
+                    rate: contentMatchs.length,
+                    match: [...contentMatchs],
+                  });
+                }
+              }
+
+              if (!listMatch.length) {
+                logContent(
+                  getTextLanguageContent({
+                    en: "Skip post because not data comment match",
+                    vi: "Bỏ qua bài viết vì không có dữ liệu bình luận phù hợp",
+                  }),
+                );
+                continue;
+              }
+            }
+          }
+
+          if (isSkipPost) {
+            logContent(
+              getTextLanguageContent({
+                en: "Keyword Exclude: " + keywordExcludeMatch.join(", "),
+                vi: "Từ khóa loại trừ: " + keywordExcludeMatch.join(", "),
+              }),
+            );
+            logContent(
+              getTextLanguageContent({
+                en: "Skip post because not enough rate or not keyword match",
+                vi: "Bỏ qua bài viết vì không đủ tỉ lệ hoặc không đúng từ khóa",
+              }),
+            );
+            continue;
+          } else {
+            if (areaComment.isSearch) {
+              countScroll = 0;
+            }
+          }
+
+          // const divButtonToPost = findButtonToPost(child);
+          // if (!divButtonToPost) {
+          //   logContent(
+          //     getTextLanguageContent({
+          //       en: "Not found button to open dialog",
+          //       vi: "Không tìm thấy nút để mở hộp thoại",
+          //     }),
+          //   );
+          //   continue;
+          // }
+
+          await sleep(random(1000, 2500));
+
+          divButtonToPost.click();
+          await sleep(random(2000, 3000));
+
+          if (areaComment.isHome) {
+            if (listMatch.length) {
+              const listId = listMatch
+                .sort((a, b) => b.rate - a.rate)
+                .map((i) => i.id);
+
+              const commentWalkNeverComment =
+                await CL_getCommentWalkNeverCommented(listId, location.href);
+              if (commentWalkNeverComment) {
+                commentWalk = commentWalkNeverComment;
+
+                const matchOfPost = listMatch.find(
+                  (i) => i.id === commentWalkNeverComment.id,
+                );
+                logContent(
+                  getTextLanguageContent({
+                    en: "Keyword match: " + matchOfPost.match.join(", "),
+                    vi: "Từ khóa khớp: " + matchOfPost.match.join(", "),
+                  }),
+                );
+                logContent(
+                  getTextLanguageContent({
+                    en: "Score match: " + matchOfPost.rate,
+                    vi: "Tỷ lệ khớp: " + matchOfPost.rate,
+                  }),
+                );
+                logContent(
+                  getTextLanguageContent({
+                    en: "Data match for post: " + commentWalkNeverComment.name,
+                    vi:
+                      "Dữ liệu khớp cho bài viết: " +
+                      commentWalkNeverComment.name,
+                  }),
+                );
+              } else {
+                logContent(
+                  getTextLanguageContent({
+                    en: "Skip post because you already commented on post",
+                    vi: "Bỏ qua bài viết vì bạn đã bình luận vào bài viết này rồi",
+                  }),
+                );
+                await closeDialog();
+                continue;
+              }
+            }
+          }
+
+          const dialog = findExistDialog();
+          const inputEditor = await findInputEditor(dialog);
+
+          if (!dialog || !inputEditor) {
+            await sleep(2000);
+            logContent(
+              getTextLanguageContent({
+                en: "Not found dialog or input editor",
+                vi: "Không tìm thấy hộp thoại hoặc trình soạn thảo",
+              }),
+            );
+            await handleCloseIfExistDialog();
+            continue;
+          }
+
+          const href = location.href;
+          if (areaComment.isSearch) {
+            const canComment = await CL_getCanCommentThisPost(href);
+
+            if (!canComment) {
+              logContent(
+                getTextLanguageContent({
+                  en: "This post maybe can not comment because you already commented",
+                  vi: "Bài viết này có thể không bình luận được vì bạn đã bình luận rồi",
+                }),
+              );
+              await sleep(random(2000, 4000));
+              await handleCloseIfExistDialog();
+              await sleep(random(1500, 2500));
+              continue;
+            }
+          }
+
+          if (!checkContentInputEmpty(inputEditor)) {
+            logContent(
+              getTextLanguageContent({
+                en: "Input content is not empty, clear it...",
+                vi: "Nội dung bình luận không rỗng, xóa nội dung...",
+              }),
+            );
+            await clearContentFromInputEditor(inputEditor);
+            await sleep(random(1000, 2000));
+            await clearFileFromInput(dialog);
+            await sleep(random(1500, 3000));
+          }
+
           logContent(
             getTextLanguageContent({
-              en: "Close dialog...",
+              en: "Filling content...",
+              vi: "Đang nhập nội dung...",
+            }),
+          );
+
+          const content =
+            commentWalk?.contents?.[random(0, commentWalk.contents.length - 1)];
+
+          if (content) {
+            await sleep(random(1500, 3000));
+
+            const success = await simulateTyping(inputEditor, content, {
+              minDelay: setting.time_delay_fill_content_comment_walk_min,
+              maxDelay: setting.time_delay_fill_content_comment_walk_max,
+            });
+
+            if (!success) {
+              logContent(
+                getTextLanguageContent({
+                  en: "Failed to fill content, clear it...",
+                  vi: "Nhập nội dung thất bại, xóa nội dung...",
+                }),
+              );
+              await clearContentFromInputEditor(inputEditor);
+              await sleep(random(1000, 2000));
+              await clearFileFromInput(dialog);
+              await sleep(random(1500, 3000));
+
+              logContent(
+                getTextLanguageContent({
+                  en: "Close dialog...",
+                  vi: "Đang đóng hộp thoại",
+                }),
+              );
+
+              await closeDialog();
+              continue;
+            }
+
+            await sleep(random(1000, 2000));
+          }
+
+          logContent(
+            getTextLanguageContent({
+              en: "Filling file...",
+              vi: "Đang tải file",
+            }),
+          );
+
+          const files = commentWalk.files;
+          const parses = await CL_getParseFileRequest(files);
+          if (parses && parses.length) {
+            const parseRandom = parses[random(0, parses.length - 1)];
+
+            await sleep(setting.time_delay_fill_file_comment_walk * 1000);
+            const fileParse = parseBase64ToFile(parseRandom);
+
+            const dt = new DataTransfer();
+            dt.items.add(fileParse);
+            const pasteEvent = new ClipboardEvent("paste", {
+              bubbles: true,
+              cancelable: true,
+              clipboardData: dt,
+            });
+            inputEditor.dispatchEvent(pasteEvent);
+
+            await sleep(
+              setting.time_delay_fill_file_comment_walk * 1000 +
+                random(1000, 2000),
+            );
+          }
+
+          //handleSubmit here
+          logContent(
+            getTextLanguageContent({
+              en: "Submitting...",
+              vi: "Đang gửi...",
+            }),
+          );
+
+          await sleep(random(2000, 4000));
+
+          if (!isTest) {
+            await handleSubmitComment(inputEditor);
+
+            // wait for comment submit success or fail
+            await sleep((setting.time_delay_submit_comment_walk + 1) * 1000);
+          }
+
+          if (!checkContentInputEmpty(inputEditor)) {
+            if (!isTest) {
+              logContent(
+                getTextLanguageContent({
+                  en: "Input content is not empty, can not submit or submit failure, clear it...",
+                  vi: "Nội dung bình luận không rỗng, không thể gửi hoặc gửi thất bại, xóa nó...",
+                }),
+              );
+              CL_addLogRequest({
+                vi: "Bình luận thất bại vào bài viết: " + href,
+                en: "Commented failure in this post: " + href,
+              });
+            } else {
+              logContent(
+                getTextLanguageContent({
+                  en: "Test mode, skipping submit action...",
+                  vi: "Đang test, bỏ qua hành động gửi...",
+                }),
+              );
+            }
+
+            await clearContentFromInputEditor(inputEditor);
+            await sleep(random(1000, 2000));
+            await clearFileFromInput(dialog);
+            await sleep(random(1500, 3000));
+          } else {
+            CL_addLogRequest({
+              vi: "Đã bình luận thành công vào bài viết: " + href,
+              en: "Commented successfully on post: " + href,
+            });
+            await CL_updateLastTimeCommentWalk(Date.now());
+          }
+
+          logContent(
+            getTextLanguageContent({
+              en: "Closing dialog...",
               vi: "Đang đóng hộp thoại",
             }),
           );
 
-          await handleCloseIfExistDialog();
-          continue;
+          await sleep(random(1000, 3000));
+
+          await closeDialog();
+
+          await CL_setCountCommentWalkPostedPerBatch(countComment + 1);
+
+          await sleep(random(2000, 3000));
+
+          if (!isTest) {
+            await CL_addUrlCommented(commentWalk.id, href);
+          }
         }
-
-        await sleep(random(1000, 2000));
+      } catch (error) {
+        throw error;
       }
-
-      logContent(
-        getTextLanguageContent({
-          en: "Filling file...",
-          vi: "Đang tải file",
-        }),
-      );
-
-      const files = commentWalk.files;
-      const parses = await CL_getParseFileRequest(files);
-      if (parses && parses.length) {
-        const parseRandom = parses[random(0, parses.length - 1)];
-
-        await sleep(setting.time_delay_fill_file_comment_walk * 1000);
-        const fileParse = parseBase64ToFile(parseRandom);
-
-        const dt = new DataTransfer();
-        dt.items.add(fileParse);
-        const pasteEvent = new ClipboardEvent("paste", {
-          bubbles: true,
-          cancelable: true,
-          clipboardData: dt,
-        });
-        inputEditor.dispatchEvent(pasteEvent);
-
-        await sleep(random(2000, 4000));
-      }
-
-      //handleSubmit here
-      logContent(
-        getTextLanguageContent({
-          en: "Submitting...",
-          vi: "Đang gửi...",
-        }),
-      );
-
-      await sleep(random(2000, 4000));
-
-      if (!isTest) {
-        await handleSubmitComment(inputEditor);
-
-        // wait for comment submit success or fail
-        await sleep((setting.time_delay_submit_comment_walk + 1) * 1000);
-      }
-
-      if (!checkContentInputEmpty(inputEditor)) {
-        if (!isTest) {
-          logContent(
-            getTextLanguageContent({
-              en: "Input content is not empty, can not submit or submit failure, clear it...",
-              vi: "Nội dung bình luận không rỗng, không thể gửi hoặc gửi thất bại, xóa nó...",
-            }),
-          );
-          CL_addLogRequest({
-            vi: "Bình luận thất bại vào bài viết: " + href,
-            en: "Commented failure in this post: " + href,
-          });
-        } else {
-          logContent(
-            getTextLanguageContent({
-              en: "Test mode, skipping submit action...",
-              vi: "Đang test, bỏ qua hành động gửi...",
-            }),
-          );
-        }
-
-        await clearContentFromInputEditor(inputEditor);
-        await sleep(random(1000, 2000));
-        await clearFileFromInput(dialog);
-        await sleep(random(1500, 3000));
-      } else {
-        CL_addLogRequest({
-          vi: "Đã bình luận thành công vào bài viết: " + href,
-          en: "Commented successfully on post: " + href,
-        });
-        await CL_updateLastTimeCommentWalk(Date.now());
-      }
-
-      await CL_addUrlCommented(href);
-
-      logContent(
-        getTextLanguageContent({
-          en: "Closing dialog...",
-          vi: "Đang đóng hộp thoại",
-        }),
-      );
-
-      await sleep(random(1000, 3000));
-
-      await handleCloseIfExistDialog();
-
-      await CL_setCountCommentWalkPostedPerBatch(countComment + 1);
-
-      await sleep(random(2000, 3000));
-
-      await CL_addUrlCommented(href);
     }
 
-    logContent(
-      getTextLanguageContent({
-        vi: "Đợt bình luận đã kết thúc, tab này sẽ đóng sau vài giây",
-        en: "This batch comment has ended, this tab will be closed after a few seconds",
-      }),
-    );
-    await sleep(random(3000, 5000));
+    //walk comments on this post
+    await autoWalk(childs, false);
 
-    await CL_compeleteCommentWalkThisBatch();
+    if (!flagDone) {
+      logContent(
+        getTextLanguageContent({
+          vi: "Đợt bình luận đã kết thúc, tab này sẽ đóng sau vài giây",
+          en: "This batch comment has ended, this tab will be closed after a few seconds",
+        }),
+      );
+      await sleep(random(3000, 5000));
+
+      await CL_compeleteCommentWalkThisBatch();
+    }
   } catch (error) {
     CL_addLogRequest({
       vi: "Lỗi khi bình luận vào bài viết, " + error?.message || error,
@@ -651,18 +967,19 @@ async function CL_commentWalkHelper(setting, commentWalk) {
       type: "error",
     });
     logContent("This tab maybe will be closed after some seconds...");
-    await sleep(random(3000, 5000));
+    await sleep(random(8000, 12000));
     await CL_compeleteCommentWalkThisBatch();
   }
 }
 
 async function handleCloseIfExistDialog() {
   try {
-    const dialog = findExistDialog();
+    let dialog = findExistDialog();
     if (dialog) {
       clickOutSideHideDialog();
-      await sleep(1000);
-      if (getIsExistDialog()) {
+      await sleep(random(2000, 4000));
+      dialog = findExistDialog();
+      if (dialog) {
         await sleep(3000);
         logContent("dialog existed, force close");
         const btnExitPage = findBtnExitPageWhenExistDialog();
@@ -727,6 +1044,22 @@ function checkContentInputEmpty(element) {
     return element?.textContent.trim() === "";
   } catch (error) {
     logErrorContent("error in checkContentInputEmpty", error);
+    return false;
+  }
+}
+
+/**
+ *
+ * @param {HTMLDivElement|HTMLElement} container
+ */
+function checkIsFeedItemInGroup(container) {
+  try {
+    if (!container) return false;
+
+    const div = findElement('.//a[contains(@href, "group")]', container);
+    return !!div;
+  } catch (error) {
+    logErrorContent("error in checkIsFeedItemInGroup", error);
     return false;
   }
 }
@@ -814,4 +1147,13 @@ async function clearFileFromInput(container) {
   }
 }
 
-export { CL_commentWalkHelper };
+export {
+  CL_commentWalkHelper,
+  clearContentFromInputEditor,
+  clearFileFromInput,
+  findButtonToPost,
+  findExistDialog,
+  findInputEditor,
+  handleCloseIfExistDialog,
+  handleSubmitComment,
+};

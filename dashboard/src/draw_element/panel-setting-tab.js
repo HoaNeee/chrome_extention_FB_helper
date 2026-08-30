@@ -1,4 +1,6 @@
+import { KEY_COMMENT_WALK_AREA } from "../../../contants/constant-extention.js";
 import {
+  DEFAULT_COMMENT_WALK_SETTING,
   initialTimeDelay,
   KEY_DEFAULT_VALUE,
   KEY_IS_SHUFFLE_SCHEDULER_TIME,
@@ -37,6 +39,7 @@ import {
   setIsSpammedData,
   setIsSpecialFrameHoursData,
   setIsStopTaskData,
+  setKeywordsCertainChoiceCommentWalkData,
   setMatchRateValueContentQueryIncludesCommonData,
   setMaxCommentWalkPerBatchData,
   setMaxGroupPerTimeData,
@@ -277,12 +280,29 @@ async function createPanelSetting(anchorElem = document.body) {
           <div class="${prefix}field-container field-checkbox">
             <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-comment-walk">
             <label for="${prefix}checkbox-is-comment-walk" style="user-select: none;">${getTextWithLanguage({ vi: "Bình luận dạo", en: "Comment walk" })}</label>
-          </div> 
+          </div>
+          <div style="max-width: 300px; display: flex; flex-direction: column; gap: 4px; padding: 4px 8px;">
+            <label for="${prefix}select-comment-walk-area" style="margin-bottom: 4px; display: inline-block;">${getTextWithLanguage({ vi: "Chọn khu vực comment dạo", en: "Select comment walk area" })}:</label>
+            <select id="${prefix}select-comment-walk-area" class="custom-select" style="padding: 8px 6px; width: 100%;">
+              <option value="${KEY_COMMENT_WALK_AREA.HOME}">${getTextWithLanguage({ vi: "Trang chủ", en: "Home page" })}</option>
+              <option value="${KEY_COMMENT_WALK_AREA.SEARCH_PAGE}">${getTextWithLanguage({ vi: "Trang tìm kiếm", en: "Search page" })}</option>
+              <option value="${KEY_COMMENT_WALK_AREA.RANDOM}">${getTextWithLanguage({ vi: "Ngẫu nhiên", en: "Random" })}</option>
+            </select>
+          </div>
           <div class="${prefix}field-container">
             <label for="${prefix}input-max-comment-walk-per-batch">${getTextWithLanguage({ vi: "Số lượng bình luận tối đa mỗi lần:", en: "Max comments per batch:" })}</label>
             <div style="display: flex; gap: 4px;">
               <input min="1" type="number" id="${prefix}input-max-comment-walk-per-batch" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="EX: 1,2,3,...">
               <button id="${prefix}btn-save-max-comment-walk-per-batch" class="not-style">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
+            </div>
+          </div>
+          <div class="${prefix}field-container">
+            <label for="${prefix}input-keywords-certain-choice-comment-walk">${getTextWithLanguage({ vi: "Từ khóa chắc chắn được chọn khi xuất hiện (chỉ dành cho khu vực bình luận là trang chủ) (cách nhau bằng dấu phẩy ',')", en: "Keywords must be included in the content when commenting (separate by comma ',') (only for home page comment area)" })}:</label>
+            <div style="display: flex; gap: 4px;">
+              <textarea id="${prefix}input-keywords-certain-choice-comment-walk" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="Ex: Tìm phòng, Tìm trọ, ..."></textarea>  
+            </div>
+            <div style="display: flex; gap: 4px; justify-content: flex-end;">
+              <button id="${prefix}btn-save-keywords-certain-choice-comment-walk" class="not-style">${getTextWithLanguage({ vi: "Lưu từ khóa", en: "Save keywords" })}</button>
             </div>
           </div>
           <div class="${prefix}field-container">
@@ -1277,6 +1297,55 @@ async function createPanelSetting(anchorElem = document.body) {
             }
           });
         }
+
+        const btnSaveKeywordsCertainChoiceCommentWalk = root.querySelector(
+          `#${prefix}btn-save-keywords-certain-choice-comment-walk`,
+        );
+        if (btnSaveKeywordsCertainChoiceCommentWalk) {
+          btnSaveKeywordsCertainChoiceCommentWalk.addEventListener(
+            "click",
+            async () => {
+              try {
+                const inputKeywordsCertainChoiceCommentWalk =
+                  root.querySelector(
+                    `#${prefix}input-keywords-certain-choice-comment-walk`,
+                  );
+                const keywordsCertainChoiceCommentWalk =
+                  inputKeywordsCertainChoiceCommentWalk?.value.trim();
+                if (
+                  inputKeywordsCertainChoiceCommentWalk &&
+                  keywordsCertainChoiceCommentWalk
+                ) {
+                  await saveAndLog(async () => {
+                    await setKeywordsCertainChoiceCommentWalkData(
+                      splitString(keywordsCertainChoiceCommentWalk),
+                    );
+                  }, "btnSaveKeywordsCertainChoiceCommentWalk");
+                } else {
+                  showNotify({
+                    message: getTextWithLanguage({
+                      vi: "Không hợp lệ, hãy thử lại",
+                      en: "Invalid, please try again",
+                    }),
+                    type: "error",
+                  });
+                }
+              } catch (error) {
+                logError(
+                  "Error at btnSaveKeywordsCertainChoiceCommentWalk: ",
+                  error,
+                );
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Đã có lỗi xảy ra",
+                    en: "Some thing went wrong!",
+                  }),
+                  type: "error",
+                });
+              }
+            },
+          );
+        }
       } catch (error) {
         logError("Error at addEvent: ", error);
       }
@@ -1737,6 +1806,34 @@ async function createPanelSetting(anchorElem = document.body) {
               }
             },
           );
+        }
+
+        const selectCommentWalkArea = document.querySelector(
+          `#${prefix}select-comment-walk-area`,
+        );
+        if (selectCommentWalkArea) {
+          const init = await commentWalkService.getCommentWalkArea();
+          if (init) {
+            selectCommentWalkArea.value = init;
+          } else {
+            await commentWalkService.setCommentWalkArea(
+              DEFAULT_COMMENT_WALK_SETTING.comment_walk_area,
+            );
+            selectCommentWalkArea.value =
+              DEFAULT_COMMENT_WALK_SETTING.comment_walk_area;
+          }
+          selectCommentWalkArea.addEventListener("change", async (e) => {
+            const commentWalkArea = e.target.value;
+            try {
+              await commentWalkService.setCommentWalkArea(commentWalkArea);
+            } catch (error) {
+              handleErrorHelper({
+                name: "selectCommentWalkArea",
+                error,
+              });
+              e.target.value = await commentWalkService.getCommentWalkArea();
+            }
+          });
         }
       } catch (error) {
         logError("Error at addFieldsEvent: ", error);

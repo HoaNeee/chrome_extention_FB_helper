@@ -18,7 +18,7 @@ function createPanelLogContent(container = document.body) {
     panelEl.classList.add("panel-log-content__container");
     Object.assign(panelEl.style, {
       position: "fixed",
-      top: "60px",
+      top: "120px",
       left: "30px",
       width: "300px",
       height: "300px",
@@ -55,6 +55,48 @@ function createPanelLogContent(container = document.body) {
       letterSpacing: "0.5px",
     });
 
+    const divBtn = document.createElement("div");
+    Object.assign(divBtn.style, {
+      display: "flex",
+      gap: "6px",
+    });
+
+    const btnHide = document.createElement("button");
+    Object.assign(btnHide.style, {
+      background: "transparent",
+      border: "1px solid #555577",
+      borderRadius: "4px",
+      color: "#888aaa",
+      fontSize: "10px",
+      cursor: "pointer",
+      padding: "2px 6px",
+      transition: "all 0.15s ease",
+    });
+    btnHide.textContent = "Hide";
+    btnHide.addEventListener("mouseenter", () => {
+      btnHide.style.borderColor = "#e06c75";
+      btnHide.style.color = "#e06c75";
+    });
+    btnHide.addEventListener("mouseleave", () => {
+      btnHide.style.borderColor = "#555577";
+      btnHide.style.color = "#888aaa";
+    });
+
+    let isHide = false;
+    btnHide.addEventListener("click", () => {
+      if (isHide) {
+        logListEl.style.display = "flex";
+        panelEl.style.height = "300px";
+        btnHide.textContent = "Hide";
+        isHide = false;
+      } else {
+        logListEl.style.display = "none";
+        panelEl.style.height = "auto";
+        btnHide.textContent = "Show";
+        isHide = true;
+      }
+    });
+
     const clearBtn = document.createElement("button");
     clearBtn.textContent = "Clear";
     Object.assign(clearBtn.style, {
@@ -76,8 +118,11 @@ function createPanelLogContent(container = document.body) {
       clearBtn.style.color = "#888aaa";
     });
 
+    divBtn.appendChild(btnHide);
+    divBtn.appendChild(clearBtn);
+
     headerEl.appendChild(titleEl);
-    headerEl.appendChild(clearBtn);
+    headerEl.appendChild(divBtn);
 
     // --- Log list area ---
     const logListEl = document.createElement("div");

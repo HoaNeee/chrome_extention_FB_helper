@@ -96,7 +96,9 @@ import {
  * @property {number} time_break_when_spammed
  * @property {Array<string>} content_query_includes_common_comment_walk
  * @property {Array<string>} content_query_excludes_common_comment_walk
+ * @property {Array<string>} keywords_certain_choice_comment_walk // just active for area home
  * @property {number} match_rate_value_content_query_includes_common_comment_walk
+ * @property {string} comment_walk_area
  * @property {number} last_time_post
  * @property {number} last_time_interact
  * @property {number} last_time_comment_walk
@@ -1256,6 +1258,46 @@ async function setIsExecutePriorityTaskData(isExecutePriorityTask = false) {
   }
 }
 
+async function getCommentWalkAreaData() {
+  try {
+    return await DB_getValue(
+      KEY_COMMENT_WALK.COMMENT_WALK_AREA,
+      DEFAULT_COMMENT_WALK_SETTING.comment_walk_area,
+    );
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function setCommentWalkAreaData(commentWalkArea) {
+  try {
+    await DB_setValue(KEY_COMMENT_WALK.COMMENT_WALK_AREA, commentWalkArea);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getKeywordsCertainChoiceCommentWalkData() {
+  try {
+    return await DB_getValue(
+      KEY_COMMENT_WALK.KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
+    );
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function setKeywordsCertainChoiceCommentWalkData(keywords) {
+  try {
+    await DB_setValue(
+      KEY_COMMENT_WALK.KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
+      keywords,
+    );
+  } catch (error) {
+    throw error;
+  }
+}
+
 export {
   setIsCommentWhenPostSuccessData,
   setIsFixStealAllFocusData,
@@ -1316,4 +1358,8 @@ export {
   setPriorityTaskData,
   getIsExecutePriorityTaskData,
   setIsExecutePriorityTaskData,
+  getCommentWalkAreaData,
+  setCommentWalkAreaData,
+  getKeywordsCertainChoiceCommentWalkData,
+  setKeywordsCertainChoiceCommentWalkData,
 };

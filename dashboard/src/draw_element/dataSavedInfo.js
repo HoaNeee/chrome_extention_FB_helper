@@ -12,7 +12,10 @@ import {
 import { getNextTimePost } from "../../../helpers/scheduler.js";
 import { commentWalkService } from "../../../services/comment-walk-service.js";
 import { getCurrentDataGroupPosting } from "../../../services/data-group-post-service.js";
-import { getCurrentTaskName } from "../../../services/device-service.js";
+import {
+  getCurrentTaskName,
+  getListTaskNameInactive,
+} from "../../../services/device-service.js";
 import {
   getAllDataGroupsInStorage,
   getAllGroupPostedsInStorage,
@@ -24,6 +27,7 @@ import {
 } from "../../../services/scheduler-service.js";
 import {
   getIsCommentWalkData,
+  getIsExecutePriorityTaskData,
   getIsFixStealAllFocusData,
   getIsFixStealFocusData,
   getIsRandomBreakBatchData,
@@ -252,6 +256,8 @@ function getDataSavedAtDashboardHTML({
   isStopTask,
   isPremium,
   currentTaskName = "",
+  listTaskInactive = [],
+  isPriorityTask = false,
 } = {}) {
   const set = new Set();
   groupsNeedPost.forEach((item) => {
@@ -266,6 +272,13 @@ function getDataSavedAtDashboardHTML({
 
   function getLengthJob() {
     if (!isPremium) return lengthPostedInCurrentTime || 0;
+    if (!isPriorityTask) {
+      if (isCommentWalk) {
+        return countCommentWalk;
+      } else {
+        return lengthPostedInCurrentTime;
+      }
+    }
     switch (currentTaskName) {
       case KEY_TASK_NAME.POST:
         return lengthPostedInCurrentTime;
@@ -278,6 +291,13 @@ function getDataSavedAtDashboardHTML({
 
   function getMaxJob() {
     if (!isPremium) return maxGroupPerTime;
+    if (!isPriorityTask) {
+      if (isCommentWalk) {
+        return maxCommentWalk;
+      } else {
+        return maxGroupPerTime;
+      }
+    }
     switch (currentTaskName) {
       case KEY_TASK_NAME.POST:
         return maxGroupPerTime;
@@ -290,6 +310,13 @@ function getDataSavedAtDashboardHTML({
 
   function getLastTimeJobDone() {
     if (!isPremium) return lastTimePost;
+    if (!isPriorityTask) {
+      if (isCommentWalk) {
+        return lastTimeCommentWalk;
+      } else {
+        return lastTimePost;
+      }
+    }
     switch (currentTaskName) {
       case KEY_TASK_NAME.POST:
         return lastTimePost;
@@ -300,12 +327,38 @@ function getDataSavedAtDashboardHTML({
     }
   }
 
+  function getTypeJob() {
+    if (!isPremium)
+      return deviceHelper.getTaskLabelWithName(KEY_TASK_NAME.POST);
+    if (!isPriorityTask) {
+      if (isCommentWalk) {
+        return deviceHelper.getTaskLabelWithName(KEY_TASK_NAME.COMMENT_WALK);
+      } else {
+        return deviceHelper.getTaskLabelWithName(KEY_TASK_NAME.POST);
+      }
+    }
+    switch (currentTaskName) {
+      case KEY_TASK_NAME.POST:
+        return deviceHelper.getTaskLabelWithName(KEY_TASK_NAME.POST);
+      case KEY_TASK_NAME.COMMENT_WALK:
+        return deviceHelper.getTaskLabelWithName(KEY_TASK_NAME.COMMENT_WALK);
+      default:
+        return "";
+    }
+  }
+
   const lengthJob = getLengthJob();
   const maxJob = getMaxJob();
   const lastTimeJobDone = getLastTimeJobDone();
-  const typeJob = isPremium
-    ? deviceHelper.getTaskLabelWithName(currentTaskName)
-    : deviceHelper.getTaskLabelWithName(KEY_TASK_NAME.POST);
+  const typeJob = getTypeJob();
+
+  const listTaskNameInactiveString = listTaskInactive
+    .map((taskName) => deviceHelper.getTaskLabelWithName(taskName))
+    .join(", ");
+
+  const taskInactive = !isPremium
+    ? `<div id="${prefix}is-spammed-status">${getTextWithLanguage({ vi: "Đang bị spam", en: "Is Spammed" })}: <span style="color: ${isSpammed ? "var(--tm-text-danger)" : "var(--tm-text-success)"};"><b>${getTextWithLanguage({ vi: isSpammed ? "Có" : "Không", en: isSpammed ? "Yes" : "No" })}</b></span></div>`
+    : `<div>${getTextWithLanguage({ vi: "Công việc không hoạt động", en: "Inactive task" })}: ${listTaskInactive.length > 0 ? listTaskNameInactiveString : getTextWithLanguage({ vi: "Không", en: "No" })}</div>`;
 
   return `
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%;">
@@ -317,7 +370,7 @@ function getDataSavedAtDashboardHTML({
         ${isPremium ? `<div>${getTextWithLanguage({ vi: "Số bài viết đã bình luận dạo", en: "Number of posts commented walk" })}: <b>${lengthCommented}</b></div>` : ""}
       </div>
       <div>
-        <div id="${prefix}is-spammed-status">${getTextWithLanguage({ vi: "Đang bị spam", en: "Is Spammed" })}: <span style="color: ${isSpammed ? "var(--tm-text-danger)" : "var(--tm-text-success)"};"><b>${getTextWithLanguage({ vi: isSpammed ? "Có" : "Không", en: isSpammed ? "Yes" : "No" })}</b></span></div>
+        ${taskInactive}
         <div>${getTextWithLanguage({ vi: "Đang chạy auto", en: "Is Processing" })}: <span style="color: ${colorByDisabled(isProcessing || isCommentWalkProcessing)};">${enabledString(isProcessing || isCommentWalkProcessing)}</span></div>
         ${isPremium ? `<div>${getTextWithLanguage({ vi: "Bình luận dạo", en: "Is Comment Walk" })}: <span style="color: ${colorByDisabled(isCommentWalk)};">${enabledString(isCommentWalk)}</span></div>` : ""}
         <div>${getTextWithLanguage({ vi: "Lên lịch", en: "Is Scheduler" })}: <span style="color: ${colorByDisabled(isScheduler)};">${enabledString(isScheduler)}</span></div>
@@ -376,6 +429,8 @@ async function updateDataSavedInfo() {
       return acc + item.urls.length;
     }, 0);
 
+    const listTaskInactive = await getListTaskNameInactive();
+
     const isStopTask = await getIsStopTaskData();
 
     const currentTaskName = await getCurrentTaskName();
@@ -425,6 +480,7 @@ async function updateDataSavedInfo() {
     const isRandomBatchPost = await getIsRandomBreakBatchData();
     const isRandomTimePost = await getIsRandomTimePostData();
     const isSpecialFrameHours = await getIsSpecialFrameHoursData();
+    const isPriorityTask = await getIsExecutePriorityTaskData();
     let maxGroupPerTimeInSpecialFrameHour = 0;
 
     if (isSpecialFrameHours) {
@@ -468,6 +524,7 @@ async function updateDataSavedInfo() {
       maxCommentWalk,
       isStopTask,
       currentTaskName,
+      listTaskInactive,
     });
     if (dataSavedEl) {
       dataSavedEl.innerHTML = html;
@@ -493,6 +550,8 @@ async function updateDataSavedInfo() {
       isStopTask,
       isPremium,
       currentTaskName,
+      listTaskInactive,
+      isPriorityTask,
     });
     if (dataSavedAtDashboard) {
       dataSavedAtDashboard.innerHTML = htmlAtDashboard;

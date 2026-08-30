@@ -60,6 +60,7 @@ import {
   getIsSpammedData,
   getIsSpecialFrameHoursData,
   getIsStopTaskData,
+  getKeywordsCertainChoiceCommentWalkData,
   getMatchRateValueContentQueryIncludesCommonData,
   getMaxCommentWalkPerBatchData,
   getMaxGroupPerTimeData,
@@ -71,6 +72,7 @@ import {
   initialDeviceSetting,
   setContentQueryExcludesCommonData,
   setContentQueryIncludesCommonData,
+  setKeywordsCertainChoiceCommentWalkData,
   setMatchRateValueContentQueryIncludesCommonData,
   setTimeBreakWhenSpammedData,
 } from "../../../services/setting-service.js";
@@ -121,6 +123,7 @@ async function initialData({ anchorElement = document.body }) {
         setPriorityTaskCommentWalk,
         setPriorityTaskPost,
         setIsExecutePriorityTask,
+        setKeywordsCertainChoiceCommentWalk,
       } = getAllFieldsSetting();
 
       //get max group
@@ -212,6 +215,23 @@ async function initialData({ anchorElement = document.body }) {
         );
         setContentQueryExcludesCommon(
           KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON.join(", "),
+        );
+      }
+
+      const keywordsCertainChoiceCommentWalk =
+        await getKeywordsCertainChoiceCommentWalkData();
+      if (keywordsCertainChoiceCommentWalk) {
+        setKeywordsCertainChoiceCommentWalk(
+          keywordsCertainChoiceCommentWalk.join(", "),
+        );
+      } else {
+        await setKeywordsCertainChoiceCommentWalkData(
+          KEY_DEFAULT_VALUE.DEFAULT_KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
+        );
+        setKeywordsCertainChoiceCommentWalk(
+          KEY_DEFAULT_VALUE.DEFAULT_KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK.join(
+            ", ",
+          ),
         );
       }
 
