@@ -196,7 +196,7 @@ function drawDataCommentWalkElement({
 			"Example: tim phong tro, can nha, can dat... (Mỗi từ cách nhau bằng dấu phẩy ',')";
 		if (initialData) {
 			inputKeywordCertainChoice.value =
-				(initialData.keywords_certain_choice || []).join(",") || "";
+				(initialData.keywords_certain_choice || []).join(", ") || "";
 		}
 
 		divFieldKeywordCertainChoice.appendChild(labelKeywordCertainChoice);

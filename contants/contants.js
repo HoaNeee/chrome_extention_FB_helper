@@ -1,4 +1,9 @@
 import { KEY_COMMENT_WALK_AREA } from "./constant-extention.js";
+import {
+	DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON,
+	DEFAULT_CONTENT_QUERY_INCLUDES_COMMON,
+	DEFAULT_KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
+} from "./default-value.js";
 
 const KEY_RETRY_CALL = "retry_call";
 const KEY_RE_POST_ALL_GROUP = "re_post_all_group";
@@ -139,6 +144,8 @@ const KEY_COMMENT_WALK = {
 	LAST_TIME_COMMENT_WALK: "last_time_comment_walk",
 	COMMENT_WALK_AREA: "comment_walk_area",
 	KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK: "keywords_certain_choice_comment_walk",
+	IS_COMBINE_STRICTLY_TITLE_GROUP: "is_combine_strictly_title_group",
+	IS_SKIP_POST_NOT_IN_GROUP: "is_skip_post_not_in_group",
 };
 
 const KEY_CURRENT_DATA_GROUP_POST = "current_data_group_post";
@@ -182,50 +189,6 @@ const initialTimeDelay = {
 	time_delay_post: 5,
 	time_delay_open_new_tab: 2,
 };
-
-const DEFAULT_CONTENT_QUERY_INCLUDES_COMMON = [
-	"Tìm trọ",
-	"tìm phòng",
-	"tài chính",
-	"Ai có phòng",
-	"Cần phòng gấp",
-	"Cần gấp phòng",
-	"tc",
-	"cần tìm phòng gấp",
-	"cần gấp",
-	"budget",
-];
-
-const DEFAULT_KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK = [
-	"Tìm phòng",
-	"Tìm trọ",
-	"kiếm phòng",
-	"Kiếm trọ",
-	"Cần căn",
-	"Tìm căn",
-	"Ai có phòng",
-	"Cần phòng gấp",
-	"Cần gấp phòng",
-];
-
-const DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON = [
-	"mình cho thuê phòng",
-	"mình có phòng",
-	"khai trương",
-	"Pass phòng",
-	"Nhượng phòng",
-	"CÒN 1 PHÒNG",
-	"CHO THUÊ PHÒNG",
-	"CHO THUÊ PHÒNG GIÁ RẺ",
-	"CHO THUÊ PHÒNG GIÁ SINH VIÊN",
-	"CHO THUÊ PHÒNG GIÁ TỐT",
-	"NHANH TAY KẺO HẾT",
-	"DUY NHẤT",
-	"Xem phòng liên hệ",
-	"GIÁ CHỈ TỪ",
-	"Liên Hệ Chính Chủ",
-	"Mình chính chủ",
-];
 
 const DEFAULT_COMMENT_WALK_SETTING = {
 	max_comment_walk_per_batch: 1,

@@ -42,10 +42,6 @@ import {
 import { simulateTyping } from "./post";
 
 /**
- * @typedef {import('../../services/comment-walk-service').CommentWalkType} CommentWalkType
- */
-
-/**
  * @typedef {import('../../services/comment-walk-service').CommentWalkSetting} CommentWalkSetting
  */
 
@@ -256,6 +252,16 @@ function findDivReloadPage() {
  */
 async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 	try {
+		/**
+		 * tính toán chút
+		 * 1. Khu vực trang tìm kiếm: Với khu vực là trang tìm kiếm thì các bài viết có thể sẽ luôn phù hợp với dữ liệu đã được chọn
+		 * nên các từ khoá sẽ thả lỏng hơn
+		 * 2. Khu vực trang chủ thì các bài viết có thể là quảng cáo, bài viết của 1 cá nhân, tổ chức, trong nhóm,... Nên các từ khoá
+		 * sẽ cần nghiêm ngặt hơn
+		 *
+		 * 3. có thể dựa vào đó mà xử lý từ khoá sao cho hợp lý ở 2 khu vực
+		 */
+
 		const VALUE_RATE_ADD_FOR_HOME = 0;
 		const VALUE_RATE_MULTIPLY_FOR_KEYWORD_CERTAIN = 2;
 
@@ -275,6 +281,10 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 		const area = setting?.comment_walk_area;
 		const keywords_certain_choice =
 			setting?.keywords_certain_choice_comment_walk || [];
+		const isSkipPostNotInGroup = setting?.is_skip_post_not_in_group || false;
+		const isCombineStrictlyTitleGroup =
+			setting?.is_combine_strictly_title_group || false;
+		const strictlyMatchTitleGroup = setting?.strictly_match_title_group || [];
 
 		function checkArea() {
 			const isHome = area === KEY_COMMENT_WALK_AREA.HOME;
@@ -388,16 +398,17 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 
 					countScroll++;
 
-					const article = findElement('div[role="article"]', child);
-
-					if (article) {
-						logContent(
-							getTextLanguageContent({
-								en: "This post maybe is advertisement, skip it...",
-								vi: "Bài viết này có thể là bài viết được quảng cáo, bỏ qua...",
-							}),
-						);
-						continue;
+					if (isSkipPostNotInGroup) {
+						const article = findElement('div[role="article"]', child);
+						if (article) {
+							logContent(
+								getTextLanguageContent({
+									en: "This post maybe is advertisement, skip it...",
+									vi: "Bài viết này có thể là bài viết được quảng cáo, bỏ qua...",
+								}),
+							);
+							continue;
+						}
 					}
 
 					let isSkipPost = false;
@@ -498,7 +509,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 
 					await sleep(random(1000, 2500));
 
-					if (!checkIsFeedItemInGroup(child)) {
+					if (isSkipPostNotInGroup && !checkIsFeedItemInGroup(child)) {
 						logContent(
 							getTextLanguageContent({
 								vi: "Bài viết này không nằm trong group, có thể là bài viết của người dùng khác, quảng cáo,...",
@@ -543,6 +554,22 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 						continue;
 					}
 
+					if (isCombineStrictlyTitleGroup) {
+						const titleMatchs = matchQueryKeywords(
+							strictlyMatchTitleGroup,
+							contentProfileName,
+						);
+						if (!titleMatchs.length) {
+							logContent(
+								getTextLanguageContent({
+									vi: "Bài viết này không chứa các từ khoá phù hợp trong tên, bỏ qua...",
+									en: "This post does not contain keywords in the title, skip...",
+								}),
+							);
+							continue;
+						}
+					}
+
 					const listMatch = [];
 
 					const keywordIncludeMatch = [];
@@ -584,16 +611,16 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 					}
 
 					if (!isSkipPost) {
-						if (areaComment.isSearch) {
-							//comment walk
-							const keyword_query_exclude_comment_walk =
-								commentWalk?.keyword_query_excludes || [];
-							const keyword_query_include_comment_walk =
-								commentWalk?.keyword_query_includes || [];
-							const max_rate_comment_walk =
-								commentWalk?.match_rate_value_content_query_includes || 0;
+						const keyword_query_exclude_comment_walk =
+							commentWalk?.keyword_query_excludes || [];
+						const keyword_query_include_comment_walk =
+							commentWalk?.keyword_query_includes || [];
+						const keyword_certain_choice =
+							commentWalk?.keywords_certain_choice || [];
+						const max_rate_comment_walk =
+							commentWalk?.match_rate_value_content_query_includes || 0;
 
-							//maybe never use
+						if (areaComment.isSearch) {
 							const keywordExcludeCommentWalkMatch = matchQueryKeywords(
 								keyword_query_exclude_comment_walk,
 								contentDiv,
@@ -604,15 +631,30 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 								continue;
 							}
 
+							let score = 0;
+
 							const keywordIncludeCommentWalkMatch = matchQueryKeywords(
 								keyword_query_include_comment_walk,
 								contentNameAndDiv,
 							);
 							keywordIncludeMatch.push(...keywordIncludeCommentWalkMatch);
 
-							if (
-								keywordIncludeCommentWalkMatch.length < max_rate_comment_walk
-							) {
+							const keywordCertainMatch = matchQueryKeywords(
+								keyword_certain_choice,
+								contentNameAndDiv,
+							);
+							keywordIncludeMatch.push(...keywordCertainMatch);
+
+							//strictly
+							if (!keywordCertainMatch.length) {
+								isSkipPost = true;
+							}
+
+							score +=
+								keywordIncludeCommentWalkMatch.length +
+								keywordCertainMatch.length;
+
+							if (score < max_rate_comment_walk) {
 								isSkipPost = true;
 							}
 
@@ -625,43 +667,36 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 
 							logContent(
 								getTextLanguageContent({
-									en: `Rate: ${keywordIncludeCommons.length}/${max_rate_common}, Rate Comment Walk: ${keywordIncludeCommentWalkMatch.length}/${max_rate_comment_walk}`,
-									vi: `Tỉ lệ chung: ${keywordIncludeCommons.length}/${max_rate_common}, Tỉ lệ dữ liệu của bạn: ${keywordIncludeCommentWalkMatch.length}/${max_rate_comment_walk}`,
+									en: `Rate: ${keywordIncludeCommons.length}/${max_rate_common}, Rate Comment Walk: ${score}/${max_rate_comment_walk}`,
+									vi: `Tỉ lệ chung: ${keywordIncludeCommons.length}/${max_rate_common}, Tỉ lệ dữ liệu của bạn: ${score}/${max_rate_comment_walk}`,
 								}),
 							);
 						} else if (areaComment.isHome) {
 							for (const comment of listCommentWalk) {
 								let score = 0;
 
-								const keywordExclude = comment.keyword_query_excludes;
 								const contentExcludeMatch = matchQueryKeywords(
-									keywordExclude,
+									keyword_query_exclude_comment_walk,
 									contentDiv,
 								);
 								if (contentExcludeMatch.length) {
 									continue;
 								}
 
-								const keywordInclude = comment.keyword_query_includes;
-								const rateComment =
-									Number(comment.match_rate_value_content_query_includes) +
-									VALUE_RATE_ADD_FOR_HOME;
-
 								const contentMatchs = matchQueryKeywords(
-									keywordInclude,
+									keyword_query_include_comment_walk,
 									contentDiv,
 								);
 
 								score += contentMatchs.length;
 
 								//add score content more than profile name (title group)
-								const keywordCertainChoice = comment.keywords_certain_choice;
 								const contentCertainChoiceMatch = matchQueryKeywords(
-									keywordCertainChoice,
+									keyword_certain_choice,
 									contentDiv,
 								);
 								const profileNameCertainMatch = matchQueryKeywords(
-									keywordCertainChoice,
+									keyword_certain_choice,
 									contentProfileName,
 								);
 
@@ -673,11 +708,13 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 									score += profileNameCertainMatch.length;
 								}
 
-								if (
-									contentMatchs.length >= rateComment &&
+								const isMatch = !!(
+									contentMatchs.length >= max_rate_comment_walk &&
 									(contentCertainChoiceMatch.length ||
 										profileNameCertainMatch.length)
-								) {
+								);
+
+								if (isMatch) {
 									const match = Array.from(
 										new Set([
 											...contentMatchs,

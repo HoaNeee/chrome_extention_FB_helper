@@ -74,7 +74,9 @@
     MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON: "match_rate_value_content_query_includes_common",
     LAST_TIME_COMMENT_WALK: "last_time_comment_walk",
     COMMENT_WALK_AREA: "comment_walk_area",
-    KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK: "keywords_certain_choice_comment_walk"
+    KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK: "keywords_certain_choice_comment_walk",
+    IS_COMBINE_STRICTLY_TITLE_GROUP: "is_combine_strictly_title_group",
+    IS_SKIP_POST_NOT_IN_GROUP: "is_skip_post_not_in_group"
   };
   var STATUS_TASK = {
     PENDING: "pending",
@@ -224,14 +226,11 @@
     const pattern = /^https:\/\/www\.facebook\.com\/groups\/[a-zA-Z0-9._-]+\/permalink\/[A-Za-z0-9_.-\\/]+(\/?)$/;
     return pattern.test(url);
   }
-  function splitString(str, key = ",") {
-    if (!str || typeof str !== "string" || !str.trim()) return [];
-    return str.split(key).map((item) => item.trim()).filter((item) => item.trim());
-  }
   function cvStringHigher(str) {
     return str.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").replace(/[^a-zA-Z0-9\s]/g, " ").replace(/\s+/g, " ").toLocaleLowerCase().trim();
   }
   function matchQueryKeywords(tokens = [], target = "") {
+    if (!Array.isArray(tokens)) return [];
     const res = /* @__PURE__ */ new Set();
     let normalTarget = cvStringHigher(target);
     for (const token of tokens) {
@@ -1335,12 +1334,12 @@
   }
   async function scrollElementIntoView(selector) {
     if (selector instanceof HTMLElement || selector instanceof Node) {
-      selector.scrollIntoView({ behavior: "smooth", block: "start" });
+      selector.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     const element = document.querySelector(selector);
     if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
     }
     await sleep(1e3 + random(100, 500));
   }
@@ -1948,6 +1947,9 @@
       const max_rate_common = setting?.match_rate_value_content_query_includes_common_comment_walk || 0;
       const area = setting?.comment_walk_area;
       const keywords_certain_choice = setting?.keywords_certain_choice_comment_walk || [];
+      const isSkipPostNotInGroup = setting?.is_skip_post_not_in_group || false;
+      const isCombineStrictlyTitleGroup = setting?.is_combine_strictly_title_group || false;
+      const strictlyMatchTitleGroup = setting?.strictly_match_title_group || [];
       async function closeDialog() {
         await sleep(random(2e3, 4e3));
         await handleCloseIfExistDialog();
@@ -2007,15 +2009,17 @@
               continue;
             }
             countScroll++;
-            const article = findElement('div[role="article"]', child);
-            if (article) {
-              logContent(
-                getTextLanguageContent({
-                  en: "This post maybe is advertisement, skip it...",
-                  vi: "B\xE0i vi\u1EBFt n\xE0y c\xF3 th\u1EC3 l\xE0 b\xE0i vi\u1EBFt \u0111\u01B0\u1EE3c qu\u1EA3ng c\xE1o, b\u1ECF qua..."
-                })
-              );
-              continue;
+            if (isSkipPostNotInGroup) {
+              const article = findElement('div[role="article"]', child);
+              if (article) {
+                logContent(
+                  getTextLanguageContent({
+                    en: "This post maybe is advertisement, skip it...",
+                    vi: "B\xE0i vi\u1EBFt n\xE0y c\xF3 th\u1EC3 l\xE0 b\xE0i vi\u1EBFt \u0111\u01B0\u1EE3c qu\u1EA3ng c\xE1o, b\u1ECF qua..."
+                  })
+                );
+                continue;
+              }
             }
             let isSkipPost = false;
             const divProfileName = findDivProfileName(child);
@@ -2096,7 +2100,7 @@
             }
             await scrollElementIntoView(divButtonToPost);
             await sleep(random(1e3, 2500));
-            if (!checkIsFeedItemInGroup(child)) {
+            if (isSkipPostNotInGroup && !checkIsFeedItemInGroup(child)) {
               logContent(
                 getTextLanguageContent({
                   vi: "B\xE0i vi\u1EBFt n\xE0y kh\xF4ng n\u1EB1m trong group, c\xF3 th\u1EC3 l\xE0 b\xE0i vi\u1EBFt c\u1EE7a ng\u01B0\u1EDDi d\xF9ng kh\xE1c, qu\u1EA3ng c\xE1o,...",
@@ -2129,6 +2133,21 @@
             if (!contentDiv || !contentDiv.trim()) {
               logErrorContent("Content div is empty, next post");
               continue;
+            }
+            if (isCombineStrictlyTitleGroup) {
+              const titleMatchs = matchQueryKeywords(
+                strictlyMatchTitleGroup,
+                contentProfileName
+              );
+              if (!titleMatchs.length) {
+                logContent(
+                  getTextLanguageContent({
+                    vi: "B\xE0i vi\u1EBFt n\xE0y kh\xF4ng ch\u1EE9a c\xE1c t\u1EEB kho\xE1 ph\xF9 h\u1EE3p trong t\xEAn, b\u1ECF qua...",
+                    en: "This post does not contain keywords in the title, skip..."
+                  })
+                );
+                continue;
+              }
             }
             const listMatch = [];
             const keywordIncludeMatch = [];
@@ -2165,10 +2184,11 @@
               }
             }
             if (!isSkipPost) {
+              const keyword_query_exclude_comment_walk = commentWalk?.keyword_query_excludes || [];
+              const keyword_query_include_comment_walk = commentWalk?.keyword_query_includes || [];
+              const keyword_certain_choice = commentWalk?.keywords_certain_choice || [];
+              const max_rate_comment_walk = commentWalk?.match_rate_value_content_query_includes || 0;
               if (areaComment.isSearch) {
-                const keyword_query_exclude_comment_walk = commentWalk?.keyword_query_excludes || [];
-                const keyword_query_include_comment_walk = commentWalk?.keyword_query_includes || [];
-                const max_rate_comment_walk = commentWalk?.match_rate_value_content_query_includes || 0;
                 const keywordExcludeCommentWalkMatch = matchQueryKeywords(
                   keyword_query_exclude_comment_walk,
                   contentDiv
@@ -2178,12 +2198,22 @@
                   logExcludeKeywords(keywordExcludeCommentWalkMatch);
                   continue;
                 }
+                let score = 0;
                 const keywordIncludeCommentWalkMatch = matchQueryKeywords(
                   keyword_query_include_comment_walk,
                   contentNameAndDiv
                 );
                 keywordIncludeMatch.push(...keywordIncludeCommentWalkMatch);
-                if (keywordIncludeCommentWalkMatch.length < max_rate_comment_walk) {
+                const keywordCertainMatch = matchQueryKeywords(
+                  keyword_certain_choice,
+                  contentNameAndDiv
+                );
+                keywordIncludeMatch.push(...keywordCertainMatch);
+                if (!keywordCertainMatch.length) {
+                  isSkipPost = true;
+                }
+                score += keywordIncludeCommentWalkMatch.length + keywordCertainMatch.length;
+                if (score < max_rate_comment_walk) {
                   isSkipPost = true;
                 }
                 logContent(
@@ -2194,42 +2224,39 @@
                 );
                 logContent(
                   getTextLanguageContent({
-                    en: `Rate: ${keywordIncludeCommons.length}/${max_rate_common}, Rate Comment Walk: ${keywordIncludeCommentWalkMatch.length}/${max_rate_comment_walk}`,
-                    vi: `T\u1EC9 l\u1EC7 chung: ${keywordIncludeCommons.length}/${max_rate_common}, T\u1EC9 l\u1EC7 d\u1EEF li\u1EC7u c\u1EE7a b\u1EA1n: ${keywordIncludeCommentWalkMatch.length}/${max_rate_comment_walk}`
+                    en: `Rate: ${keywordIncludeCommons.length}/${max_rate_common}, Rate Comment Walk: ${score}/${max_rate_comment_walk}`,
+                    vi: `T\u1EC9 l\u1EC7 chung: ${keywordIncludeCommons.length}/${max_rate_common}, T\u1EC9 l\u1EC7 d\u1EEF li\u1EC7u c\u1EE7a b\u1EA1n: ${score}/${max_rate_comment_walk}`
                   })
                 );
               } else if (areaComment.isHome) {
                 for (const comment of listCommentWalk) {
                   let score = 0;
-                  const keywordExclude = comment.keyword_query_excludes;
                   const contentExcludeMatch = matchQueryKeywords(
-                    keywordExclude,
+                    keyword_query_exclude_comment_walk,
                     contentDiv
                   );
                   if (contentExcludeMatch.length) {
                     continue;
                   }
-                  const keywordInclude = comment.keyword_query_includes;
-                  const rateComment = Number(comment.match_rate_value_content_query_includes) + VALUE_RATE_ADD_FOR_HOME;
                   const contentMatchs = matchQueryKeywords(
-                    keywordInclude,
+                    keyword_query_include_comment_walk,
                     contentDiv
                   );
                   score += contentMatchs.length;
-                  const keywordCertainChoice = comment.keywords_certain_choice;
                   const contentCertainChoiceMatch = matchQueryKeywords(
-                    keywordCertainChoice,
+                    keyword_certain_choice,
                     contentDiv
                   );
                   const profileNameCertainMatch = matchQueryKeywords(
-                    keywordCertainChoice,
+                    keyword_certain_choice,
                     contentProfileName
                   );
                   score += contentCertainChoiceMatch.length * VALUE_RATE_MULTIPLY_FOR_KEYWORD_CERTAIN;
                   if (!contentCertainChoiceMatch.length) {
                     score += profileNameCertainMatch.length;
                   }
-                  if (contentMatchs.length >= rateComment && (contentCertainChoiceMatch.length || profileNameCertainMatch.length)) {
+                  const isMatch = !!(contentMatchs.length >= max_rate_comment_walk && (contentCertainChoiceMatch.length || profileNameCertainMatch.length));
+                  if (isMatch) {
                     const match = Array.from(
                       /* @__PURE__ */ new Set([
                         ...contentMatchs,
@@ -2874,7 +2901,6 @@
         return;
       }
       notificationContainer({});
-      test();
       const isDevMode = await CL_getIsDevMode();
       if (isDevMode) {
         await initWithMyTool();
@@ -3010,125 +3036,6 @@
       }
     } catch (error) {
       logErrorContent("Error at content main: ", error);
-    }
-  }
-  async function test() {
-    try {
-      const isDevMode = await CL_getValue(KEY_IS_DEVELOPER_MODE);
-      if (!isDevMode) return;
-      const divBtn = document.createElement("div");
-      const btnTest = document.createElement("button");
-      btnTest.textContent = "test";
-      btnTest.addEventListener("click", handleClick);
-      btnTest.style.padding = "10px";
-      btnTest.style.cursor = "pointer";
-      const btnTest2 = document.createElement("button");
-      btnTest2.textContent = "test2";
-      btnTest2.addEventListener("click", handleClick2);
-      btnTest2.style.padding = "10px";
-      btnTest2.style.cursor = "pointer";
-      divBtn.style.position = "fixed";
-      divBtn.style.top = "60px";
-      divBtn.style.right = "60px";
-      divBtn.style.zIndex = "1000";
-      divBtn.style.padding = "10px";
-      divBtn.style.display = "flex";
-      divBtn.style.gap = "10px";
-      divBtn.appendChild(btnTest);
-      divBtn.appendChild(btnTest2);
-      async function handleClick() {
-        const divFeedContainer = document.evaluate(
-          '//h3[contains(text(), "B\xE0i vi\u1EBFt tr\xEAn B\u1EA3ng feed")]',
-          document,
-          null,
-          XPathResult.FIRST_ORDERED_NODE_TYPE,
-          null
-        )?.singleNodeValue?.parentElement;
-        if (!divFeedContainer) {
-          return;
-        }
-        console.log("divFeedContainer", { divFeedContainer });
-        const divFeed = document.evaluate(
-          ".//div[not(@dir) and .//div[@data-ad-rendering-role]]",
-          divFeedContainer,
-          null,
-          XPathResult.FIRST_ORDERED_NODE_TYPE,
-          null
-        )?.singleNodeValue;
-        console.log("divFeed", { divFeed });
-        if (!divFeed) return;
-        const childs = divFeed.children;
-        let firstClass = childs.length ? childs[0].getAttribute("class") : "";
-        console.log(firstClass);
-        let cnt = 0;
-        for (const child of childs) {
-          if (cnt >= 20) break;
-          if (child instanceof HTMLElement) {
-            const hasRole = child.querySelector("div[data-ad-rendering-role]");
-            if (hasRole) {
-              await scrollElementIntoView(child);
-              await sleep(2e3);
-              const isFeedItemInGroup = document.evaluate(
-                './/a[contains(@href, "group")]',
-                child,
-                null,
-                XPathResult.FIRST_ORDERED_NODE_TYPE,
-                null
-              ).singleNodeValue;
-              if (isFeedItemInGroup) {
-                logContent("This is feed item in group");
-                await sleep(2e3);
-                const divProfileName = child.querySelector(
-                  'div[data-ad-rendering-role="profile_name"]'
-                );
-                const divContent = child.querySelector(
-                  'div[data-ad-rendering-role="story_message"]'
-                );
-                const profileNameTextContent = divProfileName?.textContent;
-                const itemTextContent = divContent?.textContent;
-                const textQuery = "T\xECm ph\xF2ng tr\u1ECD, c\u1EA7n t\xECm ph\xF2ng, t\xECm ph\xF2ng, t\xE0i ch\xEDnh, budget";
-                const textQuery1 = "M\u1EF9 \u0111\xECnh, nguy\u1EC5n ho\xE0ng, 9tr, 2n1k, 1n1k";
-                logContent(
-                  "Match-1: ",
-                  matchQueryKeywords(splitString(textQuery), itemTextContent, 1)
-                );
-                logContent(
-                  "Match-2: ",
-                  matchQueryKeywords(
-                    splitString(textQuery1),
-                    profileNameTextContent,
-                    1
-                  )
-                );
-                logContent(
-                  "Match-3: ",
-                  matchQueryKeywords(splitString(textQuery1), itemTextContent, 1)
-                );
-                logContent("profile name: ", divProfileName?.textContent);
-                logContent("content: ", divContent?.textContent);
-                const btnToPost = findButtonToPost(child);
-                if (btnToPost) {
-                  btnToPost.click();
-                  await sleep(2e3);
-                  const dialog = findExistDialog();
-                  const inputEditor = await findInputEditor(dialog);
-                  console.log("inputEditor", { inputEditor });
-                  break;
-                }
-                await sleep(2e3);
-              } else {
-                logContent("This is not feed item in group");
-              }
-            }
-          }
-          ++cnt;
-        }
-      }
-      async function handleClick2() {
-      }
-      document.body.appendChild(divBtn);
-    } catch (error) {
-      logError("Error at content test: ", error);
     }
   }
   async function initWithMyTool() {
