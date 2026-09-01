@@ -425,10 +425,10 @@ async function exportDataGroupPost(data) {
 	let name = "";
 
 	if (Array.isArray(data)) {
-		let time = new Date().toLocaleString().replace(/[,:\\/\s]/g, "_");
+		let time = new Date().toLocaleString("vi-VN").replace(/[,:\\/\s]/g, "_");
 		name = `list_data_groups_${time}.json`;
 	} else {
-		name = `data_group_post_for_${data.name}.json`;
+		name = `data_group_post_for_${data?.name || data.id}.json`;
 	}
 
 	if (!isUseLocalStorage) {
