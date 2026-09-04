@@ -2085,9 +2085,9 @@
                 }
               }
             }
-            await sleep(random(1e3, 1500));
+            await sleep(random(3e3, 5e3));
             scrollElementIntoView(child);
-            await sleep(random(1500, 3e3));
+            await sleep(random(3e3, 5e3));
             const divButtonToPost = findButtonToPost(child);
             if (!divButtonToPost) {
               logContent(
@@ -2098,8 +2098,9 @@
               );
               continue;
             }
+            await sleep(random(2e3, 4e3));
             await scrollElementIntoView(divButtonToPost);
-            await sleep(random(1e3, 2500));
+            await sleep(random(3e3, 5e3));
             if (isSkipPostNotInGroup && !checkIsFeedItemInGroup(child)) {
               logContent(
                 getTextLanguageContent({
@@ -2117,7 +2118,9 @@
             const btnShowMore = findButtonShowMore(child);
             if (btnShowMore) {
               btnShowMore.click();
-              await sleep(random(2e3, 4e3));
+              await sleep(random(3e3, 8e3));
+              await scrollElementIntoView(divButtonToPost);
+              await sleep(random(3e3, 5e3));
             }
             const contentDiv = divFeedContent?.textContent || "";
             if (contentDiv.length >= 500) {
@@ -2301,9 +2304,9 @@
                 countScroll = 0;
               }
             }
-            await sleep(random(1e3, 2500));
+            await sleep(random(2e3, 5e3));
             divButtonToPost.click();
-            await sleep(random(2e3, 3e3));
+            await sleep(random(3e3, 4e3));
             if (areaComment.isHome) {
               if (listMatch.length) {
                 const listId = listMatch.sort((a, b) => b.rate - a.rate).map((i) => i.id);
@@ -2368,7 +2371,7 @@
                 );
                 await sleep(random(2e3, 4e3));
                 await handleCloseIfExistDialog();
-                await sleep(random(1500, 2500));
+                await sleep(random(3e3, 5e3));
                 continue;
               }
             }
@@ -2380,9 +2383,9 @@
                 })
               );
               await clearContentFromInputEditor(inputEditor);
-              await sleep(random(1e3, 2e3));
+              await sleep(random(2e3, 4e3));
               await clearFileFromInput(dialog);
-              await sleep(random(1500, 3e3));
+              await sleep(random(3e3, 5e3));
             }
             logContent(
               getTextLanguageContent({
@@ -2392,7 +2395,7 @@
             );
             const content = commentWalk?.contents?.[random(0, commentWalk.contents.length - 1)];
             if (content) {
-              await sleep(random(1500, 3e3));
+              await sleep(random(3e3, 5e3));
               const success = await simulateTyping(inputEditor, content, {
                 minDelay: setting.time_delay_fill_content_comment_walk_min,
                 maxDelay: setting.time_delay_fill_content_comment_walk_max
@@ -2475,9 +2478,9 @@
                 );
               }
               await clearContentFromInputEditor(inputEditor);
-              await sleep(random(1e3, 2e3));
+              await sleep(random(2e3, 4e3));
               await clearFileFromInput(dialog);
-              await sleep(random(1500, 3e3));
+              await sleep(random(3e3, 5e3));
             } else {
               CL_addLogRequest({
                 vi: "\u0110\xE3 b\xECnh lu\u1EADn th\xE0nh c\xF4ng v\xE0o b\xE0i vi\u1EBFt: " + href,
@@ -2491,7 +2494,7 @@
                 vi: "\u0110ang \u0111\xF3ng h\u1ED9p tho\u1EA1i"
               })
             );
-            await sleep(random(1e3, 3e3));
+            await sleep(random(2e3, 6e3));
             await closeDialog();
             await CL_setCountCommentWalkPostedPerBatch(countComment + 1);
             await sleep(random(2e3, 3e3));
