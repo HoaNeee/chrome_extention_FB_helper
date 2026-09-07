@@ -2215,7 +2215,7 @@
                 if (!keywordCertainMatch.length) {
                   isSkipPost = true;
                 }
-                score += keywordIncludeCommentWalkMatch.length + keywordCertainMatch.length;
+                score += keywordIncludeCommentWalkMatch.length;
                 if (score < max_rate_comment_walk) {
                   isSkipPost = true;
                 }

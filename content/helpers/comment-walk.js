@@ -652,9 +652,8 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
                 isSkipPost = true;
               }
 
-              score +=
-                keywordIncludeCommentWalkMatch.length +
-                keywordCertainMatch.length;
+              score += keywordIncludeCommentWalkMatch.length;
+              // keywordCertainMatch.length; (nếu cần)
 
               if (score < max_rate_comment_walk) {
                 isSkipPost = true;
