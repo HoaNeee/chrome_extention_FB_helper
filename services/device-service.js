@@ -21,12 +21,13 @@ import {
 } from "./setting-service.js";
 
 /**
- * @typedef {Object} Device
- * @property {string} id
- * @property {string} device_name
- * @property {string} device_type
+ * @typedef {import('../types/types.js').Device} Device
  */
 
+/**
+ * Get device id from storage
+ * @returns {Promise<string>}
+ */
 async function getDeviceId() {
   const device = await getDeviceFromStorage();
   if (device) {

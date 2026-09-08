@@ -212,13 +212,13 @@ async function CL_setDecidedInteractBeforePost(value) {
 }
 
 /**
- * @typedef {import('../../services/comment-walk-service').CommentWalkSetting} CommentWalkSetting
+ * @typedef {import('../../services/comment-walk-service').CommentWalkConfig} CommentWalkConfig
  */
 
 /**
  *
  * @returns {Promise<{
- * setting: CommentWalkSetting,
+ * setting: CommentWalkConfig,
  * comment_walk: CommentWalk,
  * list_comment_walk: CommentWalk[]
  * }>}

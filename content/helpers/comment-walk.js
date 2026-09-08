@@ -1,5 +1,8 @@
 import CommentWalk from "../../class/CommentWalk";
-import { KEY_COMMENT_WALK_AREA } from "../../contants/constant-extention";
+import {
+  KEY_COMMENT_WALK_AREA,
+  KEY_COMMENT_WALK_SPEED,
+} from "../../contants/constant-extention";
 import {
   checkIsFacebookUrl,
   checkIsSearchPagePostUrl,
@@ -42,7 +45,7 @@ import {
 import { simulateTyping } from "./post";
 
 /**
- * @typedef {import('../../services/comment-walk-service').CommentWalkSetting} CommentWalkSetting
+ * @typedef {import('../../services/comment-walk-service').CommentWalkConfig} CommentWalkConfig
  */
 
 async function findDivResultSearch() {
@@ -246,7 +249,7 @@ function findDivReloadPage() {
 }
 
 /**
- * @param {CommentWalkSetting} setting
+ * @param {CommentWalkConfig} setting
  * @param {CommentWalk} commentWalk
  * @param {CommentWalk[]} listCommentWalk
  */
@@ -281,10 +284,11 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
     const area = setting?.comment_walk_area;
     const keywords_certain_choice =
       setting?.keywords_certain_choice_comment_walk || [];
-    const isSkipPostNotInGroup = setting?.is_skip_post_not_in_group || false;
+    const isSkipPostNotInGroup = setting?.is_skip_posts_not_in_group || false;
     const isCombineStrictlyTitleGroup =
       setting?.is_combine_strictly_title_group || false;
     const strictlyMatchTitleGroup = setting?.strictly_match_title_group || [];
+    const speed = setting?.comment_walk_speed;
 
     function checkArea() {
       const isHome = area === KEY_COMMENT_WALK_AREA.HOME;
@@ -326,6 +330,33 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
       await sleep(random(2000, 4000));
       await handleCloseIfExistDialog();
       await sleep(random(1500, 2500));
+    }
+
+    async function calculateValueSleep(speed = KEY_COMMENT_WALK_SPEED.NORMAL) {
+      let min = 2000,
+        max = 4000;
+
+      switch (speed) {
+        case KEY_COMMENT_WALK_SPEED.SLOW:
+          min = random(4000, 6000);
+          max = random(8000, 10000);
+          break;
+
+        case KEY_COMMENT_WALK_SPEED.NORMAL:
+          min = random(2000, 3000);
+          max = random(4000, 5000);
+          break;
+
+        case KEY_COMMENT_WALK_SPEED.FAST:
+          min = random(1000, 1500);
+          max = random(2000, 2500);
+          break;
+
+        default:
+          break;
+      }
+
+      await sleep(random(min, max));
     }
 
     const areaComment = checkArea();
@@ -370,7 +401,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
       throw new Error("Not found div feed");
     }
 
-    await sleep(random(2000, 4000));
+    await calculateValueSleep(KEY_COMMENT_WALK_SPEED.FAST);
 
     let isStopTool = await CL_getStopTool();
     if (isStopTool) {
@@ -398,7 +429,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             await closeDialog();
           }
 
-          await sleep(random(2000, 4000));
+          await calculateValueSleep(KEY_COMMENT_WALK_SPEED.FAST);
 
           if (!checkCanCommentInThisElement(child)) {
             continue;
@@ -476,7 +507,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
                 vi: "Đã đủ số bình luận, đóng tab sau vài giây...",
               }),
             );
-            await sleep(random(4000, 6000));
+            await calculateValueSleep(speed);
             await CL_compeleteCommentWalkThisBatch();
             return;
           }
@@ -498,9 +529,9 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             }
           }
 
-          await sleep(random(3000, 5000));
+          await calculateValueSleep(speed);
           scrollElementIntoView(child);
-          await sleep(random(3000, 5000));
+          await calculateValueSleep(speed);
 
           const divButtonToPost = findButtonToPost(child);
           if (!divButtonToPost) {
@@ -513,11 +544,11 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             continue;
           }
 
-          await sleep(random(2000, 4000));
+          await calculateValueSleep(speed);
 
           await scrollElementIntoView(divButtonToPost);
 
-          await sleep(random(3000, 5000));
+          await calculateValueSleep(speed);
 
           if (isSkipPostNotInGroup && !checkIsFeedItemInGroup(child)) {
             logContent(
@@ -538,11 +569,11 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
           const btnShowMore = findButtonShowMore(child);
           if (btnShowMore) {
             btnShowMore.click();
-            await sleep(random(3000, 8000));
+            await calculateValueSleep(speed);
 
             await scrollElementIntoView(divButtonToPost);
 
-            await sleep(random(3000, 5000));
+            await calculateValueSleep(speed);
           }
 
           const contentDiv = divFeedContent?.textContent || "";
@@ -771,10 +802,9 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             }
           }
 
-          await sleep(random(2000, 5000));
-
+          await calculateValueSleep(speed);
           divButtonToPost.click();
-          await sleep(random(3000, 4000));
+          await calculateValueSleep(speed);
 
           if (areaComment.isHome) {
             if (listMatch.length) {
@@ -849,9 +879,9 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
                   vi: "Bài viết này có thể không bình luận được vì bạn đã bình luận rồi",
                 }),
               );
-              await sleep(random(2000, 4000));
+              await calculateValueSleep(speed);
               await handleCloseIfExistDialog();
-              await sleep(random(3000, 5000));
+              await calculateValueSleep(speed);
               continue;
             }
           }
@@ -864,9 +894,9 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
               }),
             );
             await clearContentFromInputEditor(inputEditor);
-            await sleep(random(2000, 4000));
+            await calculateValueSleep(speed);
             await clearFileFromInput(dialog);
-            await sleep(random(3000, 5000));
+            await calculateValueSleep(speed);
           }
 
           logContent(
@@ -880,7 +910,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             commentWalk?.contents?.[random(0, commentWalk.contents.length - 1)];
 
           if (content) {
-            await sleep(random(3000, 5000));
+            await calculateValueSleep(speed);
 
             const success = await simulateTyping(inputEditor, content, {
               minDelay: setting.time_delay_fill_content_comment_walk_min,
@@ -895,9 +925,9 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
                 }),
               );
               await clearContentFromInputEditor(inputEditor);
-              await sleep(random(1000, 2000));
+              await calculateValueSleep(speed);
               await clearFileFromInput(dialog);
-              await sleep(random(1500, 3000));
+              await calculateValueSleep(speed);
 
               logContent(
                 getTextLanguageContent({
@@ -951,7 +981,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             }),
           );
 
-          await sleep(random(2000, 4000));
+          await calculateValueSleep(speed);
 
           if (!isTest) {
             await handleSubmitComment(inputEditor);
@@ -982,9 +1012,9 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             }
 
             await clearContentFromInputEditor(inputEditor);
-            await sleep(random(2000, 4000));
+            await calculateValueSleep(speed);
             await clearFileFromInput(dialog);
-            await sleep(random(3000, 5000));
+            await calculateValueSleep(speed);
           } else {
             CL_addLogRequest({
               vi: "Đã bình luận thành công vào bài viết: " + href,
@@ -1000,13 +1030,12 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             }),
           );
 
-          await sleep(random(2000, 6000));
+          await calculateValueSleep(speed);
 
           await closeDialog();
-
           await CL_setCountCommentWalkPostedPerBatch(countComment + 1);
 
-          await sleep(random(2000, 3000));
+          await calculateValueSleep(speed);
 
           if (!isTest) {
             await CL_addUrlCommented(commentWalk.id, href);
@@ -1051,7 +1080,7 @@ async function handleCloseIfExistDialog() {
       await sleep(random(2000, 4000));
       dialog = findExistDialog();
       if (dialog) {
-        await sleep(3000);
+        await sleep(random(2000, 4000));
         logContent("dialog existed, force close");
         const btnExitPage = findBtnExitPageWhenExistDialog();
         if (btnExitPage) {
