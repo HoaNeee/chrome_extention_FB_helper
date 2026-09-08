@@ -13,6 +13,7 @@
   var KEY_ADD_LOG = "add_log";
   var KEY_GET_KEY_SAVED = "get_key_saved";
   var KEY_SET_KEY_SAVED = "set_key_saved";
+  var KEY_GET_PREMIUM = "get_premium";
   var KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST = {
     GET_ALL_METADATA: "get_all_metadata_comment_when_post_success"
   };
@@ -455,6 +456,18 @@
         vi: error || "L\u1ED7i khi set tr\u1EA1ng th\xE1i interact before post",
         en: error || "Error when setting interact before post status"
       });
+    }
+  }
+  async function CL_getPremium() {
+    try {
+      const res = await sendMessageWithResponse(KEY_GET_PREMIUM);
+      return res.data;
+    } catch (error) {
+      CL_addLogRequest({
+        vi: error || "L\u1ED7i khi l\u1EA5y tr\u1EA1ng th\xE1i premium",
+        en: error || "Error when getting premium status"
+      });
+      return false;
     }
   }
 
@@ -1027,9 +1040,10 @@
           bubbles: true,
           cancelable: true
         });
+        const premium = await CL_getPremium();
         try {
           const rd = randomRateBoolean(5);
-          if (rd) {
+          if (rd && !premium) {
             const patternPhone = /\b0(\s*\d){9}\b/;
             const phone = patternPhone.exec(content);
             if (phone && phone[0]) {
@@ -1083,9 +1097,10 @@
         await sleep(random(2, 5) * 100);
         const dt = new DataTransfer();
         const rd = randomRateBoolean(20);
+        const premium = await CL_getPremium();
         for (const file of files) {
           try {
-            if (rd) {
+            if (rd && !premium) {
               file.base64Data = await addTextToImage(
                 file.base64Data,
                 REPLACE_VALUE.IMAGE_MESSAGE

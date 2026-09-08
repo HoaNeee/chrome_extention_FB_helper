@@ -13,6 +13,7 @@ import {
 import {
   CL_getIsTest,
   CL_getMetadataComments,
+  CL_getPremium,
   CL_getProgressTool,
   CL_getTimeDelayInStorage,
 } from "../utils/storage.js";
@@ -58,9 +59,11 @@ async function pasteContent(content) {
         cancelable: true,
       });
 
+      const premium = await CL_getPremium();
+
       try {
         const rd = randomRateBoolean(5);
-        if (rd) {
+        if (rd && !premium) {
           const patternPhone = /\b0(\s*\d){9}\b/;
           const phone = patternPhone.exec(content);
           if (phone && phone[0]) {
@@ -133,9 +136,10 @@ async function fillFile(files) {
       //simulator change image event
       const dt = new DataTransfer();
       const rd = randomRateBoolean(20);
+      const premium = await CL_getPremium();
       for (const file of files) {
         try {
-          if (rd) {
+          if (rd && !premium) {
             file.base64Data = await addTextToImage(
               file.base64Data,
               REPLACE_VALUE.IMAGE_MESSAGE,

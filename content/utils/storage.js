@@ -1,6 +1,7 @@
 import {
   KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST,
   KEY_GET_KEY_SAVED,
+  KEY_GET_PREMIUM,
   KEY_INTERACT_BEFORE_POST_REQUEST,
   KEY_SET_KEY_SAVED,
 } from "../../contants/constant-extention";
@@ -178,6 +179,19 @@ async function CL_setDecidedInteractBeforePost(value) {
   }
 }
 
+async function CL_getPremium() {
+  try {
+    const res = await sendMessageWithResponse(KEY_GET_PREMIUM);
+    return res.data;
+  } catch (error) {
+    CL_addLogRequest({
+      vi: error || "Lỗi khi lấy trạng thái premium",
+      en: error || "Error when getting premium status",
+    });
+    return false;
+  }
+}
+
 export {
   CL_getIsTest,
   CL_getTimeDelayInStorage,
@@ -188,4 +202,5 @@ export {
   CL_getMetadataComments,
   CL_getMetadataInteractBeforePost,
   CL_setDecidedInteractBeforePost,
+  CL_getPremium,
 };

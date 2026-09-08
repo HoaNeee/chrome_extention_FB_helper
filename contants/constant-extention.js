@@ -50,6 +50,8 @@ const KEY_GET_KEY_SAVED = "get_key_saved";
 
 const KEY_SET_KEY_SAVED = "set_key_saved";
 
+const KEY_GET_PREMIUM = "get_premium";
+
 const KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST = {
   GET_ALL_METADATA: "get_all_metadata_comment_when_post_success",
 };
@@ -98,4 +100,5 @@ export {
   KEY_ADD_TIME_DELAY_FOR_SCHEDULER,
   KEY_INTERACT_BEFORE_POST_REQUEST,
   REPLACE_VALUE,
+  KEY_GET_PREMIUM,
 };

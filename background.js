@@ -22,6 +22,7 @@ import {
   KEY_XMLHTTP_REQUEST,
   STATUS_RESPONSE,
   KEY_INTERACT_BEFORE_POST_REQUEST,
+  KEY_GET_PREMIUM,
 } from "./contants/constant-extention.js";
 import {
   KEY_CAN_POST_THIS_TAB,
@@ -227,6 +228,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         break;
       case KEY_INTERACT_BEFORE_POST_REQUEST.GET_ALL_METADATA:
         handleGetAllMetadataInteractBeforePost(sendResponse);
+        return true;
+
+      case KEY_GET_PREMIUM:
+        handleGetPremium(sendResponse);
         return true;
     }
   } catch (error) {
@@ -928,6 +933,25 @@ async function handleGetAllMetadataInteractBeforePost(sendResponse) {
     });
   } catch (error) {
     logError("Error at handleGetAllMetadataInteractBeforePost: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleGetPremium(sendResponse) {
+  try {
+    const premium = await getPremiumInStorage();
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: premium || false,
+    });
+  } catch (error) {
+    logError("Error at handleGetPremium: ", error);
     sendResponse({
       status: STATUS_RESPONSE.FAIL,
       message: getTextWithLanguage({
