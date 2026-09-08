@@ -216,6 +216,49 @@ function getIsCorrectURL() {
   return true;
 }
 
+/**
+ * Add text to image
+ * @param {string} base64 - base64 of image
+ * @param {string} text - text to add
+ * @returns {Promise<string>} - base64 of image with text
+ */
+async function addTextToImage(base64, text) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      const w = img.width;
+      const h = img.height;
+      canvas.width = w;
+      canvas.height = h;
+
+      // Vẽ ảnh gốc
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // Cấu hình text
+      const margin = 30;
+
+      ctx.font = "bold 60px Arial";
+      ctx.fillStyle = "#ebebebff";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "bottom";
+
+      // Vẽ text góc dưới bên phải
+      ctx.fillText(text, canvas.width - margin, canvas.height - margin);
+
+      // Lấy ảnh mới
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
+    };
+
+    img.onerror = reject;
+
+    img.src = base64;
+  });
+}
+
 export {
   sleep,
   random,
@@ -239,4 +282,5 @@ export {
   getIsDashboardTab,
   getIsCorrectURL,
   randomRateBoolean,
+  addTextToImage,
 };

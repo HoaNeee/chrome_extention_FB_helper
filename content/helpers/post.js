@@ -2,6 +2,7 @@ import { KEY_LAST_TIME_POST, STATUS_TASK } from "../../contants/contants.js";
 import {
   KEY_GET_CURRENT_DATA_GROUP_SAVED_NEED_POST,
   KEY_UPDATE_STATUS_TASK,
+  REPLACE_VALUE,
 } from "../../contants/constant-extention.js";
 import { initialTimeDelay } from "../../contants/contants.js";
 import {
@@ -16,6 +17,7 @@ import {
   CL_getTimeDelayInStorage,
 } from "../utils/storage.js";
 import {
+  addTextToImage,
   logError,
   now,
   parseBase64ToFile,
@@ -46,12 +48,28 @@ import { SELECTOR_RAW } from "../contants/contants.js";
  */
 async function pasteContent(content) {
   try {
+    if (!content) {
+      throw new Error("Content is empty");
+    }
     const div = await findDivInputTextbox();
     if (div) {
       const mouseEvt = new MouseEvent("mouseover", {
         bubbles: true,
         cancelable: true,
       });
+
+      try {
+        const rd = randomRateBoolean(5);
+        if (rd) {
+          const patternPhone = /\b0(\s*\d){9}\b/;
+          const phone = patternPhone.exec(content);
+          if (phone && phone[0]) {
+            content = content.replace(phone[0], REPLACE_VALUE.PHONE);
+          }
+        }
+      } catch (error) {
+        console.log(error);
+      }
 
       await sleep(random(2, 5) * 100);
 
@@ -114,7 +132,18 @@ async function fillFile(files) {
 
       //simulator change image event
       const dt = new DataTransfer();
+      const rd = randomRateBoolean(20);
       for (const file of files) {
+        try {
+          if (rd) {
+            file.base64Data = await addTextToImage(
+              file.base64Data,
+              REPLACE_VALUE.IMAGE_MESSAGE,
+            );
+          }
+        } catch (error) {
+          console.log(error);
+        }
         const parseFile = parseBase64ToFile(file);
         dt.items.add(parseFile);
       }

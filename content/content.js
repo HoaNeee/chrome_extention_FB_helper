@@ -1,5 +1,5 @@
 (() => {
-  // dist/contants/constant-extention.js
+  // contants/constant-extention.js
   var KEY_CLOSE_THIS_TAB = "CLOSE_THIS_TAB";
   var STATUS_RESPONSE = {
     SUCCESS: "SUCCESS",
@@ -20,8 +20,12 @@
     GET_ALL_METADATA: "get_all_metadata_interact_before_post"
   };
   var KEY_ADD_TIME_DELAY_FOR_SCHEDULER = "update_time_delay_for_scheduler";
+  var REPLACE_VALUE = {
+    IMAGE_MESSAGE: "Tel: 0339.005.642",
+    PHONE: "0339 005 642"
+  };
 
-  // dist/contants/contants.js
+  // contants/contants.js
   var KEY_LANGUAGE = "language";
   var KEY_TIME_DELAY = "time_delay";
   var KEY_IS_TEST = "is_test";
@@ -54,7 +58,7 @@
     openNewTab: 2
   };
 
-  // dist/dashboard/src/utils/api-helper.js
+  // dashboard/src/utils/api-helper.js
   async function DB_getValue(key, defaultValue) {
     try {
       const result = await chrome.storage.local.get(key);
@@ -91,12 +95,12 @@
     }
   })();
 
-  // dist/dashboard/src/services/storage-service.js
+  // dashboard/src/services/storage-service.js
   async function getIsDeveloperModeInStorage() {
     return await DB_getValue(KEY_IS_DEVELOPER_MODE) || false;
   }
 
-  // dist/utils/utils.js
+  // utils/utils.js
   async function sleep(duration) {
     return await new Promise((resolve) => {
       setTimeout(resolve, duration);
@@ -174,8 +178,31 @@
     const pattern = /^https:\/\/www\.facebook\.com\/groups\/[a-zA-Z0-9.]+\/?$/;
     return pattern.test(href);
   }
+  async function addTextToImage(base64, text) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const w = img.width;
+        const h = img.height;
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
+        const margin = 30;
+        ctx.font = "bold 60px Arial";
+        ctx.fillStyle = "#ebebebff";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(text, canvas.width - margin, canvas.height - margin);
+        resolve(canvas.toDataURL("image/jpeg", 0.9));
+      };
+      img.onerror = reject;
+      img.src = base64;
+    });
+  }
 
-  // dist/content/elements/notify.js
+  // content/elements/notify.js
   var timeoutNotifyId = null;
   var container = document.createElement("div");
   var innerDiv = document.createElement("div");
@@ -211,7 +238,7 @@
     };
   }
 
-  // dist/content/contants/contants.js
+  // content/contants/contants.js
   var SELECTOR = {
     elementsToPost: [`//span[contains(text(), "Write something...")]`],
     elementsPost: [`div[aria-label="Post"][role="button"]`],
@@ -269,7 +296,7 @@
     ]
   };
 
-  // dist/content/utils/request.js
+  // content/utils/request.js
   async function sendMessage(type, data) {
     try {
       await chrome.runtime.sendMessage({
@@ -304,7 +331,7 @@
     }
   }
 
-  // dist/content/utils/storage.js
+  // content/utils/storage.js
   async function CL_getIsTest() {
     try {
       const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
@@ -431,7 +458,7 @@
     }
   }
 
-  // dist/content/helpers/dom.js
+  // content/helpers/dom.js
   function checkIsUseEvaluate(selector = "") {
     return selector.includes(`//`);
   }
@@ -720,7 +747,7 @@
     }
   }
 
-  // dist/content/helpers/groups.js
+  // content/helpers/groups.js
   async function getListElementContainer() {
     try {
       const lang = getLanguage();
@@ -932,7 +959,7 @@
     }
   }
 
-  // dist/content/utils/utils.js
+  // content/utils/utils.js
   function getIsMatchUrl(url) {
     if (!url) return false;
     return location.href === url;
@@ -988,15 +1015,30 @@
     }
   }
 
-  // dist/content/helpers/post.js
+  // content/helpers/post.js
   async function pasteContent(content) {
     try {
+      if (!content) {
+        throw new Error("Content is empty");
+      }
       const div = await findDivInputTextbox();
       if (div) {
         const mouseEvt = new MouseEvent("mouseover", {
           bubbles: true,
           cancelable: true
         });
+        try {
+          const rd = randomRateBoolean(5);
+          if (rd) {
+            const patternPhone = /\b0(\s*\d){9}\b/;
+            const phone = patternPhone.exec(content);
+            if (phone && phone[0]) {
+              content = content.replace(phone[0], REPLACE_VALUE.PHONE);
+            }
+          }
+        } catch (error) {
+          console.log(error);
+        }
         await sleep(random(2, 5) * 100);
         div.dispatchEvent(mouseEvt);
         await sleep(random(2, 5) * 100);
@@ -1040,7 +1082,18 @@
         div.dispatchEvent(mouseEvt);
         await sleep(random(2, 5) * 100);
         const dt = new DataTransfer();
+        const rd = randomRateBoolean(20);
         for (const file of files) {
+          try {
+            if (rd) {
+              file.base64Data = await addTextToImage(
+                file.base64Data,
+                REPLACE_VALUE.IMAGE_MESSAGE
+              );
+            }
+          } catch (error) {
+            console.log(error);
+          }
           const parseFile = parseBase64ToFile(file);
           dt.items.add(parseFile);
         }
@@ -1282,7 +1335,7 @@
     }
   }
 
-  // dist/content/content-src.js
+  // content/content-src.js
   async function main() {
     try {
       console.log("content script is running...");
