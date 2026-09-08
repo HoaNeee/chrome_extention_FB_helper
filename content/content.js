@@ -1957,7 +1957,9 @@
       }
       const areaComment = checkArea();
       let countScroll = 0;
-      let maxCount = isDevMode ? 50 : areaComment.isHome ? 50 : 20;
+      const randomCountScrollHome = random(50, 70);
+      const randomCountScrollSearch = random(20, 30);
+      let maxCount = isDevMode ? 50 : areaComment.isHome ? randomCountScrollHome : randomCountScrollSearch;
       async function findDivFeed() {
         let divResult = null;
         if (areaComment.isHome) {
@@ -2070,10 +2072,10 @@
               await CL_compeleteCommentWalkThisBatch();
               return;
             }
-            if (countScroll >= maxCount / 2 && !reloaded) {
+            if (countScroll >= maxCount / 2 && !reloaded && areaComment.isHome) {
               const reload = findDivReloadPage();
               if (reload) {
-                const rd = randomRateBoolean(50);
+                const rd = randomRateBoolean(40);
                 if (rd) {
                   reload.click();
                   await sleep(random(1e4, 15e3));
