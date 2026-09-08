@@ -49,7 +49,7 @@ import { SELECTOR_RAW } from "../contants/contants.js";
  */
 async function pasteContent(content) {
   try {
-    if (!content) {
+    if (checkContentEmpty(content)) {
       throw new Error("Content is empty");
     }
     const div = await findDivInputTextbox();
@@ -272,7 +272,7 @@ async function postHelper(task) {
 
       //file
       await sleep(delayFillFile);
-      fillFile(files);
+      await fillFile(files);
 
       //post
       await sleep(delayPost);
@@ -491,6 +491,14 @@ function findLinkJustPosted(elementContainerPosted) {
     logError("Error at findLinkJustPosted", error);
     return null;
   }
+}
+
+function checkContentEmpty(content) {
+  return (
+    typeof content !== "string" ||
+    !content.trim().length ||
+    content === "<p></p>"
+  );
 }
 
 export {

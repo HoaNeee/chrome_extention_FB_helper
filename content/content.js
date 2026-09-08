@@ -1031,7 +1031,7 @@
   // content/helpers/post.js
   async function pasteContent(content) {
     try {
-      if (!content) {
+      if (checkContentEmpty(content)) {
         throw new Error("Content is empty");
       }
       const div = await findDivInputTextbox();
@@ -1199,7 +1199,7 @@
         let content = contents[random(0, contents.length - 1)];
         await pasteContent(content);
         await sleep(delayFillFile);
-        fillFile(files);
+        await fillFile(files);
         await sleep(delayPost);
         if (!isTest) {
           if (getIsExistDialog()) {
@@ -1348,6 +1348,9 @@
         en: `Error when commenting on this post, ${error?.message || error}`
       });
     }
+  }
+  function checkContentEmpty(content) {
+    return typeof content !== "string" || !content.trim().length || content === "<p></p>";
   }
 
   // content/content-src.js
