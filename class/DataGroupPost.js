@@ -1,4 +1,18 @@
+/**
+ * @typedef {import("../types/types").Base64Object} Base64Object
+ 
+ */
+
 export default class DataGroupPost {
+  /**
+   *
+   * @param {string} title
+   * @param {Array<string>} contents
+   * @param {Array<string|Base64Object>} files
+   * @param {string} name
+   * @param {number} priority
+   * @param {string} id
+   */
   constructor(
     title = "",
     contents = [],

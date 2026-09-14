@@ -8,6 +8,7 @@ import {
   KEY_GET_ALL_METADATA_COMMENT_WALK,
   KEY_GET_KEY_SAVED,
   KEY_INTERACT_BEFORE_POST_REQUEST,
+  KEY_REQUEST_TO_BACKGROUND,
   KEY_SET_KEY_SAVED,
   KEY_SET_PROCESSING_COMMENT_WALK,
   KEY_STOP_TASK_REQUEST,
@@ -326,6 +327,9 @@ async function CL_compeleteCommentWalkThisBatch() {
   }
 }
 
+/**
+ * @returns {Promise<boolean>}
+ */
 async function CL_getIsDevMode() {
   try {
     const res = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
@@ -403,6 +407,85 @@ async function CL_getCommentWalkNeverCommented(ids, url) {
   }
 }
 
+/**
+ * Lấy trạng thái match title group
+ * @returns {Promise<string[]>}
+ */
+async function CL_getStrictlyMatchTitleGroup() {
+  try {
+    const response = await sendMessageWithResponse(
+      KEY_REQUEST_TO_BACKGROUND.GET_STRICTLY_MATCH_TITLE_GROUP,
+    );
+    return response.data;
+  } catch (error) {
+    logErrorContent("Error at CL_getStrictlyMatchTitleGroup: ", error);
+    CL_addLogRequest({
+      vi: error || "Lỗi khi lấy trạng thái match title group",
+      en: error || "Error when getting match title group status",
+      type: "error",
+    });
+    return false;
+  }
+}
+
+async function CL_checkMatchDataCommentWalkAtSearchPage(
+  dataCommentWalk,
+  contentPost,
+  titlePost,
+) {
+  try {
+    const response = await sendMessageWithResponse(
+      KEY_REQUEST_TO_BACKGROUND.CHECK_DATA_COMMENT_WALK_MATCH_AT_SEARCH_PAGE,
+      {
+        dataCommentWalk,
+        contentPost,
+        titlePost,
+      },
+    );
+    return response.data;
+  } catch (error) {
+    logErrorContent(
+      "Error at CL_checkMatchDataCommentWalkAtSearchPage: ",
+      error,
+    );
+    CL_addLogRequest({
+      vi: error || "Lỗi khi kiểm tra dữ liệu comment walk",
+      en: error || "Error when checking comment walk data",
+      type: "error",
+    });
+    return false;
+  }
+}
+
+async function CL_checkMultiMatchDataCommentWalkAtHomePage(
+  listDataCommentWalk,
+  contentPost,
+  titlePost,
+) {
+  try {
+    const response = await sendMessageWithResponse(
+      KEY_REQUEST_TO_BACKGROUND.CHECK_MULTI_DATA_COMMENT_WALK_AT_HOME_PAGE,
+      {
+        listDataCommentWalk,
+        contentPost,
+        titlePost,
+      },
+    );
+    return response.data;
+  } catch (error) {
+    logErrorContent(
+      "Error at CL_checkMultiMatchDataCommentWalkAtHomePage: ",
+      error,
+    );
+    CL_addLogRequest({
+      vi: error || "Lỗi khi kiểm tra dữ liệu comment walk",
+      en: error || "Error when checking comment walk data",
+      type: "error",
+    });
+    throw error;
+  }
+}
+
 export {
   CL_getIsTest,
   CL_getTimeDelayData,
@@ -424,4 +507,7 @@ export {
   CL_getObjectCanPostThisTab,
   CL_updateLastTimeCommentWalk,
   CL_getCommentWalkNeverCommented,
+  CL_getStrictlyMatchTitleGroup,
+  CL_checkMatchDataCommentWalkAtSearchPage,
+  CL_checkMultiMatchDataCommentWalkAtHomePage,
 };

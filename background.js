@@ -1,3 +1,4 @@
+import { GoogleGenAIClass } from "./class/GoogleGenAI.js";
 import {
   KEY_ADD_LOG,
   KEY_ADD_TIME_DELAY_FOR_SCHEDULER,
@@ -19,6 +20,7 @@ import {
   KEY_MESSAGE_FROM_BACKGROUND,
   KEY_NEXT_POST_GROUP,
   KEY_OPEN_IN_TAB,
+  KEY_REQUEST_TO_BACKGROUND,
   KEY_SCHEDULER_ALARMS,
   KEY_SET_KEY_SAVED,
   KEY_SET_PROCESSING_COMMENT_WALK,
@@ -95,6 +97,7 @@ import {
   getIsSchedulerData,
   getIsSpammedData,
   getIsStopTaskData,
+  getStrictlyMatchTitleGroupData,
   getTimeBreakWhenSpammedData,
   getTimeDelayData,
   setIsFixStealFocusData,
@@ -244,6 +247,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       case KEY_TIME_DELAY:
         handleGetTimeDelay(sendResponse);
         return true;
+
       case KEY_GET_PARSE_FILE:
         handleParseFile(msg.data?.files, sendResponse);
         return true;
@@ -284,6 +288,28 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         handleGetCommentWalkActiveNeverComment(
           msg.data.ids,
           msg.data.url,
+          sendResponse,
+        );
+        return true;
+
+      case KEY_REQUEST_TO_BACKGROUND.GET_STRICTLY_MATCH_TITLE_GROUP:
+        handleGetStrictlyMatchTitleGroup(sendResponse);
+        return true;
+
+      case KEY_REQUEST_TO_BACKGROUND.CHECK_DATA_COMMENT_WALK_MATCH_AT_SEARCH_PAGE:
+        handleCheckDataCommentWalkMatchAtSearchPage(
+          msg.data?.dataCommentWalk,
+          msg.data?.contentPost,
+          msg.data?.titlePost,
+          sendResponse,
+        );
+        return true;
+
+      case KEY_REQUEST_TO_BACKGROUND.CHECK_MULTI_DATA_COMMENT_WALK_AT_HOME_PAGE:
+        handleCheckMultiMatchDataCommentWalkAtHomePage(
+          msg.data?.listDataCommentWalk,
+          msg.data?.contentPost,
+          msg.data?.titlePost,
           sendResponse,
         );
         return true;
@@ -1224,6 +1250,83 @@ async function handleGetTimeDelay(sendResponse) {
     });
   } catch (error) {
     logError("Error at handleGetTimeDelay: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleGetStrictlyMatchTitleGroup(sendResponse) {
+  try {
+    const data = await getStrictlyMatchTitleGroupData();
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data,
+    });
+  } catch (error) {
+    logError("Error at handleGetStrictlyMatchTitleGroup: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleCheckDataCommentWalkMatchAtSearchPage(
+  dataCommentWalk,
+  contentPost,
+  titlePost,
+  sendResponse,
+) {
+  try {
+    const ai = new GoogleGenAIClass();
+    const match = await ai.matchCommentWalkAtSearchPage(
+      dataCommentWalk,
+      contentPost,
+      titlePost,
+    );
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: match,
+    });
+  } catch (error) {
+    logError("Error at handleCheckDataCommentWalkMatchAtSearchPage: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleCheckMultiMatchDataCommentWalkAtHomePage(
+  listDataCommentWalk,
+  contentPost,
+  titlePost,
+  sendResponse,
+) {
+  try {
+    const ai = new GoogleGenAIClass();
+    const match = await ai.matchMultiCommentWalkHomePage(
+      listDataCommentWalk,
+      contentPost,
+      titlePost,
+    );
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: match,
+    });
+  } catch (error) {
+    logError("Error at handleCheckMultiDataCommentWalkAtHomePage: ", error);
     sendResponse({
       status: STATUS_RESPONSE.FAIL,
       message: getTextWithLanguage({

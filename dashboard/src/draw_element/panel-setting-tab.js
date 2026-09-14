@@ -293,6 +293,10 @@ async function createPanelSetting(anchorElem = document.body) {
             <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-${KEY_COMMENT_WALK.IS_COMBINE_STRICTLY_TITLE_GROUP}">
             <label for="${prefix}checkbox-${KEY_COMMENT_WALK.IS_COMBINE_STRICTLY_TITLE_GROUP}" style="user-select: none;">${getTextWithLanguage({ vi: "Kết hợp với các từ khoá có trong tiêu đề nhóm", en: "Comment walk with keywords in group title" })}</label>
           </div>
+          <div class="${prefix}field-container field-checkbox">
+            <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-${KEY_COMMENT_WALK.IS_AI_HELP_COMMENT_WALK}">
+            <label for="${prefix}checkbox-${KEY_COMMENT_WALK.IS_AI_HELP_COMMENT_WALK}" style="user-select: none;">${getTextWithLanguage({ vi: "Sử dụng AI hỗ trợ", en: "Use AI help" })}</label>
+          </div>
          
           <div style="padding: 4px 8px; display: flex; gap: 32px; align-items: center;">
 		 	<div style="max-width: 300px; display: flex; flex-direction: column; gap: 4px;">
@@ -922,7 +926,8 @@ async function createPanelSetting(anchorElem = document.body) {
                 `#${prefix}input-strictly-match-title-group`,
               );
               const val = inputStrictlyMatchTitleGroup.value;
-              await setStrictlyMatchTitleGroupData(val);
+              const list = splitString(val);
+              await setStrictlyMatchTitleGroupData(list);
               showNotify({
                 message: "Save keywords successfully",
                 type: "success",
@@ -1389,7 +1394,8 @@ async function createPanelSetting(anchorElem = document.body) {
               e.preventDefault();
               try {
                 const val = inputStrictlyMatchGroup.value;
-                await setStrictlyMatchTitleGroupData(val);
+                const list = splitString(val);
+                await setStrictlyMatchTitleGroupData(list);
                 showNotify({
                   message: getTextWithLanguage({
                     vi: "Lưu từ khóa thành công",
@@ -1921,6 +1927,40 @@ async function createPanelSetting(anchorElem = document.body) {
                 error,
               });
               e.target.value = await commentWalkService.getCommentWalkSpeed();
+            }
+          });
+        }
+
+        const checkboxAiHelpCommentWalk = document.querySelector(
+          `#${prefix}checkbox-${KEY_COMMENT_WALK.IS_AI_HELP_COMMENT_WALK}`,
+        );
+
+        if (checkboxAiHelpCommentWalk) {
+          checkboxAiHelpCommentWalk.checked =
+            await commentWalkService.getIsAIHelpCommentWalk();
+          checkboxAiHelpCommentWalk.addEventListener("change", async (e) => {
+            const isAiHelpCommentWalk = e.target.checked;
+            try {
+              await commentWalkService.setIsAIHelpCommentWalk(
+                isAiHelpCommentWalk,
+              );
+              if (isAiHelpCommentWalk) {
+                if (checkboxCombineStrictlyTitleGroup) {
+                  checkboxCombineStrictlyTitleGroup.checked = true;
+                  await commentWalkService.setIsCombineStrictlyTitleGroup(true);
+                }
+
+                if (checkboxSkipPostNotInGroup) {
+                  checkboxSkipPostNotInGroup.checked = true;
+                  await commentWalkService.setIsSkipPostNotInGroup(true);
+                }
+              }
+            } catch (error) {
+              handleErrorHelper({
+                name: "checkboxAiHelpCommentWalk",
+                error,
+              });
+              e.target.checked = !isAiHelpCommentWalk;
             }
           });
         }

@@ -46,6 +46,11 @@
     NORMAL: "NORMAL",
     FAST: "FAST"
   };
+  var KEY_REQUEST_TO_BACKGROUND = {
+    GET_STRICTLY_MATCH_TITLE_GROUP: "get_strictly_match_title_group",
+    CHECK_DATA_COMMENT_WALK_MATCH_AT_SEARCH_PAGE: "check_data_comment_walk_match_at_search_page",
+    CHECK_MULTI_DATA_COMMENT_WALK_AT_HOME_PAGE: "check_multi_data_comment_walk_at_home_page"
+  };
 
   // contants/contants.js
   var KEY_LANGUAGE = "language";
@@ -82,7 +87,8 @@
     KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK: "keywords_certain_choice_comment_walk",
     IS_COMBINE_STRICTLY_TITLE_GROUP: "is_combine_strictly_title_group",
     IS_SKIP_POST_NOT_IN_GROUP: "is_skip_post_not_in_group",
-    COMMENT_WALK_SPEED: "comment_walk_speed"
+    COMMENT_WALK_SPEED: "comment_walk_speed",
+    IS_AI_HELP_COMMENT_WALK: "is_ai_help_comment_walk"
   };
   var STATUS_TASK = {
     PENDING: "pending",
@@ -1078,6 +1084,70 @@
       return null;
     }
   }
+  async function CL_getStrictlyMatchTitleGroup() {
+    try {
+      const response = await sendMessageWithResponse(
+        KEY_REQUEST_TO_BACKGROUND.GET_STRICTLY_MATCH_TITLE_GROUP
+      );
+      return response.data;
+    } catch (error) {
+      logErrorContent("Error at CL_getStrictlyMatchTitleGroup: ", error);
+      CL_addLogRequest({
+        vi: error || "L\u1ED7i khi l\u1EA5y tr\u1EA1ng th\xE1i match title group",
+        en: error || "Error when getting match title group status",
+        type: "error"
+      });
+      return false;
+    }
+  }
+  async function CL_checkMatchDataCommentWalkAtSearchPage(dataCommentWalk, contentPost, titlePost) {
+    try {
+      const response = await sendMessageWithResponse(
+        KEY_REQUEST_TO_BACKGROUND.CHECK_DATA_COMMENT_WALK_MATCH_AT_SEARCH_PAGE,
+        {
+          dataCommentWalk,
+          contentPost,
+          titlePost
+        }
+      );
+      return response.data;
+    } catch (error) {
+      logErrorContent(
+        "Error at CL_checkMatchDataCommentWalkAtSearchPage: ",
+        error
+      );
+      CL_addLogRequest({
+        vi: error || "L\u1ED7i khi ki\u1EC3m tra d\u1EEF li\u1EC7u comment walk",
+        en: error || "Error when checking comment walk data",
+        type: "error"
+      });
+      return false;
+    }
+  }
+  async function CL_checkMultiMatchDataCommentWalkAtHomePage(listDataCommentWalk, contentPost, titlePost) {
+    try {
+      const response = await sendMessageWithResponse(
+        KEY_REQUEST_TO_BACKGROUND.CHECK_MULTI_DATA_COMMENT_WALK_AT_HOME_PAGE,
+        {
+          listDataCommentWalk,
+          contentPost,
+          titlePost
+        }
+      );
+      return response.data;
+    } catch (error) {
+      logErrorContent(
+        "Error at CL_checkMultiMatchDataCommentWalkAtHomePage: ",
+        error
+      );
+      CL_addLogRequest({
+        vi: error || "L\u1ED7i khi ki\u1EC3m tra d\u1EEF li\u1EC7u comment walk",
+        en: error || "Error when checking comment walk data",
+        type: "error"
+      });
+      throw error;
+    }
+  }
 
   // content/helpers/dom.js
   function checkIsUseEvaluate(selector = "") {
@@ -1437,11 +1507,11 @@
         div.dispatchEvent(mouseEvt);
         await sleep(random(2, 5) * 100);
         const dt = new DataTransfer();
-        const parses = await CL_getParseFileRequest(files);
+        let parses = await CL_getParseFileRequest(files);
         if (parses && Array.isArray(parses)) {
           for await (const item of parses) {
-            const parse = parseBase64ToFile(item);
-            dt.items.add(parse);
+            const file = parseBase64ToFile(item);
+            dt.items.add(file);
           }
           input.files = dt.files;
         }
@@ -1449,6 +1519,7 @@
         input.dispatchEvent(new Event("input", { bubbles: true }));
       }
     } catch (e) {
+      console.log(e);
       CL_addLogRequest({
         vi: `L\u1ED7i khi t\u1EA3i t\u1EC7p l\xEAn \xF4 nh\u1EADp: ${e?.message || e}`,
         en: `Error when uploading files to the input box: ${e?.message || e}`,
@@ -1926,6 +1997,64 @@
           isHome,
           isSearch
         };
+      }, getListMatchCommentWalkHomePage = function(is_ai_help, {
+        keywords_excludes = [],
+        keywords_includes = [],
+        keywords_certain = [],
+        max_rate = 0,
+        content_post = "",
+        title_group = ""
+      }) {
+        const list = [];
+        for (const comment of listCommentWalk) {
+          let score = 0;
+          const contentExcludeMatch = matchQueryKeywords(
+            keywords_excludes,
+            content_post
+          );
+          if (contentExcludeMatch.length) {
+            continue;
+          }
+          const contentMatchs = matchQueryKeywords(
+            keywords_includes,
+            content_post
+          );
+          score += contentMatchs.length;
+          const contentCertainChoiceMatch = matchQueryKeywords(
+            keywords_certain,
+            content_post
+          );
+          const profileNameCertainMatch = matchQueryKeywords(
+            keywords_certain,
+            title_group
+          );
+          if (is_ai_help) {
+            if (contentCertainChoiceMatch.length || profileNameCertainMatch.length) {
+              list.push(comment);
+            }
+          } else {
+            score += contentCertainChoiceMatch.length * VALUE_RATE_MULTIPLY_FOR_KEYWORD_CERTAIN;
+            if (!contentCertainChoiceMatch.length) {
+              score += profileNameCertainMatch.length;
+            }
+            const isMatch = !!(contentMatchs.length >= max_rate && (contentCertainChoiceMatch.length || profileNameCertainMatch.length));
+            if (isMatch) {
+              const match = Array.from(
+                /* @__PURE__ */ new Set([
+                  ...contentMatchs,
+                  ...contentCertainChoiceMatch,
+                  ...profileNameCertainMatch
+                ])
+              );
+              list.push({
+                id: comment.id,
+                score,
+                match
+              });
+            }
+          }
+        }
+        return list;
       }, checkCanCommentInThisElement = function(element) {
         if (!(element instanceof HTMLElement)) {
           return false;
@@ -1942,8 +2071,21 @@
             vi: "B\xE0i vi\u1EBFt n\xE0y ch\u1EE9a c\xE1c t\u1EEB kh\xF3a b\u1ECB lo\u1EA1i tr\u1EEB: " + keywords.join(", ") + ", b\u1ECF qua..."
           })
         );
+      }, sleepHelper = function() {
+        return {
+          async fast() {
+            await sleep(random(1e3, 2500));
+          },
+          async normal() {
+            await sleep(random(2500, 5e3));
+          },
+          async slow() {
+            await sleep(random(5500, 9e3));
+          }
+        };
       };
       const VALUE_RATE_ADD_FOR_HOME = 0;
+      const VALUE_RATE_ADD_FOR_SEARCH_USE_AI = 1;
       const VALUE_RATE_MULTIPLY_FOR_KEYWORD_CERTAIN = 2;
       const isDevMode = await CL_getIsDevMode();
       const isTest = await CL_getIsTest();
@@ -1953,31 +2095,59 @@
       const content_query_excludes_common = setting?.content_query_excludes_common_comment_walk || [];
       const max_rate_common = setting?.match_rate_value_content_query_includes_common_comment_walk || 0;
       const area = setting?.comment_walk_area;
-      const keywords_certain_choice = setting?.keywords_certain_choice_comment_walk || [];
+      const keywords_certain_choice_common = setting?.keywords_certain_choice_comment_walk || [];
       const isSkipPostNotInGroup = setting?.is_skip_posts_not_in_group || false;
       const isCombineStrictlyTitleGroup = setting?.is_combine_strictly_title_group || false;
-      const strictlyMatchTitleGroup = setting?.strictly_match_title_group || [];
       const speed = setting?.comment_walk_speed;
+      const isAIHelp = setting.is_ai_help_comment_walk;
+      const strictlyMatchTitleGroup = await CL_getStrictlyMatchTitleGroup();
+      async function getListMatchCommentWalkHomePageWithAIHelp(listComment, {
+        keywords_excludes = [],
+        keywords_includes = [],
+        keywords_certain = [],
+        max_rate = 0,
+        content_post = "",
+        title_group = ""
+      }) {
+        try {
+          const listMatch = await CL_checkMultiMatchDataCommentWalkAtHomePage(
+            listComment,
+            content_post,
+            title_group
+          );
+          if (listMatch && Array.isArray(listMatch) && listMatch.length)
+            return listMatch;
+          return [];
+        } catch (error) {
+          logErrorContent(
+            "error in getListMatchCommentWalkHomePageWithAIHelp",
+            error
+          );
+          return getListMatchCommentWalkHomePage(false, {
+            keywords_excludes,
+            keywords_includes,
+            keywords_certain,
+            max_rate,
+            content_post,
+            title_group
+          });
+        }
+      }
       async function closeDialog() {
         await sleep(random(2e3, 4e3));
         await handleCloseIfExistDialog();
         await sleep(random(1500, 2500));
       }
+      const sleepSpeedHelper = sleepHelper();
       async function calculateValueSleep(speed2 = KEY_COMMENT_WALK_SPEED.NORMAL) {
         let min = 2e3, max = 4e3;
         switch (speed2) {
           case KEY_COMMENT_WALK_SPEED.SLOW:
-            min = random(4e3, 6e3);
-            max = random(8e3, 1e4);
-            break;
+            return sleepSpeedHelper.slow();
           case KEY_COMMENT_WALK_SPEED.NORMAL:
-            min = random(2e3, 3e3);
-            max = random(4e3, 5e3);
-            break;
+            return sleepSpeedHelper.normal();
           case KEY_COMMENT_WALK_SPEED.FAST:
-            min = random(1e3, 1500);
-            max = random(2e3, 2500);
-            break;
+            return sleepSpeedHelper.fast();
           default:
             break;
         }
@@ -2010,7 +2180,7 @@
       if (!divFeed) {
         throw new Error("Not found div feed");
       }
-      await calculateValueSleep(KEY_COMMENT_WALK_SPEED.FAST);
+      await sleepSpeedHelper.fast();
       let isStopTool = await CL_getStopTool();
       if (isStopTool) {
         await CL_setProcessingCommentWalk(false);
@@ -2034,7 +2204,7 @@
             if (existedDialog) {
               await closeDialog();
             }
-            await calculateValueSleep(KEY_COMMENT_WALK_SPEED.FAST);
+            await sleepSpeedHelper.fast();
             if (!checkCanCommentInThisElement(child)) {
               continue;
             }
@@ -2116,7 +2286,7 @@
               }
             }
             await calculateValueSleep(speed);
-            scrollElementIntoView(child);
+            await scrollElementIntoView(child);
             await calculateValueSleep(speed);
             const divButtonToPost = findButtonToPost(child);
             if (!divButtonToPost) {
@@ -2140,9 +2310,26 @@
               );
               continue;
             }
+            if (!checkPostIsFindRoom(child)) {
+              logContent(
+                getTextLanguageContent({
+                  en: "This post is not find room, skip it...",
+                  vi: "B\xE0i vi\u1EBFt n\xE0y kh\xF4ng ph\u1EA3i b\xE0i vi\u1EBFt t\xECm ph\xF2ng tr\u1ECD, b\u1ECF qua..."
+                })
+              );
+              continue;
+            }
             const divFeedContent = await findDivItemFeedContent(child);
             if (!divFeedContent) {
               logErrorContent("Not found div feed content, skip post");
+              continue;
+            }
+            const matchContentNotShowMore = matchQueryKeywords(
+              content_query_excludes_common,
+              divFeedContent.textContent
+            );
+            if (matchContentNotShowMore.length) {
+              logExcludeKeywords(matchContentNotShowMore);
               continue;
             }
             const btnShowMore = findButtonShowMore(child);
@@ -2152,7 +2339,7 @@
               await scrollElementIntoView(divButtonToPost);
               await calculateValueSleep(speed);
             }
-            const contentDiv = divFeedContent?.textContent || "";
+            const contentDiv = getContentFromDivItemContent(divFeedContent);
             if (contentDiv.length >= 500) {
               logContent(
                 getTextLanguageContent({
@@ -2202,7 +2389,7 @@
             if (keywordIncludeCommons.length < max_rate_common) {
               if (areaComment.isHome) {
                 let flag = false;
-                for (const keyword of keywords_certain_choice) {
+                for (const keyword of keywords_certain_choice_common) {
                   if (contentDiv.toLowerCase().includes(keyword.toLowerCase())) {
                     keywordIncludeMatch.push(keyword);
                     flag = true;
@@ -2220,8 +2407,11 @@
               const keyword_query_exclude_comment_walk = commentWalk?.keyword_query_excludes || [];
               const keyword_query_include_comment_walk = commentWalk?.keyword_query_includes || [];
               const keyword_certain_choice = commentWalk?.keywords_certain_choice || [];
-              const max_rate_comment_walk = commentWalk?.match_rate_value_content_query_includes || 0;
+              let max_rate_comment_walk = Number(commentWalk?.match_rate_value_content_query_includes) || 0;
               if (areaComment.isSearch) {
+                if (isAIHelp) {
+                  max_rate_comment_walk += VALUE_RATE_ADD_FOR_SEARCH_USE_AI;
+                }
                 const keywordExcludeCommentWalkMatch = matchQueryKeywords(
                   keyword_query_exclude_comment_walk,
                   contentDiv
@@ -2243,12 +2433,15 @@
                 );
                 keywordIncludeMatch.push(...keywordCertainMatch);
                 if (!keywordCertainMatch.length) {
-                  isSkipPost = true;
+                  logContent(
+                    getTextLanguageContent({
+                      vi: `B\xE0i vi\u1EBFt n\xE0y kh\xF4ng ch\u1EE9a t\u1EEB kh\xF3a b\u1EAFt bu\u1ED9c (\u0111\u1ECBa \u0111i\u1EC3m/khu v\u1EF1c), b\u1ECF qua...`,
+                      en: `This post does not contain mandatory keywords (location/area), skip...`
+                    })
+                  );
+                  continue;
                 }
                 score += keywordIncludeCommentWalkMatch.length;
-                if (score < max_rate_comment_walk) {
-                  isSkipPost = true;
-                }
                 logContent(
                   getTextLanguageContent({
                     en: "Keyword Include: " + keywordIncludeMatch.join(", "),
@@ -2261,50 +2454,54 @@
                     vi: `T\u1EC9 l\u1EC7 chung: ${keywordIncludeCommons.length}/${max_rate_common}, T\u1EC9 l\u1EC7 d\u1EEF li\u1EC7u c\u1EE7a b\u1EA1n: ${score}/${max_rate_comment_walk}`
                   })
                 );
-              } else if (areaComment.isHome) {
-                for (const comment of listCommentWalk) {
-                  let score = 0;
-                  const contentExcludeMatch = matchQueryKeywords(
-                    keyword_query_exclude_comment_walk,
-                    contentDiv
-                  );
-                  if (contentExcludeMatch.length) {
+                if (score < max_rate_comment_walk) {
+                  if (isAIHelp) {
+                    logContent(
+                      getTextLanguageContent({
+                        vi: "Do t\u1EC9 l\u1EC7 so kh\u1EDBp d\u1EEF li\u1EC7u kh\xF4ng ph\xF9 h\u1EE3p, \u0111ang ki\u1EC3m tra b\u1EB1ng AI...",
+                        en: "Since the data matching rate is not suitable, checking by AI..."
+                      })
+                    );
+                    const match = await CL_checkMatchDataCommentWalkAtSearchPage(
+                      commentWalk,
+                      contentDiv,
+                      contentProfileName
+                    );
+                    logContent(
+                      getTextLanguageContent({
+                        en: "Result after AI check: " + (match ? "Match" : "Not Match"),
+                        vi: "K\u1EBFt qu\u1EA3 sau khi nh\u1EDD AI ki\u1EC3m tra: " + (match ? "Ph\xF9 h\u1EE3p" : "Kh\xF4ng ph\xF9 h\u1EE3p")
+                      })
+                    );
+                    if (!match) {
+                      logContent(
+                        getTextLanguageContent({
+                          en: "Skip post because not match",
+                          vi: "B\u1ECF qua b\xE0i vi\u1EBFt v\xEC kh\xF4ng ph\xF9 h\u1EE3p"
+                        })
+                      );
+                      continue;
+                    }
+                  } else {
+                    logContent(
+                      getTextLanguageContent({
+                        en: "Skip post because not suitable data matching rate",
+                        vi: "B\u1ECF qua b\xE0i vi\u1EBFt v\xEC t\u1EC9 l\u1EC7 so kh\u1EDBp d\u1EEF li\u1EC7u kh\xF4ng ph\xF9 h\u1EE3p"
+                      })
+                    );
                     continue;
                   }
-                  const contentMatchs = matchQueryKeywords(
-                    keyword_query_include_comment_walk,
-                    contentDiv
-                  );
-                  score += contentMatchs.length;
-                  const contentCertainChoiceMatch = matchQueryKeywords(
-                    keyword_certain_choice,
-                    contentDiv
-                  );
-                  const profileNameCertainMatch = matchQueryKeywords(
-                    keyword_certain_choice,
-                    contentProfileName
-                  );
-                  score += contentCertainChoiceMatch.length * VALUE_RATE_MULTIPLY_FOR_KEYWORD_CERTAIN;
-                  if (!contentCertainChoiceMatch.length) {
-                    score += profileNameCertainMatch.length;
-                  }
-                  const isMatch = !!(contentMatchs.length >= max_rate_comment_walk && (contentCertainChoiceMatch.length || profileNameCertainMatch.length));
-                  if (isMatch) {
-                    const match = Array.from(
-                      /* @__PURE__ */ new Set([
-                        ...contentMatchs,
-                        ...contentCertainChoiceMatch,
-                        ...profileNameCertainMatch
-                      ])
-                    );
-                    listMatch.push({
-                      id: comment.id,
-                      rate: score,
-                      match
-                    });
-                  }
                 }
-                if (!listMatch.length) {
+              } else if (areaComment.isHome) {
+                const list = getListMatchCommentWalkHomePage(isAIHelp, {
+                  keywords_excludes: keyword_query_exclude_comment_walk,
+                  keywords_includes: keyword_query_include_comment_walk,
+                  keywords_certain: keyword_certain_choice,
+                  content_post: contentDiv,
+                  title_group: contentProfileName,
+                  max_rate: max_rate_comment_walk
+                });
+                if (!list.length) {
                   logContent(
                     getTextLanguageContent({
                       en: "Skip post because not data comment match",
@@ -2312,6 +2509,28 @@
                     })
                   );
                   continue;
+                }
+                if (isAIHelp) {
+                  const listAIHelp = await getListMatchCommentWalkHomePageWithAIHelp(list, {
+                    keywords_excludes: keyword_query_exclude_comment_walk,
+                    keywords_includes: keyword_query_include_comment_walk,
+                    keywords_certain: keyword_certain_choice,
+                    max_rate: max_rate_comment_walk,
+                    content_post: contentDiv,
+                    title_group: contentProfileName
+                  });
+                  if (!listAIHelp || !listAIHelp.length) {
+                    logContent(
+                      getTextLanguageContent({
+                        en: "Skip post because not data comment walk match",
+                        vi: "B\u1ECF qua b\xE0i vi\u1EBFt v\xEC kh\xF4ng c\xF3 d\u1EEF li\u1EC7u b\xECnh lu\u1EADn d\u1EA1o ph\xF9 h\u1EE3p"
+                      })
+                    );
+                    continue;
+                  }
+                  listMatch.push(...listAIHelp);
+                } else {
+                  listMatch.push(...list);
                 }
               }
             }
@@ -2339,7 +2558,7 @@
             await calculateValueSleep(speed);
             if (areaComment.isHome) {
               if (listMatch.length) {
-                const listId = listMatch.sort((a, b) => b.rate - a.rate).map((i) => i.id);
+                const listId = listMatch.sort((a, b) => b.score - a.score).map((i) => i.id);
                 const commentWalkNeverComment = await CL_getCommentWalkNeverCommented(listId, location.href);
                 if (commentWalkNeverComment) {
                   commentWalk = commentWalkNeverComment;
@@ -2450,7 +2669,7 @@
                 await closeDialog();
                 continue;
               }
-              await sleep(random(1e3, 2e3));
+              await sleepSpeedHelper.fast();
             }
             logContent(
               getTextLanguageContent({
@@ -2556,6 +2775,41 @@
       logContent("This tab maybe will be closed after some seconds...");
       await sleep(random(8e3, 12e3));
       await CL_compeleteCommentWalkThisBatch();
+    }
+  }
+  function checkPostIsFindRoom(divItemFeed) {
+    try {
+      if (!divItemFeed) return false;
+      const listLinks = divItemFeed.querySelectorAll("a[href]");
+      if (!listLinks || !listLinks.length) return true;
+      let cnt = 0;
+      for (let link of listLinks) {
+        const href = link.getAttribute("href");
+        if (href && href.includes("/photo/")) {
+          ++cnt;
+          if (cnt >= 2) break;
+        }
+      }
+      return cnt <= 1;
+    } catch (error) {
+      logErrorContent("error in checkPostIsFindRoom", error);
+      return false;
+    }
+  }
+  function getContentFromDivItemContent(divItemContent) {
+    try {
+      if (!divItemContent) {
+        return "";
+      }
+      const hidden = divItemContent.querySelector('div[aria-hidden="true"]');
+      if (hidden) {
+        const content = hidden.textContent;
+        if (content && content.length && content.trim().length) return content;
+      }
+      return divItemContent.textContent || "";
+    } catch (error) {
+      logErrorContent("error in getContentFromDivItemContent", error);
+      return "";
     }
   }
   async function handleCloseIfExistDialog() {

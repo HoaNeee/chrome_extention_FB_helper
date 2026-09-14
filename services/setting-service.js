@@ -1,7 +1,4 @@
-import {
-  DEFAULT_VALUE,
-  KEY_SAVED_TEMP,
-} from "../contants/constant-extention.js";
+import { KEY_SAVED_TEMP } from "../contants/constant-extention.js";
 import {
   DEFAULT_COMMENT_WALK_SETTING,
   initialTimeDelay,
@@ -26,15 +23,15 @@ import {
   KEY_TITLE_STRICTLY_MATCH_GROUP,
   MAX_GROUP_PER_TIME_INITIAL,
 } from "../contants/contants.js";
+import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import { get, patch } from "../utils/request.js";
 import { logError } from "../utils/utils.js";
-import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import { getDeviceId } from "./device-service.js";
-import { getIsUseLocalStorage } from "./storage-global-service.js";
 import {
   getSchedulerService,
   setSchedulerInStorage,
 } from "./scheduler-service.js";
+import { getIsUseLocalStorage } from "./storage-global-service.js";
 
 /**
  * @typedef {import('../types/types.js').PostConfig} PostConfig
@@ -378,20 +375,25 @@ async function setMaxGroupPerTimeData(maxGroupPerTime) {
 
 /**
  *
- * @param {string} strictlyMatchTitleGroup string of keywords to strictly match title group (split by ',')
+ * @param {string[]} strictlyMatchTitleGroup array of keywords to strictly match title group
  */
-async function setStrictlyMatchTitleGroupData(strictlyMatchTitleGroup = "") {
+async function setStrictlyMatchTitleGroupData(strictlyMatchTitleGroup = []) {
   try {
-    const array = strictlyMatchTitleGroup.split(",").map((i) => i.trim());
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_TITLE_STRICTLY_MATCH_GROUP, array);
+      await DB_setValue(
+        KEY_TITLE_STRICTLY_MATCH_GROUP,
+        strictlyMatchTitleGroup,
+      );
     } else {
-      await updateDeviceSettingRequest("strictly_title_match_groups", array);
+      await updateDeviceSettingRequest(
+        "strictly_title_match_groups",
+        strictlyMatchTitleGroup,
+      );
     }
     const deviceSetting = await getDeviceSettingTemp();
     if (deviceSetting) {
-      deviceSetting.strictly_title_match_groups = array;
+      deviceSetting.strictly_title_match_groups = strictlyMatchTitleGroup;
       await setDeviceSettingTemp(deviceSetting);
     }
     return true;
@@ -410,9 +412,8 @@ async function getStrictlyMatchTitleGroupData() {
     if (isUseLocalStorage) {
       let data = await DB_getValue(KEY_TITLE_STRICTLY_MATCH_GROUP);
       if (data === undefined || data === null || typeof data === "string") {
-        const initData = DEFAULT_VALUE.STRICTLY_TITLE_MATCH_GROUP;
-        await setStrictlyMatchTitleGroupData(initData);
-        data = initData.split(",").map((i) => i.trim());
+        data = KEY_DEFAULT_VALUE.DEFAULT_VALUE_STRICTLY_TITLE_MATCH_GROUP;
+        await setStrictlyMatchTitleGroupData(data);
       }
       return data;
     }
@@ -1295,74 +1296,87 @@ async function setCommentWalkSpeedData(commentWalkSpeed) {
   }
 }
 
+async function getIsAIHelpCommentWalkData() {
+  return await DB_getValue(KEY_COMMENT_WALK.IS_AI_HELP_COMMENT_WALK, false);
+}
+
+async function setIsAIHelpCommentWalkData(isAIHelpCommentWalk) {
+  await DB_setValue(
+    KEY_COMMENT_WALK.IS_AI_HELP_COMMENT_WALK,
+    isAIHelpCommentWalk,
+  );
+}
+
 export {
+  getCommentWalkAreaData,
+  getCommentWalkSpeedData,
+  getContentQueryExcludesCommonData,
+  getContentQueryIncludesCommonData,
+  getDeviceSetting,
+  getIsCombineStrictlyTitleGroupData,
+  getIsCommentWalkData,
+  getIsCommentWhenPostSuccessData,
+  getIsExecutePriorityTaskData,
+  getIsFixStealAllFocusData,
+  getIsFixStealFocusData,
+  getIsInteractBeforePostData,
+  getIsRandomBreakBatchData,
+  getIsRandomTimePostData,
+  getIsSchedulerData,
+  getIsShuffleGroupNeedPostData,
+  getIsSkipPostNotInGroupData,
+  getIsSpammedData,
+  getIsSpecialFrameHoursData,
+  getIsStopTaskData,
+  getKeywordsCertainChoiceCommentWalkData,
+  getLastTimeCommentWalkData,
+  getLastTimePostData,
+  getMatchRateValueContentQueryIncludesCommonData,
+  getMaxCommentWalkPerBatchData,
+  getMaxGroupPerTimeData,
+  getPriorityTaskCommentWalkData,
+  getPriorityTaskData,
+  getPriorityTaskPostData,
+  getSettingByDeviceRequest,
+  getStrictlyMatchTitleGroupData,
+  getTimeBreakWhenSpammedData,
+  getTimeDelayCommentWalk,
+  getTimeDelayData,
+  initialDeviceSetting,
+  logSettingHelper,
+  setCommentWalkAreaData,
+  setCommentWalkSpeedData,
+  setContentQueryExcludesCommonData,
+  setContentQueryIncludesCommonData,
+  setIsCombineStrictlyTitleGroupData,
+  setIsCommentWalkData,
   setIsCommentWhenPostSuccessData,
+  setIsExecutePriorityTaskData,
   setIsFixStealAllFocusData,
   setIsFixStealFocusData,
-  setIsShuffleGroupNeedPostData,
-  setMaxGroupPerTimeData,
-  setStrictlyMatchTitleGroupData,
-  setIsSpammedData,
-  setLastTimePostData,
   setIsInteractBeforePostData,
-  getTimeDelayData,
-  getLastTimePostData,
-  updateDeviceSettingRequest,
-  getIsRandomBreakBatchData,
-  getIsCommentWhenPostSuccessData,
-  initialDeviceSetting,
-  getDeviceSetting,
-  getIsFixStealAllFocusData,
-  getIsInteractBeforePostData,
-  getIsRandomTimePostData,
-  getMaxGroupPerTimeData,
-  getStrictlyMatchTitleGroupData,
-  getIsSpammedData,
-  getIsFixStealFocusData,
-  getIsShuffleGroupNeedPostData,
-  getSettingByDeviceRequest,
-  getIsSpecialFrameHoursData,
-  setIsSpecialFrameHoursData,
   setIsRandomBreakBatchData,
   setIsRandomTimePostData,
-  setTimeDelayData,
-  getIsSchedulerData,
   setIsSchedulerData,
-  logSettingHelper,
-  setTimeDelayCommentWalk,
-  getTimeDelayCommentWalk,
-  getIsCommentWalkData,
-  setIsCommentWalkData,
-  getMaxCommentWalkPerBatchData,
-  setMaxCommentWalkPerBatchData,
-  getTimeBreakWhenSpammedData,
-  setTimeBreakWhenSpammedData,
-  getContentQueryIncludesCommonData,
-  setContentQueryIncludesCommonData,
-  getContentQueryExcludesCommonData,
-  setContentQueryExcludesCommonData,
-  getMatchRateValueContentQueryIncludesCommonData,
-  setMatchRateValueContentQueryIncludesCommonData,
-  getIsStopTaskData,
-  setIsStopTaskData,
-  setLastTimeCommentWalkData,
-  getLastTimeCommentWalkData,
-  getPriorityTaskPostData,
-  setPriorityTaskPostData,
-  getPriorityTaskCommentWalkData,
-  setPriorityTaskCommentWalkData,
-  getPriorityTaskData,
-  setPriorityTaskData,
-  getIsExecutePriorityTaskData,
-  setIsExecutePriorityTaskData,
-  getCommentWalkAreaData,
-  setCommentWalkAreaData,
-  getKeywordsCertainChoiceCommentWalkData,
-  setKeywordsCertainChoiceCommentWalkData,
-  getIsSkipPostNotInGroupData,
+  setIsShuffleGroupNeedPostData,
   setIsSkipPostNotInGroupData,
-  getIsCombineStrictlyTitleGroupData,
-  setIsCombineStrictlyTitleGroupData,
-  getCommentWalkSpeedData,
-  setCommentWalkSpeedData,
+  setIsSpammedData,
+  setIsSpecialFrameHoursData,
+  setIsStopTaskData,
+  setKeywordsCertainChoiceCommentWalkData,
+  setLastTimeCommentWalkData,
+  setLastTimePostData,
+  setMatchRateValueContentQueryIncludesCommonData,
+  setMaxCommentWalkPerBatchData,
+  setMaxGroupPerTimeData,
+  setPriorityTaskCommentWalkData,
+  setPriorityTaskData,
+  setPriorityTaskPostData,
+  setStrictlyMatchTitleGroupData,
+  setTimeBreakWhenSpammedData,
+  setTimeDelayCommentWalk,
+  setTimeDelayData,
+  updateDeviceSettingRequest,
+  getIsAIHelpCommentWalkData,
+  setIsAIHelpCommentWalkData,
 };

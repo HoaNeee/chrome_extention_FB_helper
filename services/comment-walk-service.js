@@ -22,6 +22,7 @@ import {
   getCommentWalkSpeedData,
   getContentQueryExcludesCommonData,
   getContentQueryIncludesCommonData,
+  getIsAIHelpCommentWalkData,
   getIsCombineStrictlyTitleGroupData,
   getIsSkipPostNotInGroupData,
   getKeywordsCertainChoiceCommentWalkData,
@@ -31,6 +32,7 @@ import {
   getTimeDelayCommentWalk,
   setCommentWalkAreaData,
   setCommentWalkSpeedData,
+  setIsAIHelpCommentWalkData,
   setIsCombineStrictlyTitleGroupData,
   setIsSkipPostNotInGroupData,
 } from "./setting-service.js";
@@ -225,6 +227,8 @@ const commentWalkService = {
 
       const strictlyMatchTitleGroup = await getStrictlyMatchTitleGroupData();
 
+      const isAIHelpCommentWalk = await getIsAIHelpCommentWalkData();
+
       const setting = {};
 
       Object.keys(timeDelay).forEach((key) => {
@@ -247,6 +251,7 @@ const commentWalkService = {
       setting.is_combine_strictly_title_group = isCombineStrictlyTitleGroup;
       setting.strictly_match_title_group = strictlyMatchTitleGroup;
       setting.comment_walk_speed = commentWalkSpeed;
+      setting.is_ai_help_comment_walk = isAIHelpCommentWalk;
 
       const currentId =
         await commentWalkService.getCurrentIdCommentWalkActive();
@@ -469,6 +474,14 @@ const commentWalkService = {
 
   async setCommentWalkSpeed(commentWalkSpeed) {
     return await setCommentWalkSpeedData(commentWalkSpeed);
+  },
+
+  async getIsAIHelpCommentWalk() {
+    return await getIsAIHelpCommentWalkData();
+  },
+
+  async setIsAIHelpCommentWalk(isAIHelpCommentWalk) {
+    await setIsAIHelpCommentWalkData(isAIHelpCommentWalk);
   },
 };
 

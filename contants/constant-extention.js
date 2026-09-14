@@ -68,10 +68,6 @@ const MAX_LENGTH_FILE_NAME = 15;
 
 const DEFAULT_DEVICE_ID = "abcxyz12";
 
-const DEFAULT_VALUE = {
-  STRICTLY_TITLE_MATCH_GROUP: `Cho thuê trọ, Tìm phòng trọ, Cho thuê phòng trọ, CCMN, Phòng trọ, Tìm phòng trọ giá rẻ`,
-};
-
 const KEY_GET_PARSE_FILE = "get_parse_file";
 
 const KEY_SET_PROCESSING_COMMENT_WALK = "set_processing_comment_walk";
@@ -159,6 +155,29 @@ const KEY_COMMENT_WALK_SPEED = {
   FAST: "FAST",
 };
 
+const KEY_REQUEST_TO_BACKGROUND = {
+  GET_STRICTLY_MATCH_TITLE_GROUP: "get_strictly_match_title_group",
+  CHECK_DATA_COMMENT_WALK_MATCH_AT_SEARCH_PAGE:
+    "check_data_comment_walk_match_at_search_page",
+  CHECK_MULTI_DATA_COMMENT_WALK_AT_HOME_PAGE:
+    "check_multi_data_comment_walk_at_home_page",
+};
+
+const KEY_GOOGLE_API = {
+  INFO: {
+    MAX_REQUEST_FREE_PER_DAY: 500,
+    MAX_TOKEN_PAID_PER_DAY: 200000,
+    KEY_FREE: "AQ.Ab8RN6ICbCKGXA1-QCVDYvWJpSlbqFXeDdYDZHflQinDZnwwig",
+    KEY_PAID: "AQ.Ab8RN6LBMsyk8dJ1VPZ0mm5SR9OQ2K3SbOm3dV3OYfT-wSN74A",
+  },
+  SETTING: {
+    COUNT_REQUEST_FREE_PER_DAY: "count_request_free_per_day_google_api",
+    COUNT_TOKEN_PAID_PER_DAY: "count_token_paid_per_day_google_api",
+    LAST_TIME_REQUEST_PAID: "last_time_request_paid_google_api",
+    CACHED_INPUT: "cached_input_google_api",
+  },
+};
+
 export {
   KEY_NOTIFICATION,
   KEY_OPEN_IN_TAB,
@@ -194,7 +213,6 @@ export {
   KEY_IS_USE_LOCAL_STORAGE,
   DEFAULT_DEVICE_ID,
   MAX_LENGTH_FILE_NAME,
-  DEFAULT_VALUE,
   KEY_GET_PARSE_FILE,
   KEY_SAVED_TEMP,
   KEY_USER_STATUS,
@@ -215,4 +233,6 @@ export {
   KEY_MESSAGE_FROM_BACKGROUND,
   KEY_COMMENT_WALK_AREA,
   KEY_COMMENT_WALK_SPEED,
+  KEY_REQUEST_TO_BACKGROUND,
+  KEY_GOOGLE_API,
 };

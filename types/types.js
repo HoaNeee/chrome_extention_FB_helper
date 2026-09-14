@@ -60,6 +60,7 @@
  * @property {string} comment_walk_speed
  * @property {boolean} is_skip_posts_not_in_group
  * @property {boolean} is_combine_keywords_title_group
+ * @property {boolean} is_ai_help_comment_walk
  */
 
 /**

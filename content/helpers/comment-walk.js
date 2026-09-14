@@ -19,6 +19,8 @@ import { getTextLanguageContent } from "../utils/global";
 import { CL_addLogRequest, CL_closeThisTab } from "../utils/request";
 import {
   CL_addUrlCommented,
+  CL_checkMatchDataCommentWalkAtSearchPage,
+  CL_checkMultiMatchDataCommentWalkAtHomePage,
   CL_compeleteCommentWalkThisBatch,
   CL_getCanCommentThisPost,
   CL_getCommentWalkNeverCommented,
@@ -26,6 +28,7 @@ import {
   CL_getIsDevMode,
   CL_getIsTest,
   CL_getStopTool,
+  CL_getStrictlyMatchTitleGroup,
   CL_setCountCommentWalkPostedPerBatch,
   CL_setProcessingCommentWalk,
   CL_updateLastTimeCommentWalk,
@@ -263,9 +266,14 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
      * sẽ cần nghiêm ngặt hơn
      *
      * 3. có thể dựa vào đó mà xử lý từ khoá sao cho hợp lý ở 2 khu vực
+     *
+     * 4. Đánh giá là một bài viết tìm phòng
+     * + Chứa các từ khóa include
+     * + Thường có duy nhất một ảnh hoặc không có ảnh trong bài viết
      */
 
     const VALUE_RATE_ADD_FOR_HOME = 0;
+    const VALUE_RATE_ADD_FOR_SEARCH_USE_AI = 1;
     const VALUE_RATE_MULTIPLY_FOR_KEYWORD_CERTAIN = 2;
 
     const isDevMode = await CL_getIsDevMode();
@@ -282,13 +290,16 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
     const max_rate_common =
       setting?.match_rate_value_content_query_includes_common_comment_walk || 0;
     const area = setting?.comment_walk_area;
-    const keywords_certain_choice =
+    const keywords_certain_choice_common =
       setting?.keywords_certain_choice_comment_walk || [];
     const isSkipPostNotInGroup = setting?.is_skip_posts_not_in_group || false;
     const isCombineStrictlyTitleGroup =
       setting?.is_combine_strictly_title_group || false;
-    const strictlyMatchTitleGroup = setting?.strictly_match_title_group || [];
     const speed = setting?.comment_walk_speed;
+
+    const isAIHelp = setting.is_ai_help_comment_walk;
+
+    const strictlyMatchTitleGroup = await CL_getStrictlyMatchTitleGroup();
 
     function checkArea() {
       const isHome = area === KEY_COMMENT_WALK_AREA.HOME;
@@ -298,6 +309,128 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
         isHome,
         isSearch,
       };
+    }
+
+    function getListMatchCommentWalkHomePage(
+      is_ai_help,
+      {
+        keywords_excludes = [],
+        keywords_includes = [],
+        keywords_certain = [],
+        max_rate = 0,
+        content_post = "",
+        title_group = "",
+      },
+    ) {
+      const list = [];
+      for (const comment of listCommentWalk) {
+        let score = 0;
+
+        const contentExcludeMatch = matchQueryKeywords(
+          keywords_excludes,
+          content_post,
+        );
+        if (contentExcludeMatch.length) {
+          continue;
+        }
+
+        const contentMatchs = matchQueryKeywords(
+          keywords_includes,
+          content_post,
+        );
+
+        score += contentMatchs.length;
+
+        //add score content more than profile name (title group)
+        const contentCertainChoiceMatch = matchQueryKeywords(
+          keywords_certain,
+          content_post,
+        );
+        const profileNameCertainMatch = matchQueryKeywords(
+          keywords_certain,
+          title_group,
+        );
+
+        if (is_ai_help) {
+          //layer filter area/location
+          if (
+            contentCertainChoiceMatch.length ||
+            profileNameCertainMatch.length
+          ) {
+            list.push(comment);
+          }
+        } else {
+          score +=
+            contentCertainChoiceMatch.length *
+            VALUE_RATE_MULTIPLY_FOR_KEYWORD_CERTAIN;
+
+          if (!contentCertainChoiceMatch.length) {
+            score += profileNameCertainMatch.length;
+          }
+
+          const isMatch = !!(
+            contentMatchs.length >= max_rate &&
+            (contentCertainChoiceMatch.length || profileNameCertainMatch.length)
+          );
+
+          if (isMatch) {
+            const match = Array.from(
+              new Set([
+                ...contentMatchs,
+                ...contentCertainChoiceMatch,
+                ...profileNameCertainMatch,
+              ]),
+            );
+            list.push({
+              id: comment.id,
+              score,
+              match,
+            });
+          }
+        }
+      }
+      return list;
+    }
+
+    /**
+     *
+     * @param {CommentWalk[]} listComment
+     * @returns {Promise<{id: string, score: number, match: string[]}[]>}
+     */
+    async function getListMatchCommentWalkHomePageWithAIHelp(
+      listComment,
+      {
+        keywords_excludes = [],
+        keywords_includes = [],
+        keywords_certain = [],
+        max_rate = 0,
+        content_post = "",
+        title_group = "",
+      },
+    ) {
+      try {
+        const listMatch = await CL_checkMultiMatchDataCommentWalkAtHomePage(
+          listComment,
+          content_post,
+          title_group,
+        );
+        if (listMatch && Array.isArray(listMatch) && listMatch.length)
+          return listMatch;
+        return [];
+      } catch (error) {
+        logErrorContent(
+          "error in getListMatchCommentWalkHomePageWithAIHelp",
+          error,
+        );
+        return getListMatchCommentWalkHomePage(false, {
+          keywords_excludes,
+          keywords_includes,
+          keywords_certain,
+          max_rate,
+          content_post,
+          title_group,
+        });
+      }
     }
 
     function checkCanCommentInThisElement(element) {
@@ -332,29 +465,44 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
       await sleep(random(1500, 2500));
     }
 
+    function sleepHelper() {
+      return {
+        async fast() {
+          await sleep(random(1000, 2500));
+        },
+        async normal() {
+          await sleep(random(2500, 5000));
+        },
+        async slow() {
+          await sleep(random(5500, 9000));
+        },
+      };
+    }
+
+    const sleepSpeedHelper = sleepHelper();
+
     async function calculateValueSleep(speed = KEY_COMMENT_WALK_SPEED.NORMAL) {
       let min = 2000,
         max = 4000;
 
       switch (speed) {
         case KEY_COMMENT_WALK_SPEED.SLOW:
-          min = random(4000, 6000);
-          max = random(8000, 10000);
-          break;
+          return sleepSpeedHelper.slow();
 
         case KEY_COMMENT_WALK_SPEED.NORMAL:
-          min = random(2000, 3000);
-          max = random(4000, 5000);
-          break;
+          return sleepSpeedHelper.normal();
 
         case KEY_COMMENT_WALK_SPEED.FAST:
-          min = random(1000, 1500);
-          max = random(2000, 2500);
-          break;
+          return sleepSpeedHelper.fast();
 
         default:
           break;
       }
+
+      // if (isDevMode) {
+      //   min = 500;
+      //   max = 1000;
+      // }
 
       await sleep(random(min, max));
     }
@@ -401,7 +549,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
       throw new Error("Not found div feed");
     }
 
-    await calculateValueSleep(KEY_COMMENT_WALK_SPEED.FAST);
+    await sleepSpeedHelper.fast();
 
     let isStopTool = await CL_getStopTool();
     if (isStopTool) {
@@ -429,7 +577,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             await closeDialog();
           }
 
-          await calculateValueSleep(KEY_COMMENT_WALK_SPEED.FAST);
+          await sleepSpeedHelper.fast();
 
           if (!checkCanCommentInThisElement(child)) {
             continue;
@@ -530,7 +678,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
           }
 
           await calculateValueSleep(speed);
-          scrollElementIntoView(child);
+          await scrollElementIntoView(child);
           await calculateValueSleep(speed);
 
           const divButtonToPost = findButtonToPost(child);
@@ -560,12 +708,33 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             continue;
           }
 
+          //force for room - my option
+          if (!checkPostIsFindRoom(child)) {
+            logContent(
+              getTextLanguageContent({
+                en: "This post is not find room, skip it...",
+                vi: "Bài viết này không phải bài viết tìm phòng trọ, bỏ qua...",
+              }),
+            );
+            continue;
+          }
+
           const divFeedContent = await findDivItemFeedContent(child);
 
           if (!divFeedContent) {
             logErrorContent("Not found div feed content, skip post");
             continue;
           }
+
+          const matchContentNotShowMore = matchQueryKeywords(
+            content_query_excludes_common,
+            divFeedContent.textContent,
+          );
+          if (matchContentNotShowMore.length) {
+            logExcludeKeywords(matchContentNotShowMore);
+            continue;
+          }
+
           const btnShowMore = findButtonShowMore(child);
           if (btnShowMore) {
             btnShowMore.click();
@@ -576,7 +745,8 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             await calculateValueSleep(speed);
           }
 
-          const contentDiv = divFeedContent?.textContent || "";
+          const contentDiv = getContentFromDivItemContent(divFeedContent);
+
           if (contentDiv.length >= 500) {
             logContent(
               getTextLanguageContent({
@@ -587,7 +757,6 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             continue;
           }
           const contentNameAndDiv = contentProfileName + " " + contentDiv;
-
           // console.log("content: ", contentNameAndDiv);
 
           if (!contentDiv || !contentDiv.trim()) {
@@ -595,6 +764,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             continue;
           }
 
+          //combine strictly title group
           if (isCombineStrictlyTitleGroup) {
             const titleMatchs = matchQueryKeywords(
               strictlyMatchTitleGroup,
@@ -636,7 +806,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             //check certain_choice_keywords with lowercase
             if (areaComment.isHome) {
               let flag = false;
-              for (const keyword of keywords_certain_choice) {
+              for (const keyword of keywords_certain_choice_common) {
                 if (contentDiv.toLowerCase().includes(keyword.toLowerCase())) {
                   keywordIncludeMatch.push(keyword);
                   flag = true;
@@ -658,10 +828,14 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
               commentWalk?.keyword_query_includes || [];
             const keyword_certain_choice =
               commentWalk?.keywords_certain_choice || [];
-            const max_rate_comment_walk =
-              commentWalk?.match_rate_value_content_query_includes || 0;
+            let max_rate_comment_walk =
+              Number(commentWalk?.match_rate_value_content_query_includes) || 0;
 
             if (areaComment.isSearch) {
+              if (isAIHelp) {
+                max_rate_comment_walk += VALUE_RATE_ADD_FOR_SEARCH_USE_AI;
+              }
+
               const keywordExcludeCommentWalkMatch = matchQueryKeywords(
                 keyword_query_exclude_comment_walk,
                 contentDiv,
@@ -686,17 +860,18 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
               );
               keywordIncludeMatch.push(...keywordCertainMatch);
 
-              //strictly
+              //strictly - layer filter địa điểm/khu vực
               if (!keywordCertainMatch.length) {
-                isSkipPost = true;
+                logContent(
+                  getTextLanguageContent({
+                    vi: `Bài viết này không chứa từ khóa bắt buộc (địa điểm/khu vực), bỏ qua...`,
+                    en: `This post does not contain mandatory keywords (location/area), skip...`,
+                  }),
+                );
+                continue;
               }
 
               score += keywordIncludeCommentWalkMatch.length;
-              // keywordCertainMatch.length; (nếu cần)
-
-              if (score < max_rate_comment_walk) {
-                isSkipPost = true;
-              }
 
               logContent(
                 getTextLanguageContent({
@@ -711,66 +886,59 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
                   vi: `Tỉ lệ chung: ${keywordIncludeCommons.length}/${max_rate_common}, Tỉ lệ dữ liệu của bạn: ${score}/${max_rate_comment_walk}`,
                 }),
               );
-            } else if (areaComment.isHome) {
-              for (const comment of listCommentWalk) {
-                let score = 0;
 
-                const contentExcludeMatch = matchQueryKeywords(
-                  keyword_query_exclude_comment_walk,
-                  contentDiv,
-                );
-                if (contentExcludeMatch.length) {
+              if (score < max_rate_comment_walk) {
+                if (isAIHelp) {
+                  logContent(
+                    getTextLanguageContent({
+                      vi: "Do tỉ lệ so khớp dữ liệu không phù hợp, đang kiểm tra bằng AI...",
+                      en: "Since the data matching rate is not suitable, checking by AI...",
+                    }),
+                  );
+                  const match = await CL_checkMatchDataCommentWalkAtSearchPage(
+                    commentWalk,
+                    contentDiv,
+                    contentProfileName,
+                  );
+                  logContent(
+                    getTextLanguageContent({
+                      en:
+                        "Result after AI check: " +
+                        (match ? "Match" : "Not Match"),
+                      vi:
+                        "Kết quả sau khi nhờ AI kiểm tra: " +
+                        (match ? "Phù hợp" : "Không phù hợp"),
+                    }),
+                  );
+                  if (!match) {
+                    logContent(
+                      getTextLanguageContent({
+                        en: "Skip post because not match",
+                        vi: "Bỏ qua bài viết vì không phù hợp",
+                      }),
+                    );
+                    continue;
+                  }
+                } else {
+                  logContent(
+                    getTextLanguageContent({
+                      en: "Skip post because not suitable data matching rate",
+                      vi: "Bỏ qua bài viết vì tỉ lệ so khớp dữ liệu không phù hợp",
+                    }),
+                  );
                   continue;
                 }
-
-                const contentMatchs = matchQueryKeywords(
-                  keyword_query_include_comment_walk,
-                  contentDiv,
-                );
-
-                score += contentMatchs.length;
-
-                //add score content more than profile name (title group)
-                const contentCertainChoiceMatch = matchQueryKeywords(
-                  keyword_certain_choice,
-                  contentDiv,
-                );
-                const profileNameCertainMatch = matchQueryKeywords(
-                  keyword_certain_choice,
-                  contentProfileName,
-                );
-
-                score +=
-                  contentCertainChoiceMatch.length *
-                  VALUE_RATE_MULTIPLY_FOR_KEYWORD_CERTAIN;
-
-                if (!contentCertainChoiceMatch.length) {
-                  score += profileNameCertainMatch.length;
-                }
-
-                const isMatch = !!(
-                  contentMatchs.length >= max_rate_comment_walk &&
-                  (contentCertainChoiceMatch.length ||
-                    profileNameCertainMatch.length)
-                );
-
-                if (isMatch) {
-                  const match = Array.from(
-                    new Set([
-                      ...contentMatchs,
-                      ...contentCertainChoiceMatch,
-                      ...profileNameCertainMatch,
-                    ]),
-                  );
-                  listMatch.push({
-                    id: comment.id,
-                    rate: score,
-                    match,
-                  });
-                }
               }
-
-              if (!listMatch.length) {
+            } else if (areaComment.isHome) {
+              const list = getListMatchCommentWalkHomePage(isAIHelp, {
+                keywords_excludes: keyword_query_exclude_comment_walk,
+                keywords_includes: keyword_query_include_comment_walk,
+                keywords_certain: keyword_certain_choice,
+                content_post: contentDiv,
+                title_group: contentProfileName,
+                max_rate: max_rate_comment_walk,
+              });
+              if (!list.length) {
                 logContent(
                   getTextLanguageContent({
                     en: "Skip post because not data comment match",
@@ -778,6 +946,30 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
                   }),
                 );
                 continue;
+              }
+
+              if (isAIHelp) {
+                const listAIHelp =
+                  await getListMatchCommentWalkHomePageWithAIHelp(list, {
+                    keywords_excludes: keyword_query_exclude_comment_walk,
+                    keywords_includes: keyword_query_include_comment_walk,
+                    keywords_certain: keyword_certain_choice,
+                    max_rate: max_rate_comment_walk,
+                    content_post: contentDiv,
+                    title_group: contentProfileName,
+                  });
+                if (!listAIHelp || !listAIHelp.length) {
+                  logContent(
+                    getTextLanguageContent({
+                      en: "Skip post because not data comment walk match",
+                      vi: "Bỏ qua bài viết vì không có dữ liệu bình luận dạo phù hợp",
+                    }),
+                  );
+                  continue;
+                }
+                listMatch.push(...listAIHelp);
+              } else {
+                listMatch.push(...list);
               }
             }
           }
@@ -809,11 +1001,12 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
           if (areaComment.isHome) {
             if (listMatch.length) {
               const listId = listMatch
-                .sort((a, b) => b.rate - a.rate)
+                .sort((a, b) => b.score - a.score)
                 .map((i) => i.id);
 
               const commentWalkNeverComment =
                 await CL_getCommentWalkNeverCommented(listId, location.href);
+
               if (commentWalkNeverComment) {
                 commentWalk = commentWalkNeverComment;
 
@@ -940,7 +1133,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
               continue;
             }
 
-            await sleep(random(1000, 2000));
+            await sleepSpeedHelper.fast();
           }
 
           logContent(
@@ -1069,6 +1262,50 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
     logContent("This tab maybe will be closed after some seconds...");
     await sleep(random(8000, 12000));
     await CL_compeleteCommentWalkThisBatch();
+  }
+}
+
+//force for my option
+function checkPostIsFindRoom(divItemFeed) {
+  try {
+    if (!divItemFeed) return false;
+
+    const listLinks = divItemFeed.querySelectorAll("a[href]");
+
+    if (!listLinks || !listLinks.length) return true;
+
+    let cnt = 0;
+
+    for (let link of listLinks) {
+      const href = link.getAttribute("href");
+      if (href && href.includes("/photo/")) {
+        ++cnt;
+        if (cnt >= 2) break;
+      }
+    }
+
+    return cnt <= 1;
+  } catch (error) {
+    logErrorContent("error in checkPostIsFindRoom", error);
+    return false;
+  }
+}
+
+function getContentFromDivItemContent(divItemContent) {
+  try {
+    if (!divItemContent) {
+      return "";
+    }
+    const hidden = divItemContent.querySelector('div[aria-hidden="true"]');
+    if (hidden) {
+      const content = hidden.textContent;
+      if (content && content.length && content.trim().length) return content;
+    }
+
+    return divItemContent.textContent || "";
+  } catch (error) {
+    logErrorContent("error in getContentFromDivItemContent", error);
+    return "";
   }
 }
 

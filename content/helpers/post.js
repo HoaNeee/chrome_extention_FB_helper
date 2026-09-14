@@ -1,9 +1,17 @@
-import { STATUS_TASK } from "../../contants/contants.js";
 import {
   KEY_GET_CURRENT_DATA_GROUP_SAVED_NEED_POST,
   KEY_UPDATE_STATUS_TASK,
 } from "../../contants/constant-extention.js";
-import { initialTimeDelay } from "../../contants/contants.js";
+import { initialTimeDelay, STATUS_TASK } from "../../contants/contants.js";
+import {
+  now,
+  parseBase64ToFile,
+  random,
+  randomRateBoolean,
+  sleep,
+} from "../../utils/utils.js";
+import { SELECTOR_RAW } from "../contants/contants.js";
+import { getTextLanguageContent } from "../utils/global.js";
 import {
   CL_addLogRequest,
   sendMessage,
@@ -16,12 +24,13 @@ import {
   CL_getTimeDelayData,
 } from "../utils/storage.js";
 import {
-  now,
-  parseBase64ToFile,
-  random,
-  randomRateBoolean,
-  sleep,
-} from "../../utils/utils.js";
+  CL_getParseFileRequest,
+  CL_getTextWithLang,
+  CL_setTimeDelayForScheduler,
+  logContent,
+  logErrorContent,
+  updateLastTimePost,
+} from "../utils/utils.js";
 import {
   checkDivInputTextboxIsEmpty,
   checkIsSpammed,
@@ -34,16 +43,6 @@ import {
   findTextBoxJustPosted,
   getIsExistDialog,
 } from "./dom.js";
-import {
-  CL_getParseFileRequest,
-  CL_getTextWithLang,
-  CL_setTimeDelayForScheduler,
-  logContent,
-  logErrorContent,
-  updateLastTimePost,
-} from "../utils/utils.js";
-import { SELECTOR_RAW } from "../contants/contants.js";
-import { getTextLanguageContent } from "../utils/global.js";
 
 /**
  * @param {string} content
@@ -51,6 +50,7 @@ import { getTextLanguageContent } from "../utils/global.js";
 async function pasteContent(content) {
   try {
     const div = await findDivInputTextbox();
+
     if (div) {
       const mouseEvt = new MouseEvent("mouseover", {
         bubbles: true,
@@ -119,12 +119,12 @@ async function fillFile(files) {
 
       //simulator change image event
       const dt = new DataTransfer();
-      const parses = await CL_getParseFileRequest(files);
+      let parses = await CL_getParseFileRequest(files);
 
       if (parses && Array.isArray(parses)) {
         for await (const item of parses) {
-          const parse = parseBase64ToFile(item);
-          dt.items.add(parse);
+          const file = parseBase64ToFile(item);
+          dt.items.add(file);
         }
         input.files = dt.files;
       }
@@ -133,6 +133,7 @@ async function fillFile(files) {
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }
   } catch (e) {
+    console.log(e);
     CL_addLogRequest({
       vi: `Lỗi khi tải tệp lên ô nhập: ${e?.message || e}`,
       en: `Error when uploading files to the input box: ${e?.message || e}`,
@@ -571,10 +572,10 @@ function checkContentIsEmpty(content) {
 }
 
 export {
-  pasteContent,
-  fillFile,
-  postHelper,
-  findLinkJustPosted,
   commentToJustPostedHelper,
+  fillFile,
+  findLinkJustPosted,
+  pasteContent,
+  postHelper,
   simulateTyping,
 };

@@ -85,7 +85,7 @@ async function getLanguageInStorage() {
 }
 
 async function getIsDeveloperModeInStorage() {
-  return (await DB_getValue(KEY_IS_DEVELOPER_MODE)) || false;
+  return await DB_getValue(KEY_IS_DEVELOPER_MODE, false);
 }
 
 /**
