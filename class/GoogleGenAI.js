@@ -102,8 +102,8 @@ const listContent = [
 export class GoogleGenAIClass {
   constructor() {
     this.model = "gemini-3.1-flash-lite";
-    this.key = KEY_GOOGLE_API.INFO.KEY_PAID;
-    this.key_free = KEY_GOOGLE_API.INFO.KEY_FREE;
+    this.key = KEY_GOOGLE_API.SETTING.API_KEY_PAID;
+    this.key_free = KEY_GOOGLE_API.SETTING.API_KEY_FREE;
   }
 
   async test() {
@@ -657,6 +657,56 @@ ${info}`;
         vi: "Lỗi khi clear cached input",
         en: "Error clearing cached input",
       });
+      console.log(error);
+    }
+  }
+
+  /**
+   * get api key gemini free from storage
+   */
+  static async getApiKeyGeminiFree() {
+    try {
+      const apiKey = await DB_getValue(KEY_GOOGLE_API.SETTING.API_KEY_FREE, "");
+      return apiKey;
+    } catch (error) {
+      console.log(error);
+      return null;
+    }
+  }
+
+  /**
+   * get api key gemini paid from storage
+   */
+  static async getApiKeyGeminiPaid() {
+    try {
+      const apiKey = await DB_getValue(KEY_GOOGLE_API.SETTING.API_KEY_PAID, "");
+      return apiKey;
+    } catch (error) {
+      console.log(error);
+      return null;
+    }
+  }
+
+  /**
+   * set api key gemini free to storage
+   * @param {string} apiKey
+   */
+  static async setApiKeyGeminiFree(apiKey) {
+    try {
+      await DB_setValue(KEY_GOOGLE_API.SETTING.API_KEY_FREE, apiKey);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  /**
+   * set api key gemini paid to storage
+   * @param {string} apiKey
+   */
+  static async setApiKeyGeminiPaid(apiKey) {
+    try {
+      await DB_setValue(KEY_GOOGLE_API.SETTING.API_KEY_PAID, apiKey);
+    } catch (error) {
       console.log(error);
     }
   }

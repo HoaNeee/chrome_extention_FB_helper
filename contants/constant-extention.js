@@ -167,14 +167,14 @@ const KEY_GOOGLE_API = {
   INFO: {
     MAX_REQUEST_FREE_PER_DAY: 500,
     MAX_TOKEN_PAID_PER_DAY: 200000,
-    KEY_FREE: "AQ.Ab8RN6ICbCKGXA1-QCVDYvWJpSlbqFXeDdYDZHflQinDZnwwig",
-    KEY_PAID: "AQ.Ab8RN6LBMsyk8dJ1VPZ0mm5SR9OQ2K3SbOm3dV3OYfT-wSN74A",
   },
   SETTING: {
     COUNT_REQUEST_FREE_PER_DAY: "count_request_free_per_day_google_api",
     COUNT_TOKEN_PAID_PER_DAY: "count_token_paid_per_day_google_api",
     LAST_TIME_REQUEST_PAID: "last_time_request_paid_google_api",
     CACHED_INPUT: "cached_input_google_api",
+    API_KEY_FREE: "api_key_free_google_api",
+    API_KEY_PAID: "api_key_paid_google_api",
   },
 };
 

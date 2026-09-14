@@ -1,3 +1,4 @@
+import { GoogleGenAIClass } from "../../../class/GoogleGenAI.js";
 import {
   DEFAULT_COMMENT_WALK_SETTING,
   initialTimeDelay,
@@ -291,6 +292,8 @@ async function initialData({ anchorElement = document.body }) {
         setIsInteractBeforePost,
         setMaxCommentPerTime,
         setMaxPostInteract,
+        setApiKeyGeminiFree,
+        setApiKeyGeminiPaid,
       } = getAllFieldsAdvancedSetting();
 
       const isCommentWhenPostSuccess = await getIsCommentWhenPostSuccessData();
@@ -320,6 +323,12 @@ async function initialData({ anchorElement = document.body }) {
 
       const isCommentWalk = await getIsCommentWalkData();
       setIsCommentWalk(isCommentWalk);
+
+      let apiKeyGeminiFree = await GoogleGenAIClass.getApiKeyGeminiFree();
+      setApiKeyGeminiFree(apiKeyGeminiFree || "");
+
+      let apiKeyGeminiPaid = await GoogleGenAIClass.getApiKeyGeminiPaid();
+      setApiKeyGeminiPaid(apiKeyGeminiPaid || "");
     }
 
     await initialSettings();

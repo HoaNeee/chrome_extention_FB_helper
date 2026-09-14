@@ -1,16 +1,13 @@
+import { GoogleGenAIClass } from "../../../class/GoogleGenAI.js";
 import { prefix } from "../../../contants/contants.js";
 import {
   setListCommentWhenPostSuccessService,
   setMaxCommentPerTimeService,
 } from "../../../services/comment-service.js";
-import { commentWalkService } from "../../../services/comment-walk-service.js";
 import { setMaxPostInteractService } from "../../../services/interact-before-post-service.js";
 import {
-  setIsCommentWalkData,
   setIsCommentWhenPostSuccessData,
   setIsInteractBeforePostData,
-  setMaxCommentWalkPerBatchData,
-  setTimeDelayCommentWalk,
 } from "../../../services/setting-service.js";
 import { getProgress } from "../../../services/storage-service.js";
 import { getTextWithLanguage, logError } from "../../../utils/utils.js";
@@ -69,10 +66,31 @@ async function createPanelAdvancedSetting(anchorElem = document.body) {
       </div>
     `;
 
+    const googleApiKey = `
+      <div class="${prefix}section">
+        <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt API Google (Thử nghiệm)", en: "Google API Setting (Beta)" })}</h2>
+        <div class="${prefix}field-container">
+          <label for="${prefix}input-api-key-gemini-free">${getTextWithLanguage({ vi: "Nhập API key Gemini gói miễn phí", en: "Enter Gemini free API key" })}</label>
+          <div style="display: flex; gap: 4px;">
+            <input  type="text" id="${prefix}input-api-key-gemini-free" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="EX: [GCP_API_KEY]">
+            <button id="${prefix}btn-save-api-key-gemini-free" class="not-style">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
+          </div>
+        </div>
+        <div class="${prefix}field-container">
+          <label for="${prefix}input-api-key-gemini-paid">${getTextWithLanguage({ vi: "Nhập API key Gemini gói trả phí", en: "Enter Gemini paid API key" })}</label>
+          <div style="display: flex; gap: 4px;">
+            <input  type="text" id="${prefix}input-api-key-gemini-paid" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="EX: [GCP_API_KEY]">
+            <button id="${prefix}btn-save-api-key-gemini-paid" class="not-style">${getTextWithLanguage({ vi: "Lưu", en: "Save" })}</button>
+          </div>
+        </div>
+      </div>
+    `;
+
     const advancedSettingHTML = `
       <div class="${prefix}advanced-setting">
         ${commentAfterPost}
         ${interactBeforePost}
+        ${googleApiKey}
       </div>
     `;
 
@@ -189,6 +207,86 @@ async function createPanelAdvancedSetting(anchorElem = document.body) {
           });
         } catch (error) {
           logError("Error at buttonSaveMaxPostInteract", error);
+          showNotify({
+            message: getTextWithLanguage({
+              vi: "Đã có lỗi xảy ra",
+              en: "Something went wrong",
+            }),
+            type: "error",
+          });
+        }
+      });
+
+      const buttonSaveApiKeyGeminiFree = document.getElementById(
+        `${prefix}btn-save-api-key-gemini-free`,
+      );
+      buttonSaveApiKeyGeminiFree.addEventListener("click", async () => {
+        try {
+          const inputApiKeyGeminiFree = anchorElem.querySelector(
+            `#${prefix}input-api-key-gemini-free`,
+          );
+          const apiKeyGeminiFree = inputApiKeyGeminiFree.value?.trim();
+          if (apiKeyGeminiFree) {
+            await GoogleGenAIClass.setApiKeyGeminiFree(apiKeyGeminiFree);
+          } else {
+            showNotify({
+              message: getTextWithLanguage({
+                vi: "Không hợp lệ, vui lòng thử lại",
+                en: "Invalid, please try again",
+              }),
+              type: "error",
+            });
+            return;
+          }
+          showNotify({
+            message: getTextWithLanguage({
+              vi: "Lưu API key Gemini free thành công",
+              en: "Save Gemini free API key success",
+            }),
+            type: "success",
+          });
+        } catch (error) {
+          logError("Error at buttonSaveApiKeyGeminiFree", error);
+          showNotify({
+            message: getTextWithLanguage({
+              vi: "Đã có lỗi xảy ra",
+              en: "Something went wrong",
+            }),
+            type: "error",
+          });
+        }
+      });
+
+      const buttonSaveApiKeyGeminiPaid = document.getElementById(
+        `${prefix}btn-save-api-key-gemini-paid`,
+      );
+      buttonSaveApiKeyGeminiPaid.addEventListener("click", async () => {
+        try {
+          const inputApiKeyGeminiPaid = anchorElem.querySelector(
+            `#${prefix}input-api-key-gemini-paid`,
+          );
+          const apiKeyGeminiPaid = inputApiKeyGeminiPaid.value?.trim();
+          if (apiKeyGeminiPaid) {
+            await GoogleGenAIClass.setApiKeyGeminiPaid(apiKeyGeminiPaid);
+          } else {
+            showNotify({
+              message: getTextWithLanguage({
+                vi: "Không hợp lệ, vui lòng thử lại",
+                en: "Invalid, please try again",
+              }),
+              type: "error",
+            });
+            return;
+          }
+          showNotify({
+            message: getTextWithLanguage({
+              vi: "Lưu API key Gemini trả phí thành công",
+              en: "Save Gemini paid API key success",
+            }),
+            type: "success",
+          });
+        } catch (error) {
+          logError("Error at buttonSaveApiKeyGeminiPaid", error);
           showNotify({
             message: getTextWithLanguage({
               vi: "Đã có lỗi xảy ra",
