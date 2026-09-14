@@ -102,8 +102,6 @@ const listContent = [
 export class GoogleGenAIClass {
   constructor() {
     this.model = "gemini-3.1-flash-lite";
-    this.key = KEY_GOOGLE_API.SETTING.API_KEY_PAID;
-    this.key_free = KEY_GOOGLE_API.SETTING.API_KEY_FREE;
   }
 
   async test() {
@@ -375,7 +373,7 @@ ${info}`;
     rule,
     input,
     schema,
-    key_param = this.key_free,
+    api_key_param = null,
     max_request = 0,
     is_count_request = true,
     is_count_token = false,
@@ -436,7 +434,14 @@ ${info}`;
       },
     };
 
-    const url = this.getUrl(key_param);
+    const api_gemini_free = await GoogleGenAIClass.getApiKeyGeminiFree();
+    const api_gemini_paid = await GoogleGenAIClass.getApiKeyGeminiPaid();
+
+    if (!api_key_param) {
+      api_key_param = api_gemini_free;
+    }
+
+    const url = this.getUrl(api_key_param);
 
     try {
       const response = await fetch(url, {
@@ -487,7 +492,7 @@ ${info}`;
           rule,
           input,
           schema,
-          this.key,
+          api_gemini_paid,
           max_request + 1,
           false,
           true,
@@ -503,8 +508,8 @@ ${info}`;
     }
   }
 
-  getUrl(key_param) {
-    return `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${key_param}`;
+  getUrl(api_key_param) {
+    return `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${api_key_param}`;
   }
 
   async updateCountTokenPaidPerDay(count) {
