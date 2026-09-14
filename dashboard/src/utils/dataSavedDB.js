@@ -1,7 +1,10 @@
+const KEY_DB_NAME = "FB_HELPER_DB";
+const KEY_STORE_NAME = "STORE" + KEY_DB_NAME;
+
 export class DataSavedDB {
   constructor(key) {
-    this.dbName = "dataPostSavedDB";
-    this.storeName = "dataPostSaved";
+    this.dbName = KEY_DB_NAME;
+    this.storeName = KEY_STORE_NAME;
     this.KEY = key;
   }
 

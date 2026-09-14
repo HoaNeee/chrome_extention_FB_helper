@@ -1,4 +1,5 @@
 import {
+  getDeviceId,
   getIndexsGroupChecked,
   getIsDeveloperModeInStorage,
   getIsFixStealAllFocusInStorage,
@@ -17,6 +18,7 @@ import {
   getProgress,
   getStrictlyMatchTitleGroupInStorage,
   getTimeDelayInStorage,
+  setDeviceId,
   setMaxGroupPerTimeInStorage,
   setMaxPostInteractInStorage,
 } from "../services/storage-service.js";
@@ -37,6 +39,7 @@ import {
 } from "../../../contants/contants.js";
 import { updateDataSavedInfo } from "../draw_element/dataSavedInfo.js";
 import {
+  genID,
   getIsDashboardTab,
   logActions,
   logError,
@@ -308,6 +311,11 @@ async function initialData({ anchorElement = document.body }) {
 
 async function initialFastAndFirst() {
   try {
+    const deviceId = await getDeviceId();
+    if (!deviceId) {
+      await setDeviceId(deviceId);
+    }
+
     const isDarkTheme = (await DB_getValue(KEY_IS_DARK_THEME)) || false;
     const body = document.querySelector(`body`);
     if (isDarkTheme) {

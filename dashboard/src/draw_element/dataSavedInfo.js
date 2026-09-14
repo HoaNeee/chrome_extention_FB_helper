@@ -29,6 +29,7 @@ import {
   getCountBatchPost,
   getCountResetGroupInStorage,
   getCurrentCountPostLength,
+  getDeviceId,
   getIsDeveloperModeInStorage,
   getIsFixStealAllFocusInStorage,
   getIsRandomBatchPost,
@@ -119,6 +120,7 @@ function getDataSavedHTML({
   isRandomTimePost,
   isSpecialFrameHours = false,
   maxGroupPerTimeInSpecialFrameHour = 0,
+  deviceId,
 }) {
   const set = new Set();
   groupsNeedPost.forEach((item) => {
@@ -202,6 +204,7 @@ function getDataSavedHTML({
 
   return `
         <div style="margin-top: 16px; font-size: 13px; width: 100%; display: flex; flex-direction: column; gap: 4px">
+          <div>${getTextWithLanguage({ vi: "Mã thiết bị", en: "Device ID" })}: <b>${deviceId}</b></div>
           ${groupsHtml}
           ${statusHtml}
           ${groupInfoHtml}
@@ -221,6 +224,7 @@ function getDataSavedAtDashboardHTML({
   nextTimeWhenSpammed = 0,
   isProcessing = false,
   lengthPostedInCurrentTime = 0,
+  deviceId,
 } = {}) {
   const set = new Set();
   groupsNeedPost.forEach((item) => {
@@ -238,6 +242,7 @@ function getDataSavedAtDashboardHTML({
   return `
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%;">
       <div>
+        <div>${getTextWithLanguage({ vi: "Mã thiết bị", en: "Device ID" })}: <b>${deviceId}</b></div>
         <div>${getTextWithLanguage({ vi: "Tổng số nhóm", en: "Total Groups" })}: <b>${allGroups.length}</b></div>
         <div>${getTextWithLanguage({ vi: "Số nhóm cần đăng", en: "Number of groups to post" })}: <b>${totalGroupsNeedPost}</b></div>
         <div>${getTextWithLanguage({ vi: "Số nhóm đã đăng", en: "Number of groups posted" })}: <b>${groupsPosted.length}</b></div>
@@ -284,6 +289,7 @@ async function updateDataSavedInfo() {
       const objectTask = await getObjectTaskInStorage();
       const lastTimePost = await getLastTimePostInStorage();
       const isShuffleTime = await getIsShuffleSchedulerTimeInStorage();
+      const deviceId = await getDeviceId();
 
       let nextTime = await getNextTimePost();
 
@@ -345,6 +351,7 @@ async function updateDataSavedInfo() {
         maxGroupPerTimeInSpecialFrameHour:
           (await getObjectIsInSpecialFrameHours())?.maxGroup || 0,
         isPremium: (await DB_getValue(KEY_IS_PREMIUM)) || false,
+        deviceId,
       });
       dataSavedEl.innerHTML = html;
 
@@ -360,6 +367,7 @@ async function updateDataSavedInfo() {
         maxGroupPerTime,
         isSpammed: await getIsSpammedInStorage(),
         nextTimeWhenSpammed: await getNextTimePostWhenSpammed(),
+        deviceId,
       });
       if (dataSavedAtDashboard) {
         dataSavedAtDashboard.innerHTML = htmlAtDashboard;

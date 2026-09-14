@@ -36,7 +36,14 @@ function dialogContainer({ anchorElem = document.body }) {
   return dialogContainerElement;
 }
 
-function createDialog({ html = "", onClose, title = "", isConfirm = false }) {
+function createDialog({
+  html = "",
+  onClose,
+  title = "",
+  isConfirm = false,
+  showClose = true,
+  clickOutSideToClose = true,
+}) {
   try {
     if (!anchorElemDialog) {
       anchorElemDialog = document.querySelector("#tm_root") || document.body;
@@ -114,20 +121,28 @@ function createDialog({ html = "", onClose, title = "", isConfirm = false }) {
 
     function setIsShow(isShow) {
       if (isShow) {
-        overlay.addEventListener("click", close);
+        if (clickOutSideToClose) {
+          overlay.addEventListener("click", close);
+        }
 
         dialogContainerElement.appendChild(innerDiv);
         anchorElemDialog.appendChild(dialogContainerElement);
-        dialogContainerElement.appendChild(closeElementDialog);
+        if (showClose) {
+          dialogContainerElement.appendChild(closeElementDialog);
+        }
         if (title) {
           dialogContainerElement.appendChild(h3Title);
         }
       } else {
-        overlay.removeEventListener("click", close);
+        if (clickOutSideToClose) {
+          overlay.removeEventListener("click", close);
+        }
 
         anchorElemDialog.removeChild(dialogContainerElement);
         dialogContainerElement.removeChild(innerDiv);
-        dialogContainerElement.removeChild(closeElementDialog);
+        if (showClose) {
+          dialogContainerElement.removeChild(closeElementDialog);
+        }
         if (title) {
           dialogContainerElement.removeChild(h3Title);
         }
@@ -142,9 +157,11 @@ function createDialog({ html = "", onClose, title = "", isConfirm = false }) {
       dialogContainerElement.style.pointerEvents = isShow ? "auto" : "none";
     }
 
-    closeElementDialog.addEventListener("click", () => {
-      setIsShow(false);
-    });
+    if (showClose) {
+      closeElementDialog.addEventListener("click", () => {
+        setIsShow(false);
+      });
+    }
 
     return {
       setIsShow,
@@ -296,4 +313,103 @@ function dialogConfirm({
   return div;
 }
 
-export { createDialog, dialogViewScheduler, dialogContainer, dialogConfirm };
+function dialogDisabledTool(deviceId) {
+  const div = document.createElement("div");
+  div.style.display = "flex";
+  div.style.flexDirection = "column";
+  div.style.gap = "8px";
+  const h3 = document.createElement("h3");
+  const p = document.createElement("p");
+  const btnConfirm = document.createElement("button");
+
+  btnConfirm.textContent = getTextWithLanguage({
+    en: "Confirm",
+    vi: "Xác nhận",
+  });
+
+  h3.textContent = getTextWithLanguage({
+    en: "This tool is disabled",
+    vi: "Tool hiện tại đang không hoạt động",
+  });
+  p.textContent = getTextWithLanguage({
+    en: "Please contact your administrator for support",
+    vi: "Vui lòng liên hệ quản trị viên để được hỗ trợ",
+  });
+
+  const deviceIdParagraph = document.createElement("p");
+  deviceIdParagraph.textContent = getTextWithLanguage({
+    en: `Device ID: ${deviceId}`,
+    vi: `Mã thiết bị: ${deviceId}`,
+  });
+
+  const innerDiv = document.createElement("div");
+  innerDiv.style.display = "flex";
+  innerDiv.style.justifyContent = "flex-end";
+  innerDiv.style.gap = "8px";
+  innerDiv.style.marginTop = "12px";
+
+  innerDiv.appendChild(btnConfirm);
+
+  div.appendChild(h3);
+  div.appendChild(p);
+  if (deviceId) {
+    div.appendChild(deviceIdParagraph);
+  }
+  div.appendChild(innerDiv);
+
+  btnConfirm.addEventListener("click", () => {
+    window.close();
+  });
+
+  return div;
+}
+
+let swalDialogLoading = null;
+
+function showDialogLoading(title) {
+  try {
+    swalDialogLoading = Swal.fire({
+      html: `<p>${
+        title ||
+        getTextWithLanguage({
+          en: "Loading...",
+          vi: "Đang tải...",
+        })
+      } </p>`,
+      background: "var(--tm-bg-dialog)",
+      color: "var(--tm-text-primary)",
+      heightAuto: false,
+      allowOutsideClick: false,
+      width: `300px`,
+      customClass: {
+        container: "swal-container-custom",
+      },
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+  } catch (error) {
+    logError("Error at dialog loading: ", error);
+  }
+}
+
+function closeDialogLoading() {
+  try {
+    if (swalDialogLoading) {
+      swalDialogLoading.close();
+      swalDialogLoading = null;
+    }
+  } catch (error) {
+    logError("Error at close dialog loading: ", error);
+  }
+}
+
+export {
+  createDialog,
+  dialogViewScheduler,
+  dialogContainer,
+  dialogConfirm,
+  dialogDisabledTool,
+  showDialogLoading,
+  closeDialogLoading,
+};

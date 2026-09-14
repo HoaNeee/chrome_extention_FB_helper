@@ -67,6 +67,12 @@ const REPLACE_VALUE = {
   PHONE: "0339 005 642",
 };
 
+const KEY_MIGRATE_DATA = {
+  IS_MIGATE_DATA_GROUP_POST: "is_migrate_data_group_post",
+};
+
+const KEY_DEVICE_ID = "device_id";
+
 export {
   KEY_NOTIFICATION,
   KEY_OPEN_IN_TAB,
@@ -101,4 +107,6 @@ export {
   KEY_INTERACT_BEFORE_POST_REQUEST,
   REPLACE_VALUE,
   KEY_GET_PREMIUM,
+  KEY_MIGRATE_DATA,
+  KEY_DEVICE_ID,
 };

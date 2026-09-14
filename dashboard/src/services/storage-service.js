@@ -38,6 +38,7 @@ import {
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import Queue from "../utils/queue.js";
 import { logActions, logError, now, random } from "../../../utils/utils.js";
+import { KEY_DEVICE_ID } from "../../../contants/constant-extention.js";
 
 async function setProgress(b) {
   await DB_setValue(KEY_IS_IN_PROGRESS, b);
@@ -556,6 +557,14 @@ async function setMaxPostInteractInStorage(maxPostInteract) {
   );
 }
 
+async function getDeviceId() {
+  return (await DB_getValue(KEY_DEVICE_ID)) || "";
+}
+
+async function setDeviceId(deviceId) {
+  await DB_setValue(KEY_DEVICE_ID, deviceId);
+}
+
 export {
   setProgress,
   getProgress,
@@ -614,4 +623,6 @@ export {
   setTimeDelayForScheduler,
   getMaxPostInteractInStorage,
   setMaxPostInteractInStorage,
+  getDeviceId,
+  setDeviceId,
 };

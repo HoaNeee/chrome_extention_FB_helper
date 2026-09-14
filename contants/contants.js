@@ -53,7 +53,7 @@ const KEY_CURRENT_COUNT_POSTED = "current_count_posted";
  * Area related to groups
  */
 
-const KEY_DATA_POST_SAVED = "data_post_saved";
+const KEY_DATA_POST_SAVED = "dataGroupPost";
 const KEY_INDEX_GROUP_POST = "current_group_post_index";
 const KEY_INDEXS_GROUP_CHECKED = "group_checked_indexs";
 

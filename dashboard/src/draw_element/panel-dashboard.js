@@ -62,6 +62,7 @@ import {
 } from "../services/scheduler-service.js";
 import { addLog } from "./panel-log.js";
 import { KEY_CURRENT_WINDOW_ID } from "../../../contants/constant-extention.js";
+import { googleFirebaseService } from "../services/firebase-service.js";
 
 function drawInnerRoot() {
   const innerRoot = document.createElement("div");
@@ -392,7 +393,15 @@ async function createPanel(doc = document.body) {
             // const windows = await chrome.windows.getAll({});
             // console.log("Windows: ", windows);
             // console.log(await getSpecialFrameHoursService());
-            console.log(await getIsInteractBeforePostInStorage());
+            // console.log(await getIsInteractBeforePostInStorage());
+            // const api1 = `https://cdn.jsdelivr.net/gh/HoaNeee/extention-fb-helper-config-public/status.json`;
+
+            // const response = await fetch(api1);
+            // console.log(response);
+            // const result = await response.json();
+            // console.log(result);
+
+            console.log(await googleFirebaseService.getIpAddress());
           } catch (error) {
             logError("Error at btnClick click event: ", error);
           }

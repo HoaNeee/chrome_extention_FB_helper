@@ -1,5 +1,11 @@
 import { getTextWithLanguage, initLanguage, logError } from "../utils/utils.js";
-import { dialogContainer } from "./src/draw_element/dialog.js";
+import {
+  closeDialogLoading,
+  createDialog,
+  dialogContainer,
+  dialogDisabledTool,
+  showDialogLoading,
+} from "./src/draw_element/dialog.js";
 import { createPanelTabGroup } from "./src/draw_element/panel-data-group-tab.js";
 import { addLog, createPanelLog } from "./src/draw_element/panel-log.js";
 import { createPanelSetting } from "./src/draw_element/panel-setting-tab.js";
@@ -9,13 +15,16 @@ import {
   addCssForTextarea,
 } from "./src/helpers/elementDom.js";
 import { initialData, initialFastAndFirst } from "./src/helpers/initial.js";
-import { initialTheme } from "./src/services/storage-service.js";
+import { getDeviceId, initialTheme } from "./src/services/storage-service.js";
 import addValueChangeListener from "./src/listener/addValueChangeListener.js";
 import {
   getDataSavedInStorage,
   setDataSavedInStorage,
 } from "./src/services/dataSavedService.js";
 import { createPanelAdvancedSetting } from "./src/draw_element/panel-setting-advanced-tab.js";
+import { googleFirebaseService } from "./src/services/firebase-service.js";
+import { DB_getValue, DB_setValue } from "./src/utils/api-helper.js";
+import { KEY_MIGRATE_DATA } from "../contants/constant-extention.js";
 
 async function main() {
   try {
@@ -26,6 +35,57 @@ async function main() {
     const mainElement = document.querySelector("main");
 
     dialogContainer({ anchorElem: document.body });
+
+    showDialogLoading();
+    const isEnableTool = await googleFirebaseService.getIsEnableTool();
+    if (!isEnableTool) {
+      closeDialogLoading();
+      const { setIsShow: setIsShowDialogDisabledTool } = createDialog({
+        html: dialogDisabledTool(),
+        isConfirm: true,
+        showClose: false,
+        clickOutSideToClose: false,
+      });
+      setIsShowDialogDisabledTool(true);
+      return;
+    }
+
+    const deviceId = await getDeviceId();
+    if (deviceId) {
+      const ip = await googleFirebaseService.getIpAddress();
+
+      const isActiveIp = await googleFirebaseService.checkOrRegisterIP(ip);
+      if (!isActiveIp) {
+        closeDialogLoading();
+        const { setIsShow: setIsShowDialogDisabledTool } = createDialog({
+          html: dialogDisabledTool(deviceId),
+          isConfirm: true,
+          showClose: false,
+          clickOutSideToClose: false,
+        });
+        setIsShowDialogDisabledTool(true);
+        return;
+      }
+
+      const isActive =
+        await googleFirebaseService.checkOrRegisterDevice(deviceId);
+
+      if (!isActive) {
+        closeDialogLoading();
+        const { setIsShow: setIsShowDialogDisabledTool } = createDialog({
+          html: dialogDisabledTool(deviceId),
+          isConfirm: true,
+          showClose: false,
+          clickOutSideToClose: false,
+        });
+        setIsShowDialogDisabledTool(true);
+        return;
+      }
+    }
+
+    await migrateDataSaved();
+
+    closeDialogLoading();
 
     const divTab = drawTab();
 
@@ -193,15 +253,42 @@ function drawTab() {
 
 async function migrateDataSaved() {
   try {
-    const dataSaved = await getDataSavedInStorage();
-    let prio = 1;
-    for (const data of dataSaved || []) {
-      if (data.priority === null || data.priority === undefined) {
-        data.priority = prio;
-        prio++;
-      }
+    const isMigrated = await DB_getValue(
+      KEY_MIGRATE_DATA.IS_MIGATE_DATA_GROUP_POST,
+    );
+    if (isMigrated) return;
+
+    const dbName = "dataPostSavedDB";
+    const storeName = "dataPostSaved";
+    const KEY = "data_post_saved";
+
+    async function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(dbName, 1);
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains(storeName)) {
+            db.createObjectStore(storeName);
+          }
+        };
+      });
     }
-    setDataSavedInStorage(dataSaved);
+
+    const db = await openDB();
+    const tx = db.transaction(storeName, "readwrite");
+    const store = tx.objectStore(storeName);
+
+    const request = store.put([], KEY);
+    await new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+
+    DB_setValue(KEY_MIGRATE_DATA.IS_MIGATE_DATA_GROUP_POST, true);
   } catch (error) {
     logError("Error at migrate DataSaved", error);
   }
