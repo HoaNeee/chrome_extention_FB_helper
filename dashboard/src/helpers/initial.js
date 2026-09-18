@@ -313,7 +313,7 @@ async function initialFastAndFirst() {
   try {
     const deviceId = await getDeviceId();
     if (!deviceId) {
-      await setDeviceId(deviceId);
+      await setDeviceId(genID());
     }
 
     const isDarkTheme = (await DB_getValue(KEY_IS_DARK_THEME)) || false;
