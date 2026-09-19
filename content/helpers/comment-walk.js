@@ -369,7 +369,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
           }
 
           const isMatch = !!(
-            contentMatchs.length >= max_rate &&
+            contentMatchs.length >= max_rate + VALUE_RATE_ADD_FOR_HOME &&
             (contentCertainChoiceMatch.length || profileNameCertainMatch.length)
           );
 

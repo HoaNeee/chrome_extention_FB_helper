@@ -2037,7 +2037,7 @@
             if (!contentCertainChoiceMatch.length) {
               score += profileNameCertainMatch.length;
             }
-            const isMatch = !!(contentMatchs.length >= max_rate && (contentCertainChoiceMatch.length || profileNameCertainMatch.length));
+            const isMatch = !!(contentMatchs.length >= max_rate + VALUE_RATE_ADD_FOR_HOME && (contentCertainChoiceMatch.length || profileNameCertainMatch.length));
             if (isMatch) {
               const match = Array.from(
                 /* @__PURE__ */ new Set([
