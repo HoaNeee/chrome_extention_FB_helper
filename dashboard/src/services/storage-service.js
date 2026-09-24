@@ -30,6 +30,8 @@ import {
   KEY_COUNT_BATCH_POST,
   KEY_TIME_DELAY_FOR_SCHEDULER,
   KEY_INTERACT_BEFORE_POST,
+  KEY_IS_NEW_USER,
+  KEY_TIME_FIRST_USE,
 } from "../../../contants/contants.js";
 import {
   getAllGroupPostedsInStorage,
@@ -565,6 +567,22 @@ async function setDeviceId(deviceId) {
   await DB_setValue(KEY_DEVICE_ID, deviceId);
 }
 
+async function getIsNewUser() {
+  return (await DB_getValue(KEY_IS_NEW_USER)) || false;
+}
+
+async function setIsNewUser(isNewUser) {
+  await DB_setValue(KEY_IS_NEW_USER, isNewUser);
+}
+
+async function getTimeFirstUse() {
+  return (await DB_getValue(KEY_TIME_FIRST_USE)) || 0;
+}
+
+async function setTimeFirstUse(timeFirstUse) {
+  await DB_setValue(KEY_TIME_FIRST_USE, timeFirstUse);
+}
+
 export {
   setProgress,
   getProgress,
@@ -625,4 +643,8 @@ export {
   setMaxPostInteractInStorage,
   getDeviceId,
   setDeviceId,
+  getIsNewUser,
+  setIsNewUser,
+  getTimeFirstUse,
+  setTimeFirstUse,
 };

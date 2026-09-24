@@ -4,6 +4,7 @@ import {
   getIsDeveloperModeInStorage,
   getIsFixStealAllFocusInStorage,
   getIsInteractBeforePostInStorage,
+  getIsNewUser,
   getIsRandomBatchPost,
   getIsRandomTimePost,
   getIsShuffleGroupNeedPost,
@@ -19,8 +20,10 @@ import {
   getStrictlyMatchTitleGroupInStorage,
   getTimeDelayInStorage,
   setDeviceId,
+  setIsNewUser,
   setMaxGroupPerTimeInStorage,
   setMaxPostInteractInStorage,
+  setTimeFirstUse,
 } from "../services/storage-service.js";
 import {
   disabledElement,
@@ -314,6 +317,12 @@ async function initialFastAndFirst() {
     const deviceId = await getDeviceId();
     if (!deviceId) {
       await setDeviceId(genID());
+    }
+
+    const isNewUser = await getIsNewUser();
+    if (isNewUser === undefined || isNewUser === null) {
+      await setIsNewUser(true);
+      await setTimeFirstUse(Date.now());
     }
 
     const isDarkTheme = (await DB_getValue(KEY_IS_DARK_THEME)) || false;

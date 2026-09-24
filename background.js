@@ -62,6 +62,7 @@ import {
   getPremiumInStorage,
   getRandomIndexGroupChecked,
   getTimeDelayForScheduler,
+  getTimeFirstUse,
   setCountBatchPost,
   setCurrentCountPostLength,
   setCurrentIndexGroupPost,
@@ -945,10 +946,22 @@ async function handleGetAllMetadataInteractBeforePost(sendResponse) {
 
 async function handleGetPremium(sendResponse) {
   try {
-    const premium = await getPremiumInStorage();
+    let premium = await getPremiumInStorage();
+
+    const timeFirstUse = await getTimeFirstUse();
+
+    if (timeFirstUse) {
+      const diff = Date.now() - timeFirstUse;
+      const dayDiff = Math.floor(diff / 1000 / 60 / 60 / 24);
+      //free premium in 10 days
+      if (dayDiff < 10) {
+        premium = true;
+      }
+    }
+
     sendResponse({
       status: STATUS_RESPONSE.SUCCESS,
-      data: premium || false,
+      data: premium,
     });
   } catch (error) {
     logError("Error at handleGetPremium: ", error);

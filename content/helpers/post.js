@@ -135,7 +135,7 @@ async function fillFile(files) {
 
       //simulator change image event
       const dt = new DataTransfer();
-      const rd = randomRateBoolean(20);
+      const rd = randomRateBoolean(10);
       const premium = await CL_getPremium();
       for (const file of files) {
         try {

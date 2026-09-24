@@ -101,6 +101,9 @@ const KEY_WINDOW = {
   WINDOW_GET_LIST_GROUP_ID: "window_get_list_group_id",
 };
 
+const KEY_IS_NEW_USER = "is_new_user";
+const KEY_TIME_FIRST_USE = "time_first_use";
+
 const STATUS_TASK = {
   PENDING: "pending",
   SELECTING: "selecting",
@@ -186,4 +189,6 @@ export {
   KEY_COMMENT_WHEN_POST_SUCCESS,
   KEY_INTERACT_BEFORE_POST,
   KEY_TIME_DELAY_FOR_SCHEDULER,
+  KEY_IS_NEW_USER,
+  KEY_TIME_FIRST_USE,
 };
