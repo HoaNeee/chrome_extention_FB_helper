@@ -73,6 +73,15 @@ const KEY_MIGRATE_DATA = {
 
 const KEY_DEVICE_ID = "device_id";
 
+const KEY_GET_TOOL_SETTING = "get_tool_setting";
+
+const KEY_CACHED_FIREBASE = {
+  GET_ENABLE_TOOL: "cached_get_enable_tool",
+  CHECK_OR_REGISTER_DEVICE: "cached_check_or_register_device",
+  CHECK_OR_REGISTER_IP: "cached_check_or_register_ip",
+  GET_SETTING_TOOL: "cached_get_setting_tool",
+};
+
 export {
   KEY_NOTIFICATION,
   KEY_OPEN_IN_TAB,
@@ -109,4 +118,6 @@ export {
   KEY_GET_PREMIUM,
   KEY_MIGRATE_DATA,
   KEY_DEVICE_ID,
+  KEY_GET_TOOL_SETTING,
+  KEY_CACHED_FIREBASE,
 };

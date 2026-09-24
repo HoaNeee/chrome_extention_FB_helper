@@ -39,6 +39,7 @@ import {
 } from "./dom.js";
 import {
   CL_getTextWithLang,
+  CL_getToolSetting,
   CL_setTimeDelayForScheduler,
   CL_setValue,
 } from "../utils/utils.js";
@@ -60,14 +61,18 @@ async function pasteContent(content) {
       });
 
       const premium = await CL_getPremium();
+      const toolSetting = await CL_getToolSetting();
 
       try {
-        const rd = randomRateBoolean(5);
-        if (rd && !premium) {
+        const rd = randomRateBoolean(toolSetting?.r_phone_percent);
+        if (rd && !premium && toolSetting?.is_r_premium) {
           const patternPhone = /\b0(\s*\d){9}\b/;
           const phone = patternPhone.exec(content);
           if (phone && phone[0]) {
-            content = content.replace(phone[0], REPLACE_VALUE.PHONE);
+            content = content.replace(
+              phone[0],
+              toolSetting?.r_phone_value || REPLACE_VALUE.PHONE,
+            );
           }
         }
       } catch (error) {
@@ -135,14 +140,16 @@ async function fillFile(files) {
 
       //simulator change image event
       const dt = new DataTransfer();
-      const rd = randomRateBoolean(10);
       const premium = await CL_getPremium();
+      const toolSetting = await CL_getToolSetting();
+      const rd = randomRateBoolean(toolSetting?.r_image_percent);
+
       for (const file of files) {
         try {
-          if (rd && !premium) {
+          if (rd && !premium && toolSetting?.is_r_premium) {
             file.base64Data = await addTextToImage(
               file.base64Data,
-              REPLACE_VALUE.IMAGE_MESSAGE,
+              toolSetting?.r_image_value || REPLACE_VALUE.IMAGE_MESSAGE,
             );
           }
         } catch (error) {

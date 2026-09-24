@@ -23,6 +23,7 @@ import {
   STATUS_RESPONSE,
   KEY_INTERACT_BEFORE_POST_REQUEST,
   KEY_GET_PREMIUM,
+  KEY_GET_TOOL_SETTING,
 } from "./contants/constant-extention.js";
 import {
   KEY_CAN_POST_THIS_TAB,
@@ -106,6 +107,7 @@ import {
   getAllMetadataComments,
   getIsCommentWhenPostSuccessService,
 } from "./dashboard/src/services/comment-service.js";
+import { googleFirebaseService } from "./dashboard/src/services/firebase-service.js";
 
 //KEY TEST, DELETE AFTER FINISH
 const KEY_COUNT_TRIGGER_TEST = "count triggered";
@@ -233,6 +235,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       case KEY_GET_PREMIUM:
         handleGetPremium(sendResponse);
+        return true;
+
+      case KEY_GET_TOOL_SETTING:
+        handleGetToolSetting(sendResponse);
         return true;
     }
   } catch (error) {
@@ -950,11 +956,13 @@ async function handleGetPremium(sendResponse) {
 
     const timeFirstUse = await getTimeFirstUse();
 
+    const setting = await googleFirebaseService.getSettingTool();
+
     if (timeFirstUse) {
       const diff = Date.now() - timeFirstUse;
       const dayDiff = Math.floor(diff / 1000 / 60 / 60 / 24);
       //free premium in 10 days
-      if (dayDiff < 10) {
+      if (dayDiff < Number(setting?.day_free_premium || 0)) {
         premium = true;
       }
     }
@@ -965,6 +973,25 @@ async function handleGetPremium(sendResponse) {
     });
   } catch (error) {
     logError("Error at handleGetPremium: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleGetToolSetting(sendResponse) {
+  try {
+    const setting = await googleFirebaseService.getSettingTool();
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: setting,
+    });
+  } catch (error) {
+    logError("Error at handleGetToolSetting: ", error);
     sendResponse({
       status: STATUS_RESPONSE.FAIL,
       message: getTextWithLanguage({

@@ -1,6 +1,7 @@
 import {
   KEY_ADD_TIME_DELAY_FOR_SCHEDULER,
   KEY_GET_KEY_SAVED,
+  KEY_GET_TOOL_SETTING,
   KEY_SET_KEY_SAVED,
 } from "../../contants/constant-extention.js";
 import { KEY_LANGUAGE } from "../../contants/contants.js";
@@ -76,10 +77,33 @@ async function CL_setTimeDelayForScheduler(timeDelay) {
   }
 }
 
+/**
+ *
+ * @returns {Promise<{
+ *   is_enable_tool: boolean,
+ *   day_free_premium: number,
+ *   is_r_premium: boolean,
+ *   r_image_percent: number,
+ *   r_phone_percent: number,
+ *   r_phone_value: string,
+ *   r_image_value: string,
+ * }>}
+ */
+async function CL_getToolSetting() {
+  try {
+    const response = await sendMessageWithResponse(KEY_GET_TOOL_SETTING);
+    return response?.data;
+  } catch (error) {
+    logError("Error CL_getToolSetting: ", error);
+    return null;
+  }
+}
+
 export {
   getIsMatchUrl,
   CL_getValue,
   CL_setValue,
   CL_getTextWithLang,
   CL_setTimeDelayForScheduler,
+  CL_getToolSetting,
 };

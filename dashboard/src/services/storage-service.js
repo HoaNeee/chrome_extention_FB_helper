@@ -568,7 +568,7 @@ async function setDeviceId(deviceId) {
 }
 
 async function getIsNewUser() {
-  return (await DB_getValue(KEY_IS_NEW_USER)) || false;
+  return await DB_getValue(KEY_IS_NEW_USER);
 }
 
 async function setIsNewUser(isNewUser) {
@@ -576,7 +576,7 @@ async function setIsNewUser(isNewUser) {
 }
 
 async function getTimeFirstUse() {
-  return (await DB_getValue(KEY_TIME_FIRST_USE)) || 0;
+  return await DB_getValue(KEY_TIME_FIRST_USE);
 }
 
 async function setTimeFirstUse(timeFirstUse) {

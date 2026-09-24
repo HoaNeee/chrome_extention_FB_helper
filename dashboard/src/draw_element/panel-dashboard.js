@@ -28,6 +28,7 @@ import {
   setDecidedInteractBeforePostInStorage,
   setIsSpammedInStorage,
   getIsSpammedInStorage,
+  getTimeFirstUse,
 } from "../services/storage-service.js";
 import {
   getAllDataGroupsInStorage,
@@ -401,7 +402,8 @@ async function createPanel(doc = document.body) {
             // const result = await response.json();
             // console.log(result);
 
-            console.log(await googleFirebaseService.getIpAddress());
+            console.log(await googleFirebaseService.getSettingTool());
+            console.log(await getTimeFirstUse());
           } catch (error) {
             logError("Error at btnClick click event: ", error);
           }
