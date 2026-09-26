@@ -178,6 +178,22 @@ const KEY_GOOGLE_API = {
   },
 };
 
+const KEY_FEATURE_FLAG = {
+  FIELD: {
+    COMMENT_WALK: "comment_walk",
+    SPECIAL_FRAME_HOUR: "special_frame_hour",
+    IS_RANDOM_BREAK_BATCH: "is_random_break_batch",
+    IS_RANDOM_TIME_POST: "is_random_time_post",
+    IS_FIX_STEAL_ALL_FOCUS: "is_fix_steal_all_focus",
+    IS_SHUFFLE_SCHEDULER_TIME: "is_shuffle_scheduler_time",
+    PRIORITY_TASK: "priority_task",
+  },
+  STATUS: {
+    LOCKED: "LOCKED",
+    UNLOCKED: "UNLOCKED",
+  },
+};
+
 export {
   KEY_NOTIFICATION,
   KEY_OPEN_IN_TAB,
@@ -235,4 +251,5 @@ export {
   KEY_COMMENT_WALK_SPEED,
   KEY_REQUEST_TO_BACKGROUND,
   KEY_GOOGLE_API,
+  KEY_FEATURE_FLAG,
 };

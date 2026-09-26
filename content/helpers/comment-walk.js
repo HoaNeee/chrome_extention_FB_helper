@@ -273,7 +273,6 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
      */
 
     const VALUE_RATE_ADD_FOR_HOME = 0;
-    const VALUE_RATE_ADD_FOR_SEARCH_USE_AI = 1;
     const VALUE_RATE_MULTIPLY_FOR_KEYWORD_CERTAIN = 2;
 
     const isDevMode = await CL_getIsDevMode();
@@ -726,18 +725,21 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             continue;
           }
 
-          const matchContentNotShowMore = matchQueryKeywords(
+          const matchContentExcludesNotShowMore = matchQueryKeywords(
             content_query_excludes_common,
             divFeedContent.textContent,
           );
-          if (matchContentNotShowMore.length) {
-            logExcludeKeywords(matchContentNotShowMore);
+          if (matchContentExcludesNotShowMore.length) {
+            logExcludeKeywords(matchContentExcludesNotShowMore);
             continue;
           }
 
           const btnShowMore = findButtonShowMore(child);
           if (btnShowMore) {
+            await sleepHelper().fast();
+
             btnShowMore.click();
+
             await calculateValueSleep(speed);
 
             await scrollElementIntoView(divButtonToPost);
@@ -747,7 +749,8 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 
           const contentDiv = getContentFromDivItemContent(divFeedContent);
 
-          if (contentDiv.length >= 500) {
+          //FIX THEN ADD
+          if (contentDiv.length >= 600) {
             logContent(
               getTextLanguageContent({
                 vi: `Bài viết nội dung quá dài (${contentDiv.length} ký tự), bỏ qua...`,
@@ -803,21 +806,14 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
           keywordIncludeMatch.push(...keywordIncludeCommons);
 
           if (keywordIncludeCommons.length < max_rate_common) {
-            //check certain_choice_keywords with lowercase
-            if (areaComment.isHome) {
-              let flag = false;
-              for (const keyword of keywords_certain_choice_common) {
-                if (contentDiv.toLowerCase().includes(keyword.toLowerCase())) {
-                  keywordIncludeMatch.push(keyword);
-                  flag = true;
-                  break;
-                }
+            //check certain_choice_keywords with not strictly
+            isSkipPost = true;
+            for (const keyword of keywords_certain_choice_common) {
+              if (contentDiv.toLowerCase().includes(keyword.toLowerCase())) {
+                keywordIncludeMatch.push(keyword);
+                isSkipPost = false;
+                break;
               }
-              if (!flag) {
-                isSkipPost = true;
-              }
-            } else {
-              isSkipPost = true;
             }
           }
 
@@ -833,7 +829,10 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 
             if (areaComment.isSearch) {
               if (isAIHelp) {
-                max_rate_comment_walk += VALUE_RATE_ADD_FOR_SEARCH_USE_AI;
+                max_rate_comment_walk = Math.max(
+                  3,
+                  keyword_query_include_comment_walk.length,
+                );
               }
 
               const keywordExcludeCommentWalkMatch = matchQueryKeywords(
@@ -860,7 +859,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
               );
               keywordIncludeMatch.push(...keywordCertainMatch);
 
-              //strictly - layer filter địa điểm/khu vực
+              //strictly - layer filter location/area
               if (!keywordCertainMatch.length) {
                 logContent(
                   getTextLanguageContent({
@@ -1106,8 +1105,10 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             await calculateValueSleep(speed);
 
             const success = await simulateTyping(inputEditor, content, {
-              minDelay: setting.time_delay_fill_content_comment_walk_min,
-              maxDelay: setting.time_delay_fill_content_comment_walk_max,
+              minDelay:
+                Number(setting.time_delay_fill_content_comment_walk_min) + 50,
+              maxDelay:
+                Number(setting.time_delay_fill_content_comment_walk_max) + 50,
             });
 
             if (!success) {
@@ -1278,6 +1279,9 @@ function checkPostIsFindRoom(divItemFeed) {
 
     for (let link of listLinks) {
       const href = link.getAttribute("href");
+      if (href && href.includes("/videos/")) {
+        return false;
+      }
       if (href && href.includes("/photo/")) {
         ++cnt;
         if (cnt >= 2) break;

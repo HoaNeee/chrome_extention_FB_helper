@@ -299,23 +299,23 @@ async function createPanelSetting(anchorElem = document.body) {
           </div>
          
           <div style="padding: 4px 8px; display: flex; gap: 32px; align-items: center;">
-		 	<div style="max-width: 300px; display: flex; flex-direction: column; gap: 4px;">
-				<label for="${prefix}select-comment-walk-area" style="margin-bottom: 4px; display: inline-block;">${getTextWithLanguage({ vi: "Chọn khu vực comment dạo", en: "Select comment walk area" })}:</label>
-				<select id="${prefix}select-comment-walk-area" class="custom-select" style="padding: 8px 6px; width: 100%;">
-					<option value="${KEY_COMMENT_WALK_AREA.HOME}">${getTextWithLanguage({ vi: "Trang chủ", en: "Home page" })}</option>
-					<option value="${KEY_COMMENT_WALK_AREA.SEARCH_PAGE}">${getTextWithLanguage({ vi: "Trang tìm kiếm", en: "Search page" })}</option>
-					<option value="${KEY_COMMENT_WALK_AREA.RANDOM}">${getTextWithLanguage({ vi: "Ngẫu nhiên", en: "Random" })}</option>
-				</select>
+            <div style="max-width: 300px; display: flex; flex-direction: column; gap: 4px;">
+              <label for="${prefix}select-comment-walk-area" style="margin-bottom: 4px; display: inline-block;">${getTextWithLanguage({ vi: "Chọn khu vực comment dạo", en: "Select comment walk area" })}:</label>
+              <select id="${prefix}select-comment-walk-area" class="custom-select" style="padding: 8px 6px; width: 100%;">
+                <option value="${KEY_COMMENT_WALK_AREA.HOME}">${getTextWithLanguage({ vi: "Trang chủ", en: "Home page" })}</option>
+                <option value="${KEY_COMMENT_WALK_AREA.SEARCH_PAGE}">${getTextWithLanguage({ vi: "Trang tìm kiếm", en: "Search page" })}</option>
+                <option value="${KEY_COMMENT_WALK_AREA.RANDOM}">${getTextWithLanguage({ vi: "Ngẫu nhiên", en: "Random" })}</option>
+              </select>
           	</div>	
-			<div style="display: flex; flex-direction: column; gap: 4px;">
-				<label for="${prefix}select-comment-walk-speed" style="margin-bottom: 4px; display: inline-block;">${getTextWithLanguage({ vi: "Lựa chọn tốc độ thực hiện bình luận dạo", en: "Select comment walk execution speed" })}:</label>
-				<select id="${prefix}select-comment-walk-speed" class="custom-select" style="padding: 8px 6px; width: 100%;">
-					<option value="${KEY_COMMENT_WALK_SPEED.SLOW}">${getTextWithLanguage({ vi: "Chậm", en: "Slow" })}</option>
-					<option value="${KEY_COMMENT_WALK_SPEED.NORMAL}">${getTextWithLanguage({ vi: "Trung bình", en: "Normal" })}</option>
-					<option value="${KEY_COMMENT_WALK_SPEED.FAST}">${getTextWithLanguage({ vi: "Nhanh", en: "Fast" })}</option>
-				</select>
-			</div> 
-		  </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label for="${prefix}select-comment-walk-speed" style="margin-bottom: 4px; display: inline-block;">${getTextWithLanguage({ vi: "Lựa chọn tốc độ thực hiện bình luận dạo", en: "Select comment walk execution speed" })}:</label>
+              <select id="${prefix}select-comment-walk-speed" class="custom-select" style="padding: 8px 6px; width: 100%;">
+                <option value="${KEY_COMMENT_WALK_SPEED.SLOW}">${getTextWithLanguage({ vi: "Chậm", en: "Slow" })}</option>
+                <option value="${KEY_COMMENT_WALK_SPEED.NORMAL}">${getTextWithLanguage({ vi: "Trung bình", en: "Normal" })}</option>
+                <option value="${KEY_COMMENT_WALK_SPEED.FAST}">${getTextWithLanguage({ vi: "Nhanh", en: "Fast" })}</option>
+              </select>
+            </div> 
+		      </div>
           <div class="${prefix}field-container">
             <label for="${prefix}input-max-comment-walk-per-batch">${getTextWithLanguage({ vi: "Số lượng bình luận tối đa mỗi lần:", en: "Max comments per batch:" })}</label>
             <div style="display: flex; gap: 4px;">
@@ -324,7 +324,7 @@ async function createPanelSetting(anchorElem = document.body) {
             </div>
           </div>
           <div class="${prefix}field-container">
-            <label for="${prefix}input-keywords-certain-choice-comment-walk">${getTextWithLanguage({ vi: "Từ khóa chắc chắn được chọn khi xuất hiện (chỉ dành cho khu vực bình luận là trang chủ) (cách nhau bằng dấu phẩy ',')", en: "Keywords must be included in the content when commenting (separate by comma ',') (only for home page comment area)" })}:</label>
+            <label for="${prefix}input-keywords-certain-choice-comment-walk">${getTextWithLanguage({ vi: "Từ khóa tỷ lệ cao được chọn khi xuất hiện (cách nhau bằng dấu phẩy ',')", en: "Keywords has high probability to be included in the content when commenting (separate by comma ',') (only for home page comment area)" })}:</label>
             <div style="display: flex; gap: 4px;">
               <textarea id="${prefix}input-keywords-certain-choice-comment-walk" class="${prefix}input-outline" style="display: inline-block; flex: 1;" placeholder="Ex: Tìm phòng, Tìm trọ, ..."></textarea>  
             </div>
@@ -1231,7 +1231,6 @@ async function createPanelSetting(anchorElem = document.body) {
               );
               const value = input?.value.trim();
               if (input) {
-                console.log(value);
                 await saveAndLog(async () => {
                   const arr = splitString(value);
                   await setContentQueryExcludesCommonData(arr);

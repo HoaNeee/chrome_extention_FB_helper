@@ -2085,7 +2085,6 @@
         };
       };
       const VALUE_RATE_ADD_FOR_HOME = 0;
-      const VALUE_RATE_ADD_FOR_SEARCH_USE_AI = 1;
       const VALUE_RATE_MULTIPLY_FOR_KEYWORD_CERTAIN = 2;
       const isDevMode = await CL_getIsDevMode();
       const isTest = await CL_getIsTest();
@@ -2324,23 +2323,24 @@
               logErrorContent("Not found div feed content, skip post");
               continue;
             }
-            const matchContentNotShowMore = matchQueryKeywords(
+            const matchContentExcludesNotShowMore = matchQueryKeywords(
               content_query_excludes_common,
               divFeedContent.textContent
             );
-            if (matchContentNotShowMore.length) {
-              logExcludeKeywords(matchContentNotShowMore);
+            if (matchContentExcludesNotShowMore.length) {
+              logExcludeKeywords(matchContentExcludesNotShowMore);
               continue;
             }
             const btnShowMore = findButtonShowMore(child);
             if (btnShowMore) {
+              await sleepHelper().fast();
               btnShowMore.click();
               await calculateValueSleep(speed);
               await scrollElementIntoView(divButtonToPost);
               await calculateValueSleep(speed);
             }
             const contentDiv = getContentFromDivItemContent(divFeedContent);
-            if (contentDiv.length >= 500) {
+            if (contentDiv.length >= 600) {
               logContent(
                 getTextLanguageContent({
                   vi: `B\xE0i vi\u1EBFt n\u1ED9i dung qu\xE1 d\xE0i (${contentDiv.length} k\xFD t\u1EF1), b\u1ECF qua...`,
@@ -2387,20 +2387,13 @@
             );
             keywordIncludeMatch.push(...keywordIncludeCommons);
             if (keywordIncludeCommons.length < max_rate_common) {
-              if (areaComment.isHome) {
-                let flag = false;
-                for (const keyword of keywords_certain_choice_common) {
-                  if (contentDiv.toLowerCase().includes(keyword.toLowerCase())) {
-                    keywordIncludeMatch.push(keyword);
-                    flag = true;
-                    break;
-                  }
+              isSkipPost = true;
+              for (const keyword of keywords_certain_choice_common) {
+                if (contentDiv.toLowerCase().includes(keyword.toLowerCase())) {
+                  keywordIncludeMatch.push(keyword);
+                  isSkipPost = false;
+                  break;
                 }
-                if (!flag) {
-                  isSkipPost = true;
-                }
-              } else {
-                isSkipPost = true;
               }
             }
             if (!isSkipPost) {
@@ -2410,7 +2403,10 @@
               let max_rate_comment_walk = Number(commentWalk?.match_rate_value_content_query_includes) || 0;
               if (areaComment.isSearch) {
                 if (isAIHelp) {
-                  max_rate_comment_walk += VALUE_RATE_ADD_FOR_SEARCH_USE_AI;
+                  max_rate_comment_walk = Math.max(
+                    3,
+                    keyword_query_include_comment_walk.length
+                  );
                 }
                 const keywordExcludeCommentWalkMatch = matchQueryKeywords(
                   keyword_query_exclude_comment_walk,
@@ -2646,8 +2642,8 @@
             if (content) {
               await calculateValueSleep(speed);
               const success = await simulateTyping(inputEditor, content, {
-                minDelay: setting.time_delay_fill_content_comment_walk_min,
-                maxDelay: setting.time_delay_fill_content_comment_walk_max
+                minDelay: Number(setting.time_delay_fill_content_comment_walk_min) + 50,
+                maxDelay: Number(setting.time_delay_fill_content_comment_walk_max) + 50
               });
               if (!success) {
                 logContent(
@@ -2785,6 +2781,9 @@
       let cnt = 0;
       for (let link of listLinks) {
         const href = link.getAttribute("href");
+        if (href && href.includes("/videos/")) {
+          return false;
+        }
         if (href && href.includes("/photo/")) {
           ++cnt;
           if (cnt >= 2) break;

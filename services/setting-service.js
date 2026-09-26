@@ -293,11 +293,11 @@ async function getIsSpammedData() {
     }
     const deviceSetting = await getDeviceSettingTemp();
     if (deviceSetting) {
-      return deviceSetting.is_spammed;
+      return deviceSetting.post_config.is_spammed;
     }
 
     const setting = await getDeviceSetting();
-    return setting.is_spammed;
+    return setting.post_config.is_spammed;
   } catch (error) {
     throw error;
   }
@@ -313,11 +313,11 @@ async function setIsSpammedData(b = false) {
     if (isUseLocalStorage) {
       await DB_setValue(KEY_IS_SPAMMED, b);
     } else {
-      await updateDeviceSettingRequest("is_spammed", b);
+      await updatePostConfigSetting("is_spammed", b);
     }
     const deviceSetting = await getDeviceSettingTemp();
     if (deviceSetting) {
-      deviceSetting.is_spammed = b;
+      deviceSetting.post_config.is_spammed = b;
       await setDeviceSettingTemp(deviceSetting);
     }
     return true;
@@ -339,12 +339,13 @@ async function getMaxGroupPerTimeData() {
     }
 
     const deviceSetting = await getDeviceSettingTemp();
-    if (deviceSetting) {
-      return deviceSetting.max_group_per_batch;
+    console.log(deviceSetting);
+    if (deviceSetting && deviceSetting?.post_config) {
+      return deviceSetting?.post_config?.max_group_per_batch;
     }
 
     const setting = await getDeviceSetting();
-    return setting.max_group_per_batch;
+    return setting.post_config.max_group_per_batch;
   } catch (error) {
     throw error;
   }
@@ -360,11 +361,11 @@ async function setMaxGroupPerTimeData(maxGroupPerTime) {
     if (isUseLocalStorage) {
       await DB_setValue(KEY_MAX_GROUP_PER_TIME, maxGroupPerTime);
     } else {
-      await updateDeviceSettingRequest("max_group_per_batch", maxGroupPerTime);
+      await updatePostConfigSetting("max_group_per_batch", maxGroupPerTime);
     }
     const deviceSetting = await getDeviceSettingTemp();
     if (deviceSetting) {
-      deviceSetting.max_group_per_batch = Number(maxGroupPerTime);
+      deviceSetting.post_config.max_group_per_batch = Number(maxGroupPerTime);
       await setDeviceSettingTemp(deviceSetting);
     }
     return true;
@@ -527,11 +528,11 @@ async function getLastTimePostData() {
     }
     const deviceSetting = await getDeviceSettingTemp();
     if (deviceSetting) {
-      return deviceSetting.last_time_post;
+      return deviceSetting.post_config.last_time_post;
     }
 
     const setting = await getDeviceSetting();
-    return setting.last_time_post;
+    return setting.post_config.last_time_post;
   } catch (error) {
     throw error;
   }
@@ -546,11 +547,11 @@ async function setLastTimePostData(lastTimePost) {
     if (isUseLocalStorage) {
       await DB_setValue(KEY_LAST_TIME_POST, lastTimePost);
     } else {
-      await updateDeviceSettingRequest("last_time_post", lastTimePost);
+      await updatePostConfigSetting("last_time_post", lastTimePost);
     }
     const deviceSetting = await getDeviceSettingTemp();
     if (deviceSetting) {
-      deviceSetting.last_time_post = lastTimePost;
+      deviceSetting.post_config.last_time_post = lastTimePost;
       await setDeviceSettingTemp(deviceSetting);
     }
     return true;
@@ -613,11 +614,11 @@ async function getIsShuffleGroupNeedPostData() {
     }
     const deviceSetting = await getDeviceSettingTemp();
     if (deviceSetting) {
-      return deviceSetting.is_shuffle_group_need_post;
+      return deviceSetting.post_config.is_shuffle_group_need_post;
     }
 
     const setting = await getDeviceSetting();
-    return setting.is_shuffle_group_need_post;
+    return setting.post_config.is_shuffle_group_need_post;
   } catch (error) {
     throw error;
   }
@@ -632,11 +633,11 @@ async function setIsShuffleGroupNeedPostData(b = false) {
     if (isUseLocalStorage) {
       await DB_setValue(KEY_IS_SHUFFLE_GROUPS_NEED_POST, b);
     } else {
-      await updateDeviceSettingRequest("is_shuffle_group_need_post", b);
+      await updatePostConfigSetting("is_shuffle_group_need_post", b);
     }
     const deviceSetting = await getDeviceSettingTemp();
     if (deviceSetting) {
-      deviceSetting.is_shuffle_group_need_post = b;
+      deviceSetting.post_config.is_shuffle_group_need_post = b;
       await setDeviceSettingTemp(deviceSetting);
     }
     return true;
@@ -747,36 +748,16 @@ async function getSettingByDeviceInStorage() {
     const is_random_break_batch = await getIsRandomBreakBatchData();
     const is_random_time_post = await getIsRandomTimePostData();
     const is_scheduler = await getIsSchedulerData();
-    const max_group_per_batch = await getMaxGroupPerTimeData();
     const strictly_match_title_group = await getStrictlyMatchTitleGroupData();
-    const is_spammed = await getIsSpammedData();
     const is_comment_when_post = await getIsCommentWhenPostSuccessData();
     const is_interact_batch = await getIsInteractBeforePostData();
     const is_special_frame_hours = await getIsSpecialFrameHoursData();
 
-    const is_shuffle_group_need_post = await getIsShuffleGroupNeedPostData();
-    const is_comment_walk = await getIsCommentWalkData();
+    const priority_task = await getPriorityTaskData();
 
-    //time delay
-    const timeDelay = await getTimeDelayData();
-    const time_delay_click_to_post = timeDelay.time_delay_click_to_post;
-    const time_delay_fill_content = timeDelay.time_delay_fill_content;
-    const time_delay_fill_file = timeDelay.time_delay_fill_file;
-    const time_delay_post = timeDelay.time_delay_post;
-    const time_delay_open_new_tab = timeDelay.time_delay_open_new_tab;
+    const commentWalkConfig = await getCommentWalkConfig();
+    const postConfig = await getPostConfig();
 
-    //TODO LATER
-    // const commentWalk = await getCommentWalkData();
-    // const time_delay_click_to_post_comment_walk = commentWalk.time_delay_click_to_post;
-    // const time_delay_fill_content_comment_walk = commentWalk.time_delay_fill_content;
-    // const time_delay_fill_file_comment_walk = commentWalk.time_delay_fill_file;
-    // const time_delay_submit_comment_walk = commentWalk.time_delay_submit;
-    // const time_break_when_spammed = commentWalk.time_break_when_spammed;
-    // const content_query_includes_common_comment_walk = commentWalk.content_query_includes_common;
-    // const content_query_excludes_common_comment_walk = commentWalk.content_query_excludes_common;
-
-    //last time post
-    const last_time_post = await getLastTimePostData();
     const device_id = await getDeviceId();
 
     return {
@@ -784,26 +765,73 @@ async function getSettingByDeviceInStorage() {
       is_fix_steal_all_focus,
       is_random_break_batch,
       is_random_time_post,
-      is_shuffle_group_need_post,
       is_scheduler,
-      max_group_per_batch,
       strictly_match_title_group,
-      is_spammed,
       is_comment_when_post,
       is_interact_batch,
       is_special_frame_hours,
-      time_delay_click_to_post,
-      time_delay_fill_content,
-      time_delay_fill_file,
-      time_delay_post,
-      time_delay_open_new_tab,
-      last_time_post,
       device_id,
-      is_comment_walk,
+      post_config: postConfig,
+      comment_walk_config: commentWalkConfig,
+      priority_task,
     };
   } catch (error) {
     throw error;
   }
+}
+
+/**
+ *
+ * @returns {Promise<CommentWalkConfig>}
+ */
+async function getCommentWalkConfig() {
+  const isCommentWalk = await getIsCommentWalkData();
+  const isCommentWalkPerBatch = await getMaxCommentWalkPerBatchData();
+  const timeDelay = await getTimeDelayCommentWalk();
+  const is_ai_help_comment_walk = await getIsAIHelpCommentWalkData();
+  const is_combine_strictly_title_group =
+    await getStrictlyMatchTitleGroupData();
+  const is_skip_post_not_in_group = await getIsSkipPostNotInGroupData();
+  const comment_walk_area = await getCommentWalkAreaData();
+  const comment_walk_speed = await getCommentWalkSpeedData();
+
+  const last_time_comment_walk = await getLastTimeCommentWalkData();
+  const match_rate_value_content_query_includes_common_comment_walk =
+    await getMatchRateValueContentQueryIncludesCommonData();
+
+  return {
+    is_comment_walk: isCommentWalk,
+    max_comment_walk_per_batch: isCommentWalkPerBatch,
+    is_ai_help_comment_walk,
+    is_combine_strictly_title_group,
+    is_skip_post_not_in_group,
+    comment_walk_area,
+    comment_walk_speed,
+    last_time_comment_walk,
+    match_rate_value_content_query_includes_common_comment_walk,
+    is_spammed_comment_walk: false,
+    content_query_includes_common_comment_walk:
+      await getContentQueryIncludesCommonData(),
+    content_query_excludes_common_comment_walk:
+      await getContentQueryExcludesCommonData(),
+    keywords_certain_choice_comment_walk:
+      await getKeywordsCertainChoiceCommentWalkData(),
+    ...timeDelay,
+  };
+}
+
+/**
+ * @returns {Promise<PostConfig>}
+ */
+async function getPostConfig() {
+  const timeDelay = await getTimeDelayData();
+  return {
+    max_group_per_batch: await getMaxGroupPerTimeData(),
+    is_shuffle_group_need_post: await getIsShuffleGroupNeedPostData(),
+    is_spammed: await getIsSpammedData(),
+    last_time_post: await getLastTimePostData(),
+    ...timeDelay,
+  };
 }
 
 /**
@@ -845,6 +873,44 @@ async function updateDeviceSettingRequest(key, value) {
   }
 }
 
+async function updatePostConfigSetting(key, value) {
+  try {
+    const deviceId = await getDeviceId();
+    await patch("/devices/settings/post-config", {
+      device_id: deviceId,
+      [key]: value,
+    });
+
+    const deviceSetting = await getDeviceSettingTemp();
+    if (deviceSetting) {
+      deviceSetting.post_config[key] = value;
+      await setDeviceSettingTemp(deviceSetting);
+    }
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function updateCommentWalkSetting(key, value) {
+  try {
+    const deviceId = await getDeviceId();
+    await patch("/devices/settings/comment-walk-config", {
+      device_id: deviceId,
+      [key]: value,
+    });
+
+    const deviceSetting = await getDeviceSettingTemp();
+    if (deviceSetting) {
+      deviceSetting.comment_walk_config[key] = value;
+      await setDeviceSettingTemp(deviceSetting);
+    }
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
+
 /**
  *
  * @returns {Promise<DeviceSetting>}
@@ -852,14 +918,14 @@ async function updateDeviceSettingRequest(key, value) {
 async function getDeviceSetting() {
   try {
     let deviceSetting = await getDeviceSettingTemp();
-    if (deviceSetting === null || deviceSetting === undefined) {
-      const isUseLocalStorage = await getIsUseLocalStorage();
-      if (isUseLocalStorage) {
-        deviceSetting = await getSettingByDeviceInStorage();
-      } else {
-        deviceSetting = await getSettingByDeviceRequest();
-      }
+
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      deviceSetting = await getSettingByDeviceInStorage();
+    } else {
+      deviceSetting = await getSettingByDeviceRequest();
     }
+
     return deviceSetting;
   } catch (error) {
     logError("Error at get device setting", error);
@@ -893,11 +959,11 @@ async function setIsCommentWalkData(b = false) {
     if (isUseLocalStorage) {
       await DB_setValue(KEY_COMMENT_WALK.IS_ACTIVE, b);
     } else {
-      await updateDeviceSettingRequest("is_comment_walk", b);
+      await updateCommentWalkSetting("is_comment_walk", b);
     }
     const deviceSetting = await getDeviceSettingTemp();
     if (deviceSetting) {
-      deviceSetting.is_comment_walk = b;
+      deviceSetting.comment_walk_config.is_comment_walk = b;
       await setDeviceSettingTemp(deviceSetting);
     }
     return true;
@@ -915,11 +981,11 @@ async function getIsCommentWalkData() {
 
     const deviceSetting = await getDeviceSettingTemp();
     if (deviceSetting) {
-      return deviceSetting.is_comment_walk;
+      return deviceSetting.comment_walk_config.is_comment_walk;
     }
 
     const setting = await getDeviceSetting();
-    return setting.is_comment_walk;
+    return setting.comment_walk_config.is_comment_walk;
   } catch (error) {
     throw error;
   }
@@ -931,10 +997,25 @@ async function getIsCommentWalkData() {
  */
 async function setTimeDelayCommentWalk(timeDelay) {
   try {
-    await DB_setValue(
-      KEY_COMMENT_WALK.COMMENT_WALK_SETTING_TIME_DELAY,
-      timeDelay,
-    );
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(
+        KEY_COMMENT_WALK.COMMENT_WALK_SETTING_TIME_DELAY,
+        timeDelay,
+      );
+    } else {
+      const deviceSetting = await getDeviceSettingTemp();
+      await Promise.all(
+        Object.entries(timeDelay).map(async ([key, value]) => {
+          if (
+            timeDelay[key] !== undefined &&
+            timeDelay[key] !== deviceSetting.comment_walk_config[key]
+          ) {
+            await updateCommentWalkSetting(key, value);
+          }
+        }),
+      );
+    }
   } catch (error) {
     throw error;
   }
@@ -946,24 +1027,57 @@ async function setTimeDelayCommentWalk(timeDelay) {
  */
 async function getTimeDelayCommentWalk() {
   try {
-    const res = await DB_getValue(
-      KEY_COMMENT_WALK.COMMENT_WALK_SETTING_TIME_DELAY,
-    );
-    if (!res) {
-      const data = {
-        time_delay_fill_content_comment_walk_max:
-          DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_content_comment_walk_max,
-        time_delay_fill_content_comment_walk_min:
-          DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_content_comment_walk_min,
-        time_delay_fill_file_comment_walk:
-          DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_file_comment_walk,
-        time_delay_submit_comment_walk:
-          DEFAULT_COMMENT_WALK_SETTING.time_delay_submit_comment_walk,
-      };
-      await setTimeDelayCommentWalk(data);
-      return data;
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      const res = await DB_getValue(
+        KEY_COMMENT_WALK.COMMENT_WALK_SETTING_TIME_DELAY,
+      );
+      if (!res) {
+        const data = {
+          time_delay_fill_content_comment_walk_max:
+            DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_content_comment_walk_max,
+          time_delay_fill_content_comment_walk_min:
+            DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_content_comment_walk_min,
+          time_delay_fill_file_comment_walk:
+            DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_file_comment_walk,
+          time_delay_submit_comment_walk:
+            DEFAULT_COMMENT_WALK_SETTING.time_delay_submit_comment_walk,
+        };
+        await setTimeDelayCommentWalk(data);
+        return data;
+      }
+      return res;
     }
-    return res;
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return {
+        time_delay_fill_content_comment_walk_max:
+          deviceSettingTemp.comment_walk_config
+            .time_delay_fill_content_comment_walk_max,
+        time_delay_fill_content_comment_walk_min:
+          deviceSettingTemp.comment_walk_config
+            .time_delay_fill_content_comment_walk_min,
+        time_delay_fill_file_comment_walk:
+          deviceSettingTemp.comment_walk_config
+            .time_delay_fill_file_comment_walk,
+        time_delay_submit_comment_walk:
+          deviceSettingTemp.comment_walk_config.time_delay_submit_comment_walk,
+      };
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return {
+      time_delay_fill_content_comment_walk_max:
+        deviceSetting.comment_walk_config
+          .time_delay_fill_content_comment_walk_max,
+      time_delay_fill_content_comment_walk_min:
+        deviceSetting.comment_walk_config
+          .time_delay_fill_content_comment_walk_min,
+      time_delay_fill_file_comment_walk:
+        deviceSetting.comment_walk_config.time_delay_fill_file_comment_walk,
+      time_delay_submit_comment_walk:
+        deviceSetting.comment_walk_config.time_delay_submit_comment_walk,
+    };
   } catch (error) {
     throw error;
   }
@@ -971,16 +1085,27 @@ async function getTimeDelayCommentWalk() {
 
 async function getMaxCommentWalkPerBatchData() {
   try {
-    const res = await DB_getValue(
-      KEY_COMMENT_WALK.COMMENT_WALK_SETTING_MAX_COMMENT_PER_BATCH,
-    );
-    if (!res) {
-      await setMaxCommentWalkPerBatchData(
-        DEFAULT_COMMENT_WALK_SETTING.max_comment_walk_per_batch,
+    const isUseLocalStorage = await getIsUseLocalStorage();
+
+    if (isUseLocalStorage) {
+      const res = await DB_getValue(
+        KEY_COMMENT_WALK.COMMENT_WALK_SETTING_MAX_COMMENT_PER_BATCH,
       );
-      return DEFAULT_COMMENT_WALK_SETTING.max_comment_walk_per_batch;
+      if (!res) {
+        await setMaxCommentWalkPerBatchData(
+          DEFAULT_COMMENT_WALK_SETTING.max_comment_walk_per_batch,
+        );
+        return DEFAULT_COMMENT_WALK_SETTING.max_comment_walk_per_batch;
+      }
+      return res;
     }
-    return res;
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.comment_walk_config.max_comment_walk_per_batch;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.comment_walk_config.max_comment_walk_per_batch;
   } catch (error) {
     throw error;
   }
@@ -988,69 +1113,164 @@ async function getMaxCommentWalkPerBatchData() {
 
 async function setMaxCommentWalkPerBatchData(max_comment_walk_per_batch) {
   try {
-    await DB_setValue(
-      KEY_COMMENT_WALK.COMMENT_WALK_SETTING_MAX_COMMENT_PER_BATCH,
-      max_comment_walk_per_batch,
-    );
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(
+        KEY_COMMENT_WALK.COMMENT_WALK_SETTING_MAX_COMMENT_PER_BATCH,
+        max_comment_walk_per_batch,
+      );
+    } else {
+      await updateCommentWalkSetting(
+        "max_comment_walk_per_batch",
+        max_comment_walk_per_batch,
+      );
+    }
+
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.comment_walk_config.max_comment_walk_per_batch =
+        max_comment_walk_per_batch;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
   } catch (error) {
     throw error;
   }
 }
 
 async function getTimeBreakWhenSpammedData() {
-  return await DB_getValue(KEY_TIME_BREAK_WHEN_SPAMMED, 0);
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  if (isUseLocalStorage) {
+    return await DB_getValue(KEY_TIME_BREAK_WHEN_SPAMMED, 0);
+  }
+  const deviceSettingTemp = await getDeviceSettingTemp();
+  if (deviceSettingTemp) {
+    return deviceSettingTemp.time_break_when_spammed;
+  }
+
+  const deviceSetting = await getDeviceSetting();
+  return deviceSetting.time_break_when_spammed;
 }
 
 async function setTimeBreakWhenSpammedData(time) {
-  await DB_setValue(KEY_TIME_BREAK_WHEN_SPAMMED, time);
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  if (isUseLocalStorage) {
+    await DB_setValue(KEY_TIME_BREAK_WHEN_SPAMMED, time);
+  } else {
+    await updateDeviceSettingRequest("time_break_when_spammed", time);
+  }
+
+  const deviceSettingTemp = await getDeviceSettingTemp();
+  if (deviceSettingTemp) {
+    deviceSettingTemp.time_break_when_spammed = time;
+    await setDeviceSettingTemp(deviceSettingTemp);
+  }
 }
 
 /**
  * @returns {Promise<Array<string>>}
  */
 async function getContentQueryIncludesCommonData() {
-  const res = await DB_getValue(KEY_COMMENT_WALK.CONTENT_QUERY_INCLUDES_COMMON);
-  if (res === null || res === undefined) {
-    await setContentQueryIncludesCommonData(
-      KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_INCLUDES_COMMON,
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  if (isUseLocalStorage) {
+    const res = await DB_getValue(
+      KEY_COMMENT_WALK.CONTENT_QUERY_INCLUDES_COMMON,
     );
-    return KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_INCLUDES_COMMON;
+    if (res === null || res === undefined) {
+      await setContentQueryIncludesCommonData(
+        KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_INCLUDES_COMMON,
+      );
+      return KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_INCLUDES_COMMON;
+    }
+    return res;
   }
-  return res;
+  const deviceSettingTemp = await getDeviceSettingTemp();
+  if (deviceSettingTemp) {
+    return deviceSettingTemp.comment_walk_config
+      .content_query_includes_common_comment_walk;
+  }
+
+  const deviceSetting = await getDeviceSetting();
+  return deviceSetting.comment_walk_config
+    .content_query_includes_common_comment_walk;
 }
 
 /**
  * @param {Array<string>} contentQueryIncludesCommon
  */
 async function setContentQueryIncludesCommonData(contentQueryIncludesCommon) {
-  await DB_setValue(
-    KEY_COMMENT_WALK.CONTENT_QUERY_INCLUDES_COMMON,
-    contentQueryIncludesCommon,
-  );
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  if (isUseLocalStorage) {
+    await DB_setValue(
+      KEY_COMMENT_WALK.CONTENT_QUERY_INCLUDES_COMMON,
+      contentQueryIncludesCommon,
+    );
+  } else {
+    await updateCommentWalkSetting(
+      "content_query_includes_common_comment_walk",
+      contentQueryIncludesCommon,
+    );
+  }
+
+  const deviceSettingTemp = await getDeviceSettingTemp();
+  if (deviceSettingTemp) {
+    deviceSettingTemp.comment_walk_config.content_query_includes_common_comment_walk =
+      contentQueryIncludesCommon;
+    await setDeviceSettingTemp(deviceSettingTemp);
+  }
 }
 
 /**
  * @returns {Promise<Array<string>>}
  */
 async function getContentQueryExcludesCommonData() {
-  const res = await DB_getValue(KEY_COMMENT_WALK.CONTENT_QUERY_EXCLUDES_COMMON);
-  if (res === null || res === undefined) {
-    await setContentQueryExcludesCommonData(
-      KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON,
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  if (isUseLocalStorage) {
+    const res = await DB_getValue(
+      KEY_COMMENT_WALK.CONTENT_QUERY_EXCLUDES_COMMON,
     );
-    return KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON;
+    if (res === null || res === undefined) {
+      await setContentQueryExcludesCommonData(
+        KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON,
+      );
+      return KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON;
+    }
+    return res;
   }
-  return res;
+
+  const deviceSettingTemp = await getDeviceSettingTemp();
+  if (deviceSettingTemp) {
+    return deviceSettingTemp.comment_walk_config
+      .content_query_excludes_common_comment_walk;
+  }
+
+  const deviceSetting = await getDeviceSetting();
+  return deviceSetting.comment_walk_config
+    .content_query_excludes_common_comment_walk;
 }
 
 /**
  * @param {Array<string>} contentQueryExcludesCommon
  */
 async function setContentQueryExcludesCommonData(contentQueryExcludesCommon) {
-  await DB_setValue(
-    KEY_COMMENT_WALK.CONTENT_QUERY_EXCLUDES_COMMON,
-    contentQueryExcludesCommon,
-  );
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  if (isUseLocalStorage) {
+    await DB_setValue(
+      KEY_COMMENT_WALK.CONTENT_QUERY_EXCLUDES_COMMON,
+      contentQueryExcludesCommon,
+    );
+  } else {
+    await updateCommentWalkSetting(
+      "content_query_excludes_common_comment_walk",
+      contentQueryExcludesCommon,
+    );
+  }
+
+  const deviceSettingTemp = await getDeviceSettingTemp();
+  if (deviceSettingTemp) {
+    deviceSettingTemp.comment_walk_config.content_query_excludes_common_comment_walk =
+      contentQueryExcludesCommon;
+    await setDeviceSettingTemp(deviceSettingTemp);
+  }
 }
 
 /**
@@ -1058,22 +1278,60 @@ async function setContentQueryExcludesCommonData(contentQueryExcludesCommon) {
  * @returns {Promise<number>}
  */
 async function getMatchRateValueContentQueryIncludesCommonData() {
-  return await DB_getValue(
-    KEY_COMMENT_WALK.MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
-    KEY_DEFAULT_VALUE.DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
-  );
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  if (isUseLocalStorage) {
+    return await DB_getValue(
+      KEY_COMMENT_WALK.MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
+      KEY_DEFAULT_VALUE.DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
+    );
+  }
+
+  const deviceSettingTemp = await getDeviceSettingTemp();
+  if (deviceSettingTemp) {
+    return deviceSettingTemp.comment_walk_config
+      .match_rate_value_content_query_includes_common_comment_walk;
+  }
+
+  const deviceSetting = await getDeviceSetting();
+  return deviceSetting.comment_walk_config
+    .match_rate_value_content_query_includes_common_comment_walk;
 }
 
 async function setMatchRateValueContentQueryIncludesCommonData(rate) {
-  await DB_setValue(
-    KEY_COMMENT_WALK.MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
-    rate,
-  );
+  const isUseLocalStorage = await getIsUseLocalStorage();
+  if (isUseLocalStorage) {
+    await DB_setValue(
+      KEY_COMMENT_WALK.MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
+      rate,
+    );
+  } else {
+    await updateCommentWalkSetting(
+      "match_rate_value_content_query_includes_common_comment_walk",
+      rate,
+    );
+  }
+
+  const deviceSettingTemp = await getDeviceSettingTemp();
+  if (deviceSettingTemp) {
+    deviceSettingTemp.comment_walk_config.match_rate_value_content_query_includes_common_comment_walk =
+      rate;
+    await setDeviceSettingTemp(deviceSettingTemp);
+  }
 }
 
 async function getIsStopTaskData() {
   try {
-    return await DB_getValue(KEY_STOP_TASK, false);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(KEY_STOP_TASK, false);
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.is_stop_task;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.is_stop_task;
   } catch (error) {
     throw error;
   }
@@ -1081,7 +1339,20 @@ async function getIsStopTaskData() {
 
 async function setIsStopTaskData(b = false) {
   try {
-    await DB_setValue(KEY_STOP_TASK, b);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(KEY_STOP_TASK, b);
+    } else {
+      const deviceId = await getDeviceId();
+      await patch(`/devices/settings/${deviceId}/change-status-tool`, {
+        is_stop_task: b,
+      });
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.is_stop_task = b;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
     return true;
   } catch (error) {
     throw error;
@@ -1090,7 +1361,21 @@ async function setIsStopTaskData(b = false) {
 
 async function setLastTimeCommentWalkData(lastTimeComment) {
   try {
-    await DB_setValue(KEY_COMMENT_WALK.LAST_TIME_COMMENT_WALK, lastTimeComment);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(
+        KEY_COMMENT_WALK.LAST_TIME_COMMENT_WALK,
+        lastTimeComment,
+      );
+    } else {
+      await updateCommentWalkSetting("last_time_comment_walk", lastTimeComment);
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.comment_walk_config.last_time_comment_walk =
+        lastTimeComment;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
   } catch (error) {
     throw error;
   }
@@ -1098,7 +1383,17 @@ async function setLastTimeCommentWalkData(lastTimeComment) {
 
 async function getLastTimeCommentWalkData() {
   try {
-    return await DB_getValue(KEY_COMMENT_WALK.LAST_TIME_COMMENT_WALK, 0);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(KEY_COMMENT_WALK.LAST_TIME_COMMENT_WALK, 0);
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.comment_walk_config.last_time_comment_walk;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.comment_walk_config.last_time_comment_walk;
   } catch (error) {
     throw error;
   }
@@ -1106,7 +1401,17 @@ async function getLastTimeCommentWalkData() {
 
 async function getPriorityTaskPostData() {
   try {
-    return await DB_getValue(KEY_PRIORITY_TASK.POST);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(KEY_PRIORITY_TASK.POST);
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.priority_task.priority_task_post;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.priority_task.priority_task_post;
   } catch (error) {
     throw error;
   }
@@ -1114,7 +1419,21 @@ async function getPriorityTaskPostData() {
 
 async function setPriorityTaskPostData(priority = 1) {
   try {
-    await DB_setValue(KEY_PRIORITY_TASK.POST, priority);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(KEY_PRIORITY_TASK.POST, priority);
+    } else {
+      const deviceId = await getDeviceId();
+      await patch(`/devices/settings/${deviceId}/update-priority-task`, {
+        priority_task_post: priority,
+      });
+    }
+
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.priority_task.priority_task_post = priority;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
   } catch (error) {
     throw error;
   }
@@ -1122,7 +1441,17 @@ async function setPriorityTaskPostData(priority = 1) {
 
 async function getPriorityTaskCommentWalkData() {
   try {
-    return await DB_getValue(KEY_PRIORITY_TASK.COMMENT_WALK);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(KEY_PRIORITY_TASK.COMMENT_WALK);
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.priority_task.priority_task_comment_walk;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.priority_task.priority_task_comment_walk;
   } catch (error) {
     throw error;
   }
@@ -1130,7 +1459,21 @@ async function getPriorityTaskCommentWalkData() {
 
 async function setPriorityTaskCommentWalkData(priority = 1) {
   try {
-    await DB_setValue(KEY_PRIORITY_TASK.COMMENT_WALK, priority);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(KEY_PRIORITY_TASK.COMMENT_WALK, priority);
+    } else {
+      const deviceId = await getDeviceId();
+      await patch(`/devices/settings/${deviceId}/update-priority-task`, {
+        priority_task_comment_walk: priority,
+      });
+    }
+
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.priority_task.priority_task_comment_walk = priority;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
   } catch (error) {
     throw error;
   }
@@ -1181,7 +1524,17 @@ async function setPriorityTaskData(priority) {
 
 async function getIsExecutePriorityTaskData() {
   try {
-    return await DB_getValue(KEY_IS_EXECUTE_PRIORITY_TASK, false);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(KEY_IS_EXECUTE_PRIORITY_TASK, false);
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.is_execute_priority_task;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.is_execute_priority_task;
   } catch (error) {
     throw error;
   }
@@ -1189,7 +1542,21 @@ async function getIsExecutePriorityTaskData() {
 
 async function setIsExecutePriorityTaskData(isExecutePriorityTask = false) {
   try {
-    await DB_setValue(KEY_IS_EXECUTE_PRIORITY_TASK, isExecutePriorityTask);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(KEY_IS_EXECUTE_PRIORITY_TASK, isExecutePriorityTask);
+    } else {
+      await updateDeviceSettingRequest(
+        "is_execute_priority_task",
+        isExecutePriorityTask,
+      );
+    }
+
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.is_execute_priority_task = isExecutePriorityTask;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
     return true;
   } catch (error) {
     throw error;
@@ -1198,10 +1565,20 @@ async function setIsExecutePriorityTaskData(isExecutePriorityTask = false) {
 
 async function getCommentWalkAreaData() {
   try {
-    return await DB_getValue(
-      KEY_COMMENT_WALK.COMMENT_WALK_AREA,
-      DEFAULT_COMMENT_WALK_SETTING.comment_walk_area,
-    );
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(
+        KEY_COMMENT_WALK.COMMENT_WALK_AREA,
+        DEFAULT_COMMENT_WALK_SETTING.comment_walk_area,
+      );
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.comment_walk_config.comment_walk_area;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.comment_walk_config.comment_walk_area;
   } catch (error) {
     throw error;
   }
@@ -1209,7 +1586,19 @@ async function getCommentWalkAreaData() {
 
 async function setCommentWalkAreaData(commentWalkArea) {
   try {
-    await DB_setValue(KEY_COMMENT_WALK.COMMENT_WALK_AREA, commentWalkArea);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(KEY_COMMENT_WALK.COMMENT_WALK_AREA, commentWalkArea);
+    } else {
+      await updateCommentWalkSetting("comment_walk_area", commentWalkArea);
+    }
+
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.comment_walk_config.comment_walk_area = commentWalkArea;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
+    return true;
   } catch (error) {
     throw error;
   }
@@ -1217,9 +1606,22 @@ async function setCommentWalkAreaData(commentWalkArea) {
 
 async function getKeywordsCertainChoiceCommentWalkData() {
   try {
-    return await DB_getValue(
-      KEY_COMMENT_WALK.KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
-    );
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(
+        KEY_COMMENT_WALK.KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
+        DEFAULT_COMMENT_WALK_SETTING.keywords_certain_choice_comment_walk,
+      );
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.comment_walk_config
+        .keywords_certain_choice_comment_walk;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.comment_walk_config
+      .keywords_certain_choice_comment_walk;
   } catch (error) {
     throw error;
   }
@@ -1227,10 +1629,26 @@ async function getKeywordsCertainChoiceCommentWalkData() {
 
 async function setKeywordsCertainChoiceCommentWalkData(keywords) {
   try {
-    await DB_setValue(
-      KEY_COMMENT_WALK.KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
-      keywords,
-    );
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(
+        KEY_COMMENT_WALK.KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
+        keywords,
+      );
+    } else {
+      await updateCommentWalkSetting(
+        "keywords_certain_choice_comment_walk",
+        keywords,
+      );
+    }
+
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.comment_walk_config.keywords_certain_choice_comment_walk =
+        keywords;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
+    return true;
   } catch (error) {
     throw error;
   }
@@ -1238,7 +1656,20 @@ async function setKeywordsCertainChoiceCommentWalkData(keywords) {
 
 async function getIsSkipPostNotInGroupData() {
   try {
-    return await DB_getValue(KEY_COMMENT_WALK.IS_SKIP_POST_NOT_IN_GROUP, false);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(
+        KEY_COMMENT_WALK.IS_SKIP_POST_NOT_IN_GROUP,
+        false,
+      );
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.comment_walk_config.is_skip_post_not_in_group;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.comment_walk_config.is_skip_post_not_in_group;
   } catch (error) {
     throw error;
   }
@@ -1246,10 +1677,26 @@ async function getIsSkipPostNotInGroupData() {
 
 async function setIsSkipPostNotInGroupData(isSkipPostNotInGroup) {
   try {
-    await DB_setValue(
-      KEY_COMMENT_WALK.IS_SKIP_POST_NOT_IN_GROUP,
-      isSkipPostNotInGroup,
-    );
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(
+        KEY_COMMENT_WALK.IS_SKIP_POST_NOT_IN_GROUP,
+        isSkipPostNotInGroup,
+      );
+    } else {
+      await updateCommentWalkSetting(
+        "is_skip_post_not_in_group",
+        isSkipPostNotInGroup,
+      );
+    }
+
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.comment_walk_config.is_skip_post_not_in_group =
+        isSkipPostNotInGroup;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
+    return true;
   } catch (error) {
     throw error;
   }
@@ -1257,10 +1704,21 @@ async function setIsSkipPostNotInGroupData(isSkipPostNotInGroup) {
 
 async function getIsCombineStrictlyTitleGroupData() {
   try {
-    return await DB_getValue(
-      KEY_COMMENT_WALK.IS_COMBINE_STRICTLY_TITLE_GROUP,
-      false,
-    );
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(
+        KEY_COMMENT_WALK.IS_COMBINE_STRICTLY_TITLE_GROUP,
+        false,
+      );
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.comment_walk_config
+        .is_combine_keywords_title_group;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.comment_walk_config.is_combine_keywords_title_group;
   } catch (error) {
     throw error;
   }
@@ -1268,10 +1726,26 @@ async function getIsCombineStrictlyTitleGroupData() {
 
 async function setIsCombineStrictlyTitleGroupData(isCombineStrictlyTitleGroup) {
   try {
-    await DB_setValue(
-      KEY_COMMENT_WALK.IS_COMBINE_STRICTLY_TITLE_GROUP,
-      isCombineStrictlyTitleGroup,
-    );
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(
+        KEY_COMMENT_WALK.IS_COMBINE_STRICTLY_TITLE_GROUP,
+        isCombineStrictlyTitleGroup,
+      );
+    } else {
+      await updateCommentWalkSetting(
+        "is_combine_keywords_title_group",
+        isCombineStrictlyTitleGroup,
+      );
+    }
+
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.comment_walk_config.is_combine_keywords_title_group =
+        isCombineStrictlyTitleGroup;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
+    return true;
   } catch (error) {
     throw error;
   }
@@ -1279,10 +1753,20 @@ async function setIsCombineStrictlyTitleGroupData(isCombineStrictlyTitleGroup) {
 
 async function getCommentWalkSpeedData() {
   try {
-    return await DB_getValue(
-      KEY_COMMENT_WALK.COMMENT_WALK_SPEED,
-      DEFAULT_COMMENT_WALK_SETTING.comment_walk_speed,
-    );
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(
+        KEY_COMMENT_WALK.COMMENT_WALK_SPEED,
+        DEFAULT_COMMENT_WALK_SETTING.comment_walk_speed,
+      );
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.comment_walk_config.comment_walk_speed;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.comment_walk_config.comment_walk_speed;
   } catch (error) {
     throw error;
   }
@@ -1290,21 +1774,106 @@ async function getCommentWalkSpeedData() {
 
 async function setCommentWalkSpeedData(commentWalkSpeed) {
   try {
-    await DB_setValue(KEY_COMMENT_WALK.COMMENT_WALK_SPEED, commentWalkSpeed);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(KEY_COMMENT_WALK.COMMENT_WALK_SPEED, commentWalkSpeed);
+    } else {
+      await updateCommentWalkSetting("comment_walk_speed", commentWalkSpeed);
+    }
+
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.comment_walk_config.comment_walk_speed =
+        commentWalkSpeed;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
+    return true;
   } catch (error) {
     throw error;
   }
 }
 
 async function getIsAIHelpCommentWalkData() {
-  return await DB_getValue(KEY_COMMENT_WALK.IS_AI_HELP_COMMENT_WALK, false);
+  try {
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(KEY_COMMENT_WALK.IS_AI_HELP_COMMENT_WALK, false);
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.comment_walk_config.is_ai_help_comment_walk;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.comment_walk_config.is_ai_help_comment_walk;
+  } catch (error) {
+    throw error;
+  }
 }
 
 async function setIsAIHelpCommentWalkData(isAIHelpCommentWalk) {
-  await DB_setValue(
-    KEY_COMMENT_WALK.IS_AI_HELP_COMMENT_WALK,
-    isAIHelpCommentWalk,
-  );
+  try {
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await DB_setValue(
+        KEY_COMMENT_WALK.IS_AI_HELP_COMMENT_WALK,
+        isAIHelpCommentWalk,
+      );
+    } else {
+      await updateCommentWalkSetting(
+        "is_ai_help_comment_walk",
+        isAIHelpCommentWalk,
+      );
+    }
+
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.comment_walk_config.is_ai_help_comment_walk =
+        isAIHelpCommentWalk;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getIsRemoteData() {
+  try {
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return false;
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.is_remote_control;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.is_remote_control;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function setIsRemoteData(isRemote) {
+  try {
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return true;
+    } else {
+      await updateDeviceSettingRequest("is_remote_control", isRemote);
+    }
+
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.is_remote_control = isRemote;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
+    return true;
+  } catch (error) {
+    throw error;
+  }
 }
 
 export {
@@ -1379,4 +1948,6 @@ export {
   updateDeviceSettingRequest,
   getIsAIHelpCommentWalkData,
   setIsAIHelpCommentWalkData,
+  getIsRemoteData,
+  setIsRemoteData,
 };

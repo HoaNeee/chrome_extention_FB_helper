@@ -1,3 +1,4 @@
+import { KEY_FEATURE_FLAG } from "../../../contants/constant-extention.js";
 import {
   KEY_IS_PREMIUM,
   KEY_TASK_NAME,
@@ -13,7 +14,9 @@ import { getNextTimePost } from "../../../helpers/scheduler.js";
 import { commentWalkService } from "../../../services/comment-walk-service.js";
 import { getCurrentDataGroupPosting } from "../../../services/data-group-post-service.js";
 import {
+  checkFeatureEnable,
   getCurrentTaskName,
+  getFeatureFlag,
   getListTaskNameInactive,
 } from "../../../services/device-service.js";
 import {
@@ -136,6 +139,11 @@ function getDataSavedHTML({
   countCommentWalk = 0,
   isStopTask,
   currentTaskName = "",
+  ft_RandomBreakBatch = false,
+  ft_RandomTimePost = false,
+  ft_CommentWalk = false,
+  ft_SpecialFrameHours = false,
+  ft_PriorityTask = false,
 }) {
   const set = new Set();
   groupsNeedPost.forEach((item) => {
@@ -178,17 +186,17 @@ function getDataSavedHTML({
     : "";
 
   const groupsHtml = `
-      ${isPremium ? `<div>${getTextWithLanguage({ vi: "Trạng thái tiện ích", en: "Extension status" })}: <span style="color: ${colorByDisabled(!isStopTask)};">${enabledString(!isStopTask)}</span></div>` : ``}
-      ${isPremium ? `<div>${getTextWithLanguage({ vi: "Công việc hiện tại", en: "Current job" })}: <span>${deviceHelper.getTaskLabelWithName(currentTaskName)}</span></div>` : ``}
+      ${ft_CommentWalk ? `<div>${getTextWithLanguage({ vi: "Trạng thái tiện ích", en: "Extension status" })}: <span style="color: ${colorByDisabled(!isStopTask)};">${enabledString(!isStopTask)}</span></div>` : ``}
+      ${ft_CommentWalk ? `<div>${getTextWithLanguage({ vi: "Công việc hiện tại", en: "Current job" })}: <span>${deviceHelper.getTaskLabelWithName(currentTaskName)}</span></div>` : ``}
       <div>${getTextWithLanguage({ vi: "Tổng số nhóm", en: "Total Groups" })}: <b>${allGroups.length}</b></div>
       <div>${getTextWithLanguage({ vi: "Số nhóm cần đăng", en: "Total Groups Need Post" })}: <b>${totalGroupsNeedPost}</b></div>
       <div>${getTextWithLanguage({ vi: "Số nhóm đã đăng", en: "Total Groups Posted" })}: <b>${groupsPosted.length}</b></div>
       <div>${getTextWithLanguage({ vi: "Hiện tại đang đăng", en: "Total Current Groups Posted" })}: <b>${lengthPostedInCurrentTime}/${maxGroupPerTime}</b></div>
-      ${isPremium ? `<div>${getTextWithLanguage({ vi: "Đang đăng trong khung giờ đặc biệt", en: "Total Current Groups Posted In Special Frame Hour" })}: <b>${lengthPostedInCurrentTime}/${maxGroupPerTimeInSpecialFrameHour}</b>  ${!isSpecialFrameHours ? `(${getTextWithLanguage({ vi: "Đang tắt", en: "Off" })})` : ""} </div>` : ""}
+      ${ft_SpecialFrameHours ? `<div>${getTextWithLanguage({ vi: "Đang đăng trong khung giờ đặc biệt", en: "Total Current Groups Posted In Special Frame Hour" })}: <b>${lengthPostedInCurrentTime}/${maxGroupPerTimeInSpecialFrameHour}</b>  ${!isSpecialFrameHours ? `(${getTextWithLanguage({ vi: "Đang tắt", en: "Off" })})` : ""} </div>` : ""}
       <div>${getTextWithLanguage({ vi: "Nhóm hiện tại cần đăng", en: "Total Current Need Post" })}: <b>${currentGroupNeedPost?.groups?.length || 0}</b></div>
       <div>${getTextWithLanguage({ vi: "Nhóm hiện tại đã đăng", en: "Total Current Groups Posted" })}: <b>${totalCurrentGroupsPosted}</b></div>
       <div>${getTextWithLanguage({ vi: "Số lần đặt lại nhóm", en: "Count Reset Groups" })}: <b>${countResetGroups}</b></div>
-      ${isPremium ? `<div>${getTextWithLanguage({ vi: "Đợt đăng hiện tại", en: "Current Batch" })}: <b>${countBatch}</b></div>` : ""}
+      ${ft_RandomBreakBatch ? `<div>${getTextWithLanguage({ vi: "Đợt đăng hiện tại", en: "Current Batch" })}: <b>${countBatch}</b></div>` : ""}
       <div>${getTextWithLanguage({ vi: "Tên nhóm hiện tại", en: "Current Group title" })}: ${currentGroupNeedPost?.name || currentGroupNeedPost?.title || "N/A"}</div>
   `;
 
@@ -199,12 +207,12 @@ function getDataSavedHTML({
       <div id="${prefix}is-scheduler-status">${getTextWithLanguage({ vi: "Đang lên lịch", en: "Is Scheduler" })}: <span style="color: ${colorByDisabled(isScheduler)};">${enabledString(isScheduler)}</span></div>
       <div id="${prefix}is-fix-steal-focus-status">${getTextWithLanguage({ vi: "Tránh nhảy tab", en: "Is Fix Steal Focus" })}: <span style="color: ${colorByDisabled(isFixStealFocus)};">${enabledString(isFixStealFocus)}</span></div>
       <div id="${prefix}is-shuffle-groups-need-post-status">${getTextWithLanguage({ vi: "Trộn nhóm cần đăng", en: "Is Shuffle Groups Need Post" })}: <span style="color: ${colorByDisabled(isShuffleGroupsNeedPost)};">${enabledString(isShuffleGroupsNeedPost)}</span></div>
-      ${isPremium ? `<div id="${prefix}is-shuffle-time-status">${getTextWithLanguage({ vi: "Trộn lịch đăng", en: "Is Shuffle Time" })}: <span style="color: ${colorByDisabled(isShuffleTime)};">${enabledString(isShuffleTime)}</span></div>` : ""}
-      ${isPremium ? `<div id="${prefix}is-random-batch-post-status">${getTextWithLanguage({ vi: "Đợt đăng bài ngẫu nhiên", en: "Is Random Batch Post" })}: <span style="color: ${colorByDisabled(isRandomBatchPost)};">${enabledString(isRandomBatchPost)}</span></div>` : ""}
+      ${ft_RandomTimePost ? `<div id="${prefix}is-shuffle-time-status">${getTextWithLanguage({ vi: "Trộn lịch đăng", en: "Is Shuffle Time" })}: <span style="color: ${colorByDisabled(isShuffleTime)};">${enabledString(isShuffleTime)}</span></div>` : ""}
+      ${ft_RandomBreakBatch ? `<div id="${prefix}is-random-batch-post-status">${getTextWithLanguage({ vi: "Đợt đăng bài ngẫu nhiên", en: "Is Random Batch Post" })}: <span style="color: ${colorByDisabled(isRandomBatchPost)};">${enabledString(isRandomBatchPost)}</span></div>` : ""}
       ${isPremium ? `<div id="${prefix}is-random-time-post-status">${getTextWithLanguage({ vi: "Ngẫu nhiên thời gian đăng", en: "Random time post" })}: <span style="color: ${colorByDisabled(isRandomTimePost)};">${enabledString(isRandomTimePost)}</span></div>` : ""}
-      ${isPremium ? `<div id="${prefix}is-special-frame-hours">${getTextWithLanguage({ vi: "Khung giờ đặc biệt", en: "Special Frame Hours" })}: <span style="color: ${colorByDisabled(isSpecialFrameHours)};">${enabledString(isSpecialFrameHours)}</span></div>` : ""}
-      ${isCommentWalk ? `<div id="${prefix}is-comment-walk-status">${getTextWithLanguage({ vi: "Bình luận dạo", en: "Is Comment Walk" })}: <span style="color: ${colorByDisabled(isCommentWalk)};">${enabledString(isCommentWalk)}</span></div>` : ""}
-      ${isCommentWalkProcessing ? `<div id="${prefix}is-comment-walk-processing-status">${getTextWithLanguage({ vi: "Đang bình luận dạo", en: "Is Comment Walk Processing" })}: <span style="color: ${colorByDisabled(isCommentWalkProcessing)};">${enabledString(isCommentWalkProcessing)}</span></div>` : ""}
+      ${ft_CommentWalk ? `<div id="${prefix}is-special-frame-hours">${getTextWithLanguage({ vi: "Khung giờ đặc biệt", en: "Special Frame Hours" })}: <span style="color: ${colorByDisabled(isSpecialFrameHours)};">${enabledString(isSpecialFrameHours)}</span></div>` : ""}
+      ${ft_CommentWalk ? `<div id="${prefix}is-comment-walk-status">${getTextWithLanguage({ vi: "Bình luận dạo", en: "Is Comment Walk" })}: <span style="color: ${colorByDisabled(isCommentWalk)};">${enabledString(isCommentWalk)}</span></div>` : ""}
+      ${ft_CommentWalk ? `<div id="${prefix}is-comment-walk-processing-status">${getTextWithLanguage({ vi: "Đang bình luận dạo", en: "Is Comment Walk Processing" })}: <span style="color: ${colorByDisabled(isCommentWalkProcessing)};">${enabledString(isCommentWalkProcessing)}</span></div>` : ""}
       ${forDevHtml}
   `;
 
@@ -231,7 +239,7 @@ function getDataSavedHTML({
           ${groupsHtml}
           ${statusHtml}
           ${groupInfoHtml}
-          ${isPremium ? commentWalkHtml : ""}
+          ${ft_CommentWalk ? commentWalkHtml : ""}
         </div>
       `;
 }
@@ -258,6 +266,11 @@ function getDataSavedAtDashboardHTML({
   currentTaskName = "",
   listTaskInactive = [],
   isPriorityTask = false,
+  ft_RandomBreakBatch = false,
+  ft_RandomTimePost = false,
+  ft_CommentWalk = false,
+  ft_SpecialFrameHours = false,
+  ft_PriorityTask = false,
 } = {}) {
   const set = new Set();
   groupsNeedPost.forEach((item) => {
@@ -271,7 +284,7 @@ function getDataSavedAtDashboardHTML({
   const nextTime = new Date(nextTimePost);
 
   function getLengthJob() {
-    if (!isPremium) return lengthPostedInCurrentTime || 0;
+    if (!ft_CommentWalk) return lengthPostedInCurrentTime || 0;
     if (!isPriorityTask) {
       if (isCommentWalk) {
         return countCommentWalk;
@@ -290,7 +303,7 @@ function getDataSavedAtDashboardHTML({
   }
 
   function getMaxJob() {
-    if (!isPremium) return maxGroupPerTime;
+    if (!ft_CommentWalk) return maxGroupPerTime;
     if (!isPriorityTask) {
       if (isCommentWalk) {
         return maxCommentWalk;
@@ -309,7 +322,7 @@ function getDataSavedAtDashboardHTML({
   }
 
   function getLastTimeJobDone() {
-    if (!isPremium) return lastTimePost;
+    if (!ft_CommentWalk) return lastTimePost;
     if (!isPriorityTask) {
       if (isCommentWalk) {
         return lastTimeCommentWalk;
@@ -328,7 +341,7 @@ function getDataSavedAtDashboardHTML({
   }
 
   function getTypeJob() {
-    if (!isPremium)
+    if (!ft_CommentWalk)
       return deviceHelper.getTaskLabelWithName(KEY_TASK_NAME.POST);
     if (!isPriorityTask) {
       if (isCommentWalk) {
@@ -356,7 +369,7 @@ function getDataSavedAtDashboardHTML({
     .map((taskName) => deviceHelper.getTaskLabelWithName(taskName))
     .join(", ");
 
-  const taskInactive = !isPremium
+  const taskInactive = !ft_CommentWalk
     ? `<div id="${prefix}is-spammed-status">${getTextWithLanguage({ vi: "Đang bị spam", en: "Is Spammed" })}: <span style="color: ${isSpammed ? "var(--tm-text-danger)" : "var(--tm-text-success)"};"><b>${getTextWithLanguage({ vi: isSpammed ? "Có" : "Không", en: isSpammed ? "Yes" : "No" })}</b></span></div>`
     : `<div>${getTextWithLanguage({ vi: "Công việc không hoạt động", en: "Inactive task" })}: ${listTaskInactive.length > 0 ? listTaskNameInactiveString : getTextWithLanguage({ vi: "Không", en: "No" })}</div>`;
 
@@ -367,12 +380,12 @@ function getDataSavedAtDashboardHTML({
         <div>${getTextWithLanguage({ vi: "Tổng số nhóm", en: "Total Groups" })}: <b>${allGroups.length}</b></div>
         <div>${getTextWithLanguage({ vi: "Số nhóm cần đăng", en: "Number of groups to post" })}: <b>${totalGroupsNeedPost}</b></div>
         <div>${getTextWithLanguage({ vi: "Số nhóm đã đăng", en: "Number of groups posted" })}: <b>${groupsPosted.length}</b></div>
-        ${isPremium ? `<div>${getTextWithLanguage({ vi: "Số bài viết đã bình luận dạo", en: "Number of posts commented walk" })}: <b>${lengthCommented}</b></div>` : ""}
+        ${ft_CommentWalk ? `<div>${getTextWithLanguage({ vi: "Số bài viết đã bình luận dạo", en: "Number of posts commented walk" })}: <b>${lengthCommented}</b></div>` : ""}
       </div>
       <div>
         ${taskInactive}
         <div>${getTextWithLanguage({ vi: "Đang chạy auto", en: "Is Processing" })}: <span style="color: ${colorByDisabled(isProcessing || isCommentWalkProcessing)};">${enabledString(isProcessing || isCommentWalkProcessing)}</span></div>
-        ${isPremium ? `<div>${getTextWithLanguage({ vi: "Bình luận dạo", en: "Is Comment Walk" })}: <span style="color: ${colorByDisabled(isCommentWalk)};">${enabledString(isCommentWalk)}</span></div>` : ""}
+        ${ft_CommentWalk ? `<div>${getTextWithLanguage({ vi: "Bình luận dạo", en: "Is Comment Walk" })}: <span style="color: ${colorByDisabled(isCommentWalk)};">${enabledString(isCommentWalk)}</span></div>` : ""}
         <div>${getTextWithLanguage({ vi: "Lên lịch", en: "Is Scheduler" })}: <span style="color: ${colorByDisabled(isScheduler)};">${enabledString(isScheduler)}</span></div>
       </div>
       <div>
@@ -489,6 +502,31 @@ async function updateDataSavedInfo() {
     }
 
     const isPremium = (await DB_getValue(KEY_IS_PREMIUM)) || false;
+    const featureFlags = await getFeatureFlag();
+    const ft_FixStealAllFocus = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.IS_FIX_STEAL_ALL_FOCUS,
+      featureFlags,
+    );
+    const ft_RandomBreakBatch = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.IS_RANDOM_BREAK_BATCH,
+      featureFlags,
+    );
+    const ft_RandomTimePost = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.IS_RANDOM_TIME_POST,
+      featureFlags,
+    );
+    const ft_CommentWalk = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.COMMENT_WALK,
+      featureFlags,
+    );
+    const ft_SpecialFrameHours = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.SPECIAL_FRAME_HOUR,
+      featureFlags,
+    );
+    const ft_PriorityTask = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.PRIORITY_TASK,
+      featureFlags,
+    );
 
     const html = getDataSavedHTML({
       allGroups,
@@ -525,6 +563,11 @@ async function updateDataSavedInfo() {
       isStopTask,
       currentTaskName,
       listTaskInactive,
+      ft_RandomBreakBatch,
+      ft_RandomTimePost,
+      ft_CommentWalk,
+      ft_SpecialFrameHours,
+      ft_PriorityTask,
     });
     if (dataSavedEl) {
       dataSavedEl.innerHTML = html;
@@ -552,6 +595,11 @@ async function updateDataSavedInfo() {
       currentTaskName,
       listTaskInactive,
       isPriorityTask,
+      ft_RandomBreakBatch,
+      ft_RandomTimePost,
+      ft_CommentWalk,
+      ft_SpecialFrameHours,
+      ft_PriorityTask,
     });
     if (dataSavedAtDashboard) {
       dataSavedAtDashboard.innerHTML = htmlAtDashboard;

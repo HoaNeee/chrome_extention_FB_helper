@@ -31,6 +31,7 @@ import {
 } from "../../../services/comment-service.js";
 import { commentWalkService } from "../../../services/comment-walk-service.js";
 import { getListDataGroupPost } from "../../../services/data-group-post-service.js";
+import { getDeviceId } from "../../../services/device-service.js";
 import {
   getAllGroupPostedsInStorage,
   getListGroupsNeedPostInStorage,
@@ -462,8 +463,7 @@ async function initialData({ anchorElement = document.body }) {
       hideElement("#tm_btn-reset-all-data-saved");
     }
 
-    const isPremium = await getPremiumService();
-    await handleShowOrHideElementPremium(isPremium);
+    await handleShowOrHideElementPremium();
 
     await updateDataSavedInfo();
     await initHistoryLogs();

@@ -58,7 +58,7 @@ async function addEvtHeader() {
           //     onLogoutSuccess: handleLogout,
           //   }),
           // );
-          location.reload();
+          // location.reload();
         } catch (error) {
           handleErrorHelper({ error, isShowNotify: false });
         }

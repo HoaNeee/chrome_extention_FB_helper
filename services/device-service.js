@@ -1,3 +1,4 @@
+import { KEY_FEATURE_FLAG } from "../contants/constant-extention.js";
 import {
   KEY_CURRENT_TASK,
   KEY_DEVICE,
@@ -14,6 +15,7 @@ import {
   randomNumberValue,
   randomRateBoolean,
 } from "../utils/utils.js";
+import { getPremiumService } from "./auth-service.js";
 import {
   getIsCommentWalkData,
   getIsSpammedData,
@@ -243,6 +245,57 @@ async function setCurrentTaskName(taskName) {
   await DB_setValue(KEY_CURRENT_TASK, taskName);
 }
 
+async function getFeatureFlag() {
+  const premium = await getPremiumService();
+
+  if (premium) {
+    return {
+      [KEY_FEATURE_FLAG.FIELD.COMMENT_WALK]: KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+      [KEY_FEATURE_FLAG.FIELD.SPECIAL_FRAME_HOUR]:
+        KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+      [KEY_FEATURE_FLAG.FIELD.IS_RANDOM_BREAK_BATCH]:
+        KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+      [KEY_FEATURE_FLAG.FIELD.IS_RANDOM_TIME_POST]:
+        KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+      [KEY_FEATURE_FLAG.FIELD.IS_FIX_STEAL_ALL_FOCUS]:
+        KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+      [KEY_FEATURE_FLAG.FIELD.IS_SHUFFLE_SCHEDULER_TIME]:
+        KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+      [KEY_FEATURE_FLAG.FIELD.PRIORITY_TASK]: KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+    };
+  }
+
+  return {
+    [KEY_FEATURE_FLAG.FIELD.COMMENT_WALK]: KEY_FEATURE_FLAG.STATUS.LOCKED,
+
+    [KEY_FEATURE_FLAG.FIELD.SPECIAL_FRAME_HOUR]: KEY_FEATURE_FLAG.STATUS.LOCKED,
+
+    [KEY_FEATURE_FLAG.FIELD.IS_RANDOM_BREAK_BATCH]:
+      KEY_FEATURE_FLAG.STATUS.LOCKED,
+
+    [KEY_FEATURE_FLAG.FIELD.IS_RANDOM_TIME_POST]:
+      KEY_FEATURE_FLAG.STATUS.LOCKED,
+
+    [KEY_FEATURE_FLAG.FIELD.IS_FIX_STEAL_ALL_FOCUS]:
+      KEY_FEATURE_FLAG.STATUS.LOCKED,
+
+    [KEY_FEATURE_FLAG.FIELD.IS_SHUFFLE_SCHEDULER_TIME]:
+      KEY_FEATURE_FLAG.STATUS.LOCKED,
+
+    [KEY_FEATURE_FLAG.FIELD.PRIORITY_TASK]: KEY_FEATURE_FLAG.STATUS.LOCKED,
+  };
+}
+
+async function checkFeatureEnable(name, flags) {
+  if (!flags) {
+    flags = await getFeatureFlag();
+    if (!flags) {
+      return false;
+    }
+  }
+  return flags?.[name] === KEY_FEATURE_FLAG.STATUS.UNLOCKED;
+}
+
 export {
   checkTaskActive,
   createNewDevice,
@@ -259,4 +312,6 @@ export {
   setCurrentTaskName,
   setDeviceInStorage,
   setUsedToLoginedThisDevice,
+  getFeatureFlag,
+  checkFeatureEnable,
 };

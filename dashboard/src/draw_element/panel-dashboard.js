@@ -394,28 +394,30 @@ async function createPanel(doc = document.body) {
             // console.log(patt);
             // console.log(patt.test(text));
             // console.log(randomRateBoolean(5));
-            const ai = new GoogleGenAIClass();
-            // ai.test();
-            // const listDataCommentWalk =
-            //   await commentWalkService.getListCommentWalk();
+            // const ai = new GoogleGenAIClass();
+            // // ai.test();
+            // // const listDataCommentWalk =
+            // //   await commentWalkService.getListCommentWalk();
 
-            const dataCommentWalk = {
-              keywords_certain_choice: ["Cầu giấy", "GTVT", "ngoại thương"],
-              keyword_query_includes: ["Studio", "4tr"],
-            };
+            // const dataCommentWalk = {
+            //   keywords_certain_choice: ["Cầu giấy", "GTVT", "ngoại thương"],
+            //   keyword_query_includes: ["Studio", "4tr"],
+            // };
 
-            const content = `mình cần tìm phòng trọ hoặc chung cư mini có giá từ 3 đến 4,5🍠
-            Còn máy giặt riêng và ban công
-            CUỐI THÁNG 9 ĐẦU THÁNG 10 dọn vào ở`;
-            const title =
-              "NHÀ TRỌ PHƯƠNG CANH - XUÂN PHƯƠNG - FPT - ĐÔNG Á - TRỊNH VĂN BÔ";
-            console.log(
-              await ai.matchCommentWalkAtSearchPage(
-                dataCommentWalk,
-                content,
-                title,
-              ),
-            );
+            // const content = `mình cần tìm phòng trọ hoặc chung cư mini có giá từ 3 đến 4,5🍠
+            // Còn máy giặt riêng và ban công
+            // CUỐI THÁNG 9 ĐẦU THÁNG 10 dọn vào ở`;
+            // const title =
+            //   "NHÀ TRỌ PHƯƠNG CANH - XUÂN PHƯƠNG - FPT - ĐÔNG Á - TRỊNH VĂN BÔ";
+            // console.log(
+            //   await ai.matchCommentWalkAtSearchPage(
+            //     dataCommentWalk,
+            //     content,
+            //     title,
+            //   ),
+            // );
+
+            console.log(await commentWalkService.getListCommentWalkRequest());
           } catch (error) {
             logError("Error at btnClick click event: ", error);
           }

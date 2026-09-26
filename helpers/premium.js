@@ -1,87 +1,112 @@
-import { KEY_IS_SHUFFLE_SCHEDULER_TIME, prefix } from "../contants/contants.js";
+import { KEY_FEATURE_FLAG } from "../contants/constant-extention.js";
+import { prefix } from "../contants/contants.js";
+import { checkFeatureEnable } from "../services/device-service.js";
 import { logError } from "../utils/utils.js";
-import { DB_setValue } from "../utils/api-helper.js";
 import {
   hideElement,
   hideField,
   showElement,
   showField,
 } from "./elementDom.js";
-import {
-  setIsCommentWalkData,
-  setIsExecutePriorityTaskData,
-  setIsFixStealAllFocusData,
-  setIsRandomBreakBatchData,
-  setIsRandomTimePostData,
-} from "../services/setting-service.js";
 
-/**
- * @param {boolean} isPremium
- */
-async function handleShowOrHideElementPremium(isPremium) {
+async function handleShowOrHideElementPremium() {
   try {
-    if (isPremium) {
+    const [
+      random_break_batch,
+      fix_steal_all_focus,
+      shuffle_scheduler_time,
+      random_time_post,
+      special_frame_hour,
+      priority_task,
+      comment_walk,
+    ] = await Promise.all([
+      checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.IS_RANDOM_BREAK_BATCH),
+      checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.IS_FIX_STEAL_ALL_FOCUS),
+      checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.IS_SHUFFLE_SCHEDULER_TIME),
+      checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.IS_RANDOM_TIME_POST),
+      checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.SPECIAL_FRAME_HOUR),
+      checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.PRIORITY_TASK),
+      checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.COMMENT_WALK),
+    ]);
+
+    if (random_break_batch) {
       showField({
         selector: "#tm_checkbox-is-random-batch-post",
         fieldSelector: ".tm_field-container",
       });
+    } else {
+      hideField({
+        selector: "#tm_checkbox-is-random-batch-post",
+        fieldSelector: ".tm_field-container",
+      });
+    }
+
+    if (fix_steal_all_focus) {
       showField({
         selector: "#tm_checkbox-is-fix-steal-all-focus",
         fieldSelector: ".tm_field-container",
       });
+    } else {
+      hideField({
+        selector: "#tm_checkbox-is-fix-steal-all-focus",
+        fieldSelector: ".tm_field-container",
+      });
+    }
+
+    if (shuffle_scheduler_time) {
       showField({
         selector: "#tm_checkbox-is-shuffle-scheduler-time",
         fieldSelector: ".tm_field-container",
       });
+    } else {
+      hideField({
+        selector: "#tm_checkbox-is-shuffle-scheduler-time",
+        fieldSelector: ".tm_field-container",
+      });
+    }
+
+    if (special_frame_hour) {
       showElement(".special-frame-hours-container");
+    } else {
+      hideElement(".special-frame-hours-container");
+    }
+
+    if (random_time_post) {
       showField({
         selector: "#tm_checkbox-is-random-time-post",
         fieldSelector: ".tm_field-container",
       });
-      showElement(`div.${prefix}comment-walk-tab`);
-      showElement(`li.tab-item[data-tab-value="comment-walk"]`);
-      showElement(".comment-walk-setting");
-      showElement(`#${prefix}btn-reset-commented-walk`);
+    } else {
+      hideField({
+        selector: "#tm_checkbox-is-random-time-post",
+        fieldSelector: ".tm_field-container",
+      });
+    }
+
+    if (priority_task) {
       showField({
         selector: "#tm_checkbox-is-execute-priority-task",
         fieldSelector: ".tm_field-container",
       });
       showElement(`.${prefix}div-priority-task`);
     } else {
-      hideElement(`div.${prefix}comment-walk-tab`);
-      hideElement(`li.tab-item[data-tab-value="comment-walk"]`);
-      hideField({
-        selector: "#tm_checkbox-is-random-batch-post",
-        fieldSelector: ".tm_field-container",
-      });
-      hideField({
-        selector: "#tm_checkbox-is-fix-steal-all-focus",
-        fieldSelector: ".tm_field-container",
-      });
-      hideField({
-        selector: "#tm_checkbox-is-shuffle-scheduler-time",
-        fieldSelector: ".tm_field-container",
-      });
-      hideField({
-        selector: "#tm_checkbox-is-execute-priority-task",
-        fieldSelector: ".tm_field-container",
-      });
-      hideElement(".special-frame-hours-container");
       hideElement(`.${prefix}div-priority-task`);
       hideField({
         selector: "#tm_checkbox-is-random-time-post",
         fieldSelector: ".tm_field-container",
       });
+    }
+
+    if (comment_walk) {
+      showElement(`div.${prefix}comment-walk-tab`);
+      showElement(`li.tab-item[data-tab-value="comment-walk"]`);
+      showElement(".comment-walk-setting");
+      showElement(`#${prefix}btn-reset-commented-walk`);
+    } else {
+      hideElement(`div.${prefix}comment-walk-tab`);
+      hideElement(`li.tab-item[data-tab-value="comment-walk"]`);
       hideElement(".comment-walk-setting");
       hideElement(`#${prefix}btn-reset-commented-walk`);
-      await Promise.all([
-        setIsRandomBreakBatchData(false),
-        setIsFixStealAllFocusData(false),
-        setIsRandomTimePostData(false),
-        setIsCommentWalkData(false),
-        setIsExecutePriorityTaskData(false),
-        DB_setValue(KEY_IS_SHUFFLE_SCHEDULER_TIME, false),
-      ]);
     }
   } catch (error) {
     logError(

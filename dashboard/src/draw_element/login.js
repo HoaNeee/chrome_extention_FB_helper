@@ -132,10 +132,10 @@ function createDialogLogin({ onLoginSuccess = () => {} }) {
           await setAuthInStorage(auth);
           await setIsUseLocalStorage(false);
 
+          const device = await getDeviceFromStorage();
+          await createNewDeviceRequest(device);
           const isUsedToLogined = await getUsedToLoginedThisDevice();
           if (!isUsedToLogined) {
-            const device = await getDeviceFromStorage();
-            await createNewDeviceRequest(device);
             await setUsedToLoginedThisDevice(true);
           }
 

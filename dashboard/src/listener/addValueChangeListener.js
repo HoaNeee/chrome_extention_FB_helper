@@ -85,7 +85,7 @@ export default function addValueChangeListener() {
               handleHisoryLog(newVal);
             }
             if (key === KEY_IS_PREMIUM) {
-              handleShowOrHideElementPremium(newVal);
+              await handleShowOrHideElementPremium();
             }
             if (key === KEY_COMMENT_WALK.IS_ACTIVE) {
               setIsCommentWalk(newVal);

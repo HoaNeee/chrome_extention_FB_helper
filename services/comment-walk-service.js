@@ -11,12 +11,14 @@ import {
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import { DataCommentWalkDB } from "../utils/data-comment-walk-db.js";
 import { CustomError } from "../utils/exception.js";
+import { get } from "../utils/request.js";
 import {
   genID,
   getTextWithLanguage,
   logError,
   random,
 } from "../utils/utils.js";
+import { getDeviceId } from "./device-service.js";
 import {
   getCommentWalkAreaData,
   getCommentWalkSpeedData,
@@ -36,6 +38,7 @@ import {
   setIsCombineStrictlyTitleGroupData,
   setIsSkipPostNotInGroupData,
 } from "./setting-service.js";
+import { getIsUseLocalStorage } from "./storage-global-service.js";
 
 /**
  * @typedef {import('../types/types.js').Base64Object} Base64Object
@@ -47,6 +50,30 @@ import {
 
 const commentWalkService = {
   async getListCommentWalk() {
+    try {
+      const isUseLocalStorage = await getIsUseLocalStorage();
+      if (isUseLocalStorage) {
+        return await this.getListCommentWalkInStorage();
+      }
+      return [];
+    } catch (error) {
+      logError("getListCommentWalk", error);
+      return [];
+    }
+  },
+
+  async getListCommentWalkRequest() {
+    try {
+      const deviceId = await getDeviceId();
+      const res = await get("/comment-walks/device/" + deviceId);
+      return res?.data || [];
+    } catch (error) {
+      logError("getListCommentWalkRequest", error);
+      return [];
+    }
+  },
+
+  async getListCommentWalkInStorage() {
     try {
       const db = new DataCommentWalkDB();
       return db.getAllDataCommentWalk();

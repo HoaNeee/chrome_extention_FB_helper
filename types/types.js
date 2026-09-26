@@ -54,11 +54,10 @@
  * @property {Array<string>} content_query_excludes_common_comment_walk
  * @property {number} match_rate_value_content_query_includes_common_comment_walk
  * @property {number} last_time_comment_walk
- * @property {PriorityTask} priority_task
  * @property {string} comment_walk_area
  * @property {Array<string>} keywords_certain_choice_comment_walk // just active for area home
  * @property {string} comment_walk_speed
- * @property {boolean} is_skip_posts_not_in_group
+ * @property {boolean} is_skip_post_not_in_group
  * @property {boolean} is_combine_keywords_title_group
  * @property {boolean} is_ai_help_comment_walk
  */
@@ -79,10 +78,12 @@
  * @property {boolean} is_remote
  * @property {number} time_break_when_spammed
  * @property {number} last_time_interact
- * @property {number} last_time_comment_walk
+ * @property {boolean} is_stop_task
+ * @property {boolean} is_remote_control
  *
  * @property {PostConfig} post_config
  * @property {CommentWalkConfig} comment_walk_config
+ * @property {PriorityTask} priority_task
  * @property {string} device_id
  */
 
