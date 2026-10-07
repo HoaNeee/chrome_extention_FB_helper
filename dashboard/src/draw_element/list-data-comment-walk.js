@@ -20,11 +20,11 @@ async function createDivItemListDataCommentWalk(comments = []) {
   try {
     const divs = [];
 
+    const listIdCommentWalkActives =
+      await commentWalkService.getListIdCommentWalkActive();
+
     for (const comment of comments) {
       const id = comment?.id || genID();
-
-      const listIdCommentWalkActives =
-        await commentWalkService.getListIdCommentWalkActive();
 
       const div = document.createElement("div");
       div.style.display = "flex";

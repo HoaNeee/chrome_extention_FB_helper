@@ -55,12 +55,13 @@ import {
   shuffleTimes,
 } from "./helpers/scheduler.js";
 import {
-  checkUser,
   getAuthFromStorage,
   getPremiumService,
+  getProfile,
   isAuthentication,
   logoutService,
   setPremiumService,
+  verifyToken,
 } from "./services/auth-service.js";
 import { openNewTaskHepler } from "./services/automation-service.js";
 import { getAllMetadataComments } from "./services/comment-service.js";
@@ -789,15 +790,13 @@ async function handleAddLog(message) {
 
 async function handleWelcomeBack() {
   try {
-    const isAuthen = await isAuthentication();
-    if (isAuthen) {
+    const verify = await verifyToken();
+    if (verify) {
       const auth = await getAuthFromStorage();
-      if (auth) {
-        addLog({
-          vi: "Chào mừng bạn quay trở lại, " + auth.username,
-          en: "Welcome back, " + auth.username,
-        });
-      }
+      addLog({
+        vi: "Chào mừng bạn quay trở lại, " + auth?.username,
+        en: "Welcome back, " + auth?.username,
+      });
     } else {
       addLog({
         vi: "Chào mừng bạn quay trở lại",
@@ -1135,7 +1134,7 @@ async function initialGlobalDataWhenReload() {
     try {
       const auth = await getAuthFromStorage();
       if (auth) {
-        const res = await checkUser();
+        const res = await verifyToken();
         if (!res) {
           await logoutService();
         }

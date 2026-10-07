@@ -23,7 +23,7 @@ import {
   getIsSpammedData,
 } from "../services/setting-service.js";
 
-async function createSchedulerMinutes(val) {
+function createSchedulerMinutes(val) {
   // Implementation for creating scheduler minutes
   val = Number(val);
   if (val < 0) {
@@ -38,17 +38,57 @@ async function createSchedulerMinutes(val) {
 
   let i = 0;
 
-  while (day < nextDay && i < 1000) {
-    nextTime = new Date(nextTime.getTime() + (val + random(0, 3)) * oneMinute);
-    day = nextTime.getDate();
-    if (day < nextDay) {
-      const h = nextTime.getHours();
-      const m = nextTime.getMinutes();
-      newScheduler.push({ h, m });
+  let hours = 0,
+    miniutes = val;
+
+  const set = new Set();
+
+  while (hours < 24 && i < 1000) {
+    if (miniutes >= 60) {
+      while (miniutes >= 60) {
+        miniutes -= 60;
+        ++hours;
+      }
     }
+    if (hours >= 24) {
+      break;
+    }
+
+    set.add({ h: hours, m: miniutes + random(-2, 4) });
+
+    miniutes += val;
 
     ++i;
   }
+
+  let idx = 0;
+
+  for (const item of set) {
+    if (item.h < 24) {
+      if (newScheduler.length) {
+        const prev = newScheduler[idx - 1];
+        const diff = item.h * 60 + item.m - (prev.h * 60 + prev.m);
+        if (diff < val - 5) {
+          continue;
+        }
+      }
+
+      newScheduler.push(item);
+      ++idx;
+    }
+  }
+
+  // while (day < nextDay && i < 1000) {
+  //   nextTime = new Date(nextTime.getTime() + (val + random(0, 3)) * oneMinute);
+  //   day = nextTime.getDate();
+  //   if (day < nextDay) {
+  //     const h = nextTime.getHours();
+  //     const m = nextTime.getMinutes();
+  //     newScheduler.push({ h, m });
+  //   }
+
+  //   ++i;
+  // }
 
   newScheduler.sort((a, b) => {
     if (a.h === b.h) return a.m - b.m;
@@ -72,18 +112,33 @@ function createSchedulerHours(val) {
 
   let i = 0;
 
-  while (day < nextDay && i < 1000) {
-    nextTime = new Date(
-      nextTime.getTime() + val * oneHours + random(-7, 7) * 1000 * 60,
-    );
-    day = nextTime.getDate();
-    if (day < nextDay) {
-      const h = nextTime.getHours();
-      const m = nextTime.getMinutes();
-      newScheduler.push({ h, m });
+  // while (day < nextDay && i < 1000) {
+  //   nextTime = new Date(
+  //     nextTime.getTime() + val * oneHours + random(-7, 7) * 1000 * 60,
+  //   );
+  //   day = nextTime.getDate();
+  //   if (day < nextDay) {
+  //     const h = nextTime.getHours();
+  //     const m = nextTime.getMinutes();
+  //     newScheduler.push({ h, m });
+  //   }
+
+  //   ++i;
+  // }
+
+  let hours = 0,
+    minutes = 0;
+
+  while (i < 1000 && hours < 24) {
+    if (hours >= 24) {
+      break;
     }
 
-    ++i;
+    newScheduler.push({ h: hours, m: minutes + random(-5, 5) });
+
+    hours += val;
+
+    i++;
   }
 
   newScheduler.sort((a, b) => {

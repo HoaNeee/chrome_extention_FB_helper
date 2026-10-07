@@ -47,7 +47,7 @@ const KEY_IS_SHUFFLE_GROUPS_NEED_POST = "is_shuffle_groups_need_post";
 const KEY_IS_SPAMMED = "is_spammed";
 const KEY_IS_DARK_THEME = "is_dark_theme";
 const KEY_IS_RANDOM_BATCH_POST = "is_random_batch_post";
-const KEY_IS_RANDOM_TIME_POST = "is_random_time_post";
+const KEY_IS_RANDOM_TIME_TASK = "is_random_time_task";
 const KEY_IS_SPECIAL_FRAME_HOURS = "is_special_frame_hours";
 const KEY_CHANGE_GROUPS_CHECKED_FLAG = "change_groups_checked_flag";
 const KEY_IS_EXECUTE_PRIORITY_TASK = "is_execute_priority_task";
@@ -152,6 +152,7 @@ const KEY_COMMENT_WALK = {
   IS_SKIP_POST_NOT_IN_GROUP: "is_skip_post_not_in_group",
   COMMENT_WALK_SPEED: "comment_walk_speed",
   IS_AI_HELP_COMMENT_WALK: "is_ai_help_comment_walk",
+  IS_INTERACT_BEFORE_COMMENT_WALK: "is_interact_before_comment_walk",
 };
 
 const KEY_CURRENT_DATA_GROUP_POST = "current_data_group_post";
@@ -263,7 +264,7 @@ export {
   KEY_IS_SHUFFLE_GROUPS_NEED_POST,
   KEY_IS_RANDOM_BATCH_POST,
   KEY_IS_PREMIUM,
-  KEY_IS_RANDOM_TIME_POST,
+  KEY_IS_RANDOM_TIME_TASK,
   KEY_IS_SPECIAL_FRAME_HOURS,
   KEY_SPECIAL_FRAME_HOURS,
   KEY_CHANGE_GROUPS_CHECKED_FLAG,

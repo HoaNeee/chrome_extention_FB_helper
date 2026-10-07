@@ -118,14 +118,14 @@ async function getPremiumService() {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      const isPremium = await DB_getValue(KEY_IS_PREMIUM);
+      const isPremium = await DB_getValue(KEY_IS_PREMIUM, false);
       return isPremium;
     }
 
     const res = await get("/users/is-premium");
     return !!res.data;
   } catch (error) {
-    logError(`Error getPremiumInStorage`, error);
+    logError(`Error getPremiumService`, error);
     return false;
   }
 }
@@ -144,12 +144,22 @@ async function setPremiumService(isPremium) {
   }
 }
 
-async function checkUser() {
+async function verifyToken() {
   try {
-    const res = await get("/users/check");
+    const auth = await getAuthFromStorage();
+    if (!auth) {
+      return false;
+    }
+    const token = auth?.token;
+    if (!token) {
+      return false;
+    }
+
+    const res = await post("/auth/verify-token", { token });
     return res?.data;
   } catch (error) {
-    throw error;
+    logError(`Error verifyToken`, error);
+    return false;
   }
 }
 
@@ -164,5 +174,5 @@ export {
   getProfileService,
   getPremiumService,
   setPremiumService,
-  checkUser,
+  verifyToken,
 };

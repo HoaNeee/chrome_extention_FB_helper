@@ -1,4 +1,7 @@
-import { KEY_SAVED_TEMP } from "../contants/constant-extention.js";
+import {
+  API_RESPONSE_CODE,
+  KEY_SAVED_TEMP,
+} from "../contants/constant-extention.js";
 import {
   DEFAULT_COMMENT_WALK_SETTING,
   initialTimeDelay,
@@ -10,7 +13,7 @@ import {
   KEY_IS_FIX_STEAL_ALL_FOCUS,
   KEY_IS_FIX_STEAL_FOCUS,
   KEY_IS_RANDOM_BATCH_POST,
-  KEY_IS_RANDOM_TIME_POST,
+  KEY_IS_RANDOM_TIME_TASK,
   KEY_IS_SHUFFLE_GROUPS_NEED_POST,
   KEY_IS_SPAMMED,
   KEY_IS_SPECIAL_FRAME_HOURS,
@@ -26,12 +29,17 @@ import {
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import { get, patch } from "../utils/request.js";
 import { logError } from "../utils/utils.js";
+import { removeAuthFromStorage } from "./auth-service.js";
 import { getDeviceId } from "./device-service.js";
 import {
   getSchedulerService,
   setSchedulerInStorage,
 } from "./scheduler-service.js";
-import { getIsUseLocalStorage } from "./storage-global-service.js";
+import {
+  getIsUseLocalStorage,
+  setIsUseLocalStorage,
+} from "./storage-global-service.js";
+import { updateListenerUpdateRequest } from "./storage-service.js";
 
 /**
  * @typedef {import('../types/types.js').PostConfig} PostConfig
@@ -71,6 +79,237 @@ async function getDeviceSettingTemp() {
   } catch (error) {
     throw error;
   }
+}
+
+/**
+ *
+ * @returns {Promise<DeviceSetting>}
+ */
+async function getSettingByDeviceInStorage() {
+  try {
+    const is_fix_steal_focus = await getIsFixStealFocusData();
+    const is_fix_steal_all_focus = await getIsFixStealAllFocusData();
+    const is_random_break_batch = await getIsRandomBreakBatchData();
+    const is_random_time_task = await getIsRandomTimeTaskData();
+    const is_scheduler = await getIsSchedulerData();
+    const strictly_match_title_group = await getStrictlyMatchTitleGroupData();
+    const is_comment_when_post = await getIsCommentWhenPostSuccessData();
+    const is_interact_batch = await getIsInteractBeforePostData();
+    const is_special_frame_hours = await getIsSpecialFrameHoursData();
+
+    const priority_task = await getPriorityTaskData();
+
+    const commentWalkConfig = await getCommentWalkConfig();
+    const postConfig = await getPostConfig();
+
+    const device_id = await getDeviceId();
+
+    return {
+      is_fix_steal_focus,
+      is_fix_steal_all_focus,
+      is_random_break_batch,
+      is_random_time_task,
+      is_scheduler,
+      strictly_match_title_group,
+      is_comment_when_post,
+      is_interact_batch,
+      is_special_frame_hours,
+      device_id,
+      post_config: postConfig,
+      comment_walk_config: commentWalkConfig,
+      priority_task,
+    };
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ *
+ * @returns {Promise<CommentWalkConfig>}
+ */
+async function getCommentWalkConfig() {
+  const isCommentWalk = await getIsCommentWalkData();
+  const isCommentWalkPerBatch = await getMaxCommentWalkPerBatchData();
+  const timeDelay = await getTimeDelayCommentWalk();
+  const is_ai_help_comment_walk = await getIsAIHelpCommentWalkData();
+  const is_combine_strictly_title_group =
+    await getStrictlyMatchTitleGroupData();
+  const is_skip_post_not_in_group = await getIsSkipPostNotInGroupData();
+  const comment_walk_area = await getCommentWalkAreaData();
+  const comment_walk_speed = await getCommentWalkSpeedData();
+
+  const last_time_comment_walk = await getLastTimeCommentWalkData();
+  const match_rate_value_content_query_includes_common_comment_walk =
+    await getMatchRateValueContentQueryIncludesCommonData();
+
+  return {
+    is_comment_walk: isCommentWalk,
+    max_comment_walk_per_batch: isCommentWalkPerBatch,
+    is_ai_help_comment_walk,
+    is_combine_strictly_title_group,
+    is_skip_post_not_in_group,
+    comment_walk_area,
+    comment_walk_speed,
+    last_time_comment_walk,
+    match_rate_value_content_query_includes_common_comment_walk,
+    is_spammed_comment_walk: false,
+    content_query_includes_common_comment_walk:
+      await getContentQueryIncludesCommonData(),
+    content_query_excludes_common_comment_walk:
+      await getContentQueryExcludesCommonData(),
+    keywords_certain_choice_comment_walk:
+      await getKeywordsCertainChoiceCommentWalkData(),
+    ...timeDelay,
+  };
+}
+
+/**
+ * @returns {Promise<PostConfig>}
+ */
+async function getPostConfig() {
+  const timeDelay = await getTimeDelayData();
+  return {
+    max_group_per_batch: await getMaxGroupPerTimeData(),
+    is_shuffle_group_need_post: await getIsShuffleGroupNeedPostData(),
+    is_spammed: await getIsSpammedData(),
+    last_time_post: await getLastTimePostData(),
+    ...timeDelay,
+  };
+}
+
+/**
+ *
+ * @returns {Promise<DeviceSetting>}
+ */
+async function getSettingByDeviceRequest() {
+  try {
+    const deviceId = await getDeviceId();
+    const res = await get("/devices/settings/" + deviceId);
+    return res?.data;
+  } catch (error) {
+    if (error.code === API_RESPONSE_CODE.NOT_FOUND) {
+      await removeAuthFromStorage();
+      await setIsUseLocalStorage(true);
+      location.reload();
+      return;
+    }
+    throw error;
+  }
+}
+
+/**
+ *
+ * @param {string} key
+ * @param {any} value
+ * @returns {Promise<any>}
+ */
+async function updateDeviceSettingRequest(key, value) {
+  try {
+    const deviceId = await getDeviceId();
+
+    const res = await patch("/devices/settings", {
+      [key]: value,
+      device_id: deviceId,
+    });
+    const deviceSetting = await getDeviceSettingTemp();
+    if (deviceSetting) {
+      deviceSetting[key] = value;
+      await setDeviceSettingTemp(deviceSetting);
+    }
+    await updateListenerUpdateRequest();
+    return res?.data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function updatePostConfigSetting(key, value) {
+  try {
+    const deviceId = await getDeviceId();
+    await patch("/devices/settings/post-config", {
+      device_id: deviceId,
+      [key]: value,
+    });
+
+    const deviceSetting = await getDeviceSettingTemp();
+    if (deviceSetting) {
+      deviceSetting.post_config[key] = value;
+      await setDeviceSettingTemp(deviceSetting);
+    }
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function updateCommentWalkSetting(key, value) {
+  try {
+    const deviceId = await getDeviceId();
+    await patch("/devices/settings/comment-walk-config", {
+      device_id: deviceId,
+      [key]: value,
+    });
+
+    const deviceSetting = await getDeviceSettingTemp();
+    if (deviceSetting) {
+      deviceSetting.comment_walk_config[key] = value;
+      await setDeviceSettingTemp(deviceSetting);
+    }
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function updateDeviceSettingInStorage(key, value) {
+  try {
+    await DB_setValue(key, value);
+  } catch (error) {
+    logError("Error at updateDeviceSettingInStorage: ", error);
+  }
+}
+
+/**
+ *
+ * @returns {Promise<DeviceSetting>}
+ */
+async function getDeviceSetting() {
+  try {
+    let deviceSetting = await getDeviceSettingTemp();
+
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      deviceSetting = await getSettingByDeviceInStorage();
+    } else {
+      deviceSetting = await getSettingByDeviceRequest();
+    }
+
+    return deviceSetting;
+  } catch (error) {
+    logError("Error at get device setting", error);
+    throw error;
+  }
+}
+
+async function initialDeviceSetting() {
+  try {
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    let deviceSetting = null;
+    if (isUseLocalStorage) {
+      deviceSetting = await getSettingByDeviceInStorage();
+    } else {
+      deviceSetting = await getSettingByDeviceRequest();
+    }
+    await setDeviceSettingTemp(deviceSetting);
+  } catch (error) {
+    logError("Error at initialDeviceSetting: ", error);
+  }
+}
+
+async function logSettingHelper() {
+  const deviceSetting = await getDeviceSettingTemp();
+  console.log("deviceSetting", deviceSetting);
 }
 
 async function getIsSchedulerData() {
@@ -121,7 +360,7 @@ async function setTimeDelayData(timeDelay = initialTimeDelay) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_TIME_DELAY, timeDelay);
+      await updateDeviceSettingInStorage(KEY_TIME_DELAY, timeDelay);
     } else {
       await Promise.all(
         Object.entries(timeDelay).map(async ([key, value]) => {
@@ -222,7 +461,7 @@ async function setIsFixStealFocusData(b = false) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_IS_FIX_STEAL_FOCUS, b);
+      await updateDeviceSettingInStorage(KEY_IS_FIX_STEAL_FOCUS, b);
     } else {
       await updateDeviceSettingRequest("is_fix_steal_focus", b);
     }
@@ -266,7 +505,7 @@ async function setIsFixStealAllFocusData(b = false) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_IS_FIX_STEAL_ALL_FOCUS, b);
+      await updateDeviceSettingInStorage(KEY_IS_FIX_STEAL_ALL_FOCUS, b);
     } else {
       await updateDeviceSettingRequest("is_fix_steal_all_focus", b);
     }
@@ -311,7 +550,7 @@ async function setIsSpammedData(b = false) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_IS_SPAMMED, b);
+      await updateDeviceSettingInStorage(KEY_IS_SPAMMED, b);
     } else {
       await updatePostConfigSetting("is_spammed", b);
     }
@@ -359,7 +598,10 @@ async function setMaxGroupPerTimeData(maxGroupPerTime) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_MAX_GROUP_PER_TIME, maxGroupPerTime);
+      await updateDeviceSettingInStorage(
+        KEY_MAX_GROUP_PER_TIME,
+        maxGroupPerTime,
+      );
     } else {
       await updatePostConfigSetting("max_group_per_batch", maxGroupPerTime);
     }
@@ -382,7 +624,7 @@ async function setStrictlyMatchTitleGroupData(strictlyMatchTitleGroup = []) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(
+      await updateDeviceSettingInStorage(
         KEY_TITLE_STRICTLY_MATCH_GROUP,
         strictlyMatchTitleGroup,
       );
@@ -459,7 +701,7 @@ async function setIsRandomBreakBatchData(b = false) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_IS_RANDOM_BATCH_POST, b);
+      await updateDeviceSettingInStorage(KEY_IS_RANDOM_BATCH_POST, b);
     } else {
       await updateDeviceSettingRequest("is_random_break_batch", b);
     }
@@ -477,11 +719,11 @@ async function setIsRandomBreakBatchData(b = false) {
 /**
  * @returns {Promise<boolean>} The setting for whether the extension is in random time post mode, defaulting to false if not set
  */
-async function getIsRandomTimePostData() {
+async function getIsRandomTimeTaskData() {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      return (await DB_getValue(KEY_IS_RANDOM_TIME_POST)) || false;
+      return (await DB_getValue(KEY_IS_RANDOM_TIME_TASK)) || false;
     }
     const deviceSetting = await getDeviceSettingTemp();
     if (deviceSetting) {
@@ -498,17 +740,17 @@ async function getIsRandomTimePostData() {
 /**
  * @param {boolean} b
  */
-async function setIsRandomTimePostData(b = false) {
+async function setIsRandomTimeTaskData(b = false) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_IS_RANDOM_TIME_POST, b);
+      await updateDeviceSettingInStorage(KEY_IS_RANDOM_TIME_TASK, b);
     } else {
-      await updateDeviceSettingRequest("is_random_time_post", b);
+      await updateDeviceSettingRequest("is_random_time_task", b);
     }
     const deviceSetting = await getDeviceSettingTemp();
     if (deviceSetting) {
-      deviceSetting.is_random_time_post = b;
+      deviceSetting.is_random_time_task = b;
       await setDeviceSettingTemp(deviceSetting);
     }
     return true;
@@ -545,7 +787,7 @@ async function setLastTimePostData(lastTimePost) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_LAST_TIME_POST, lastTimePost);
+      await updateDeviceSettingInStorage(KEY_LAST_TIME_POST, lastTimePost);
     } else {
       await updatePostConfigSetting("last_time_post", lastTimePost);
     }
@@ -567,7 +809,7 @@ async function setIsInteractBeforePostData(b = false) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_INTERACT_BEFORE_POST.IS_ACTIVE, b);
+      await updateDeviceSettingInStorage(KEY_INTERACT_BEFORE_POST.IS_ACTIVE, b);
     } else {
       await updateDeviceSettingRequest("is_interact_batch", b);
     }
@@ -631,7 +873,7 @@ async function setIsShuffleGroupNeedPostData(b = false) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_IS_SHUFFLE_GROUPS_NEED_POST, b);
+      await updateDeviceSettingInStorage(KEY_IS_SHUFFLE_GROUPS_NEED_POST, b);
     } else {
       await updatePostConfigSetting("is_shuffle_group_need_post", b);
     }
@@ -653,7 +895,10 @@ async function setIsCommentWhenPostSuccessData(b = false) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_COMMENT_WHEN_POST_SUCCESS.IS_ACTIVE, b);
+      await updateDeviceSettingInStorage(
+        KEY_COMMENT_WHEN_POST_SUCCESS.IS_ACTIVE,
+        b,
+      );
     } else {
       await updateDeviceSettingRequest("is_comment_when_post", b);
     }
@@ -722,7 +967,7 @@ async function setIsSpecialFrameHoursData(b = false) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_IS_SPECIAL_FRAME_HOURS, b);
+      await updateDeviceSettingInStorage(KEY_IS_SPECIAL_FRAME_HOURS, b);
     } else {
       await updateDeviceSettingRequest("is_special_frame_hours", b);
     }
@@ -737,227 +982,11 @@ async function setIsSpecialFrameHoursData(b = false) {
   }
 }
 
-/**
- *
- * @returns {Promise<DeviceSetting>}
- */
-async function getSettingByDeviceInStorage() {
-  try {
-    const is_fix_steal_focus = await getIsFixStealFocusData();
-    const is_fix_steal_all_focus = await getIsFixStealAllFocusData();
-    const is_random_break_batch = await getIsRandomBreakBatchData();
-    const is_random_time_post = await getIsRandomTimePostData();
-    const is_scheduler = await getIsSchedulerData();
-    const strictly_match_title_group = await getStrictlyMatchTitleGroupData();
-    const is_comment_when_post = await getIsCommentWhenPostSuccessData();
-    const is_interact_batch = await getIsInteractBeforePostData();
-    const is_special_frame_hours = await getIsSpecialFrameHoursData();
-
-    const priority_task = await getPriorityTaskData();
-
-    const commentWalkConfig = await getCommentWalkConfig();
-    const postConfig = await getPostConfig();
-
-    const device_id = await getDeviceId();
-
-    return {
-      is_fix_steal_focus,
-      is_fix_steal_all_focus,
-      is_random_break_batch,
-      is_random_time_post,
-      is_scheduler,
-      strictly_match_title_group,
-      is_comment_when_post,
-      is_interact_batch,
-      is_special_frame_hours,
-      device_id,
-      post_config: postConfig,
-      comment_walk_config: commentWalkConfig,
-      priority_task,
-    };
-  } catch (error) {
-    throw error;
-  }
-}
-
-/**
- *
- * @returns {Promise<CommentWalkConfig>}
- */
-async function getCommentWalkConfig() {
-  const isCommentWalk = await getIsCommentWalkData();
-  const isCommentWalkPerBatch = await getMaxCommentWalkPerBatchData();
-  const timeDelay = await getTimeDelayCommentWalk();
-  const is_ai_help_comment_walk = await getIsAIHelpCommentWalkData();
-  const is_combine_strictly_title_group =
-    await getStrictlyMatchTitleGroupData();
-  const is_skip_post_not_in_group = await getIsSkipPostNotInGroupData();
-  const comment_walk_area = await getCommentWalkAreaData();
-  const comment_walk_speed = await getCommentWalkSpeedData();
-
-  const last_time_comment_walk = await getLastTimeCommentWalkData();
-  const match_rate_value_content_query_includes_common_comment_walk =
-    await getMatchRateValueContentQueryIncludesCommonData();
-
-  return {
-    is_comment_walk: isCommentWalk,
-    max_comment_walk_per_batch: isCommentWalkPerBatch,
-    is_ai_help_comment_walk,
-    is_combine_strictly_title_group,
-    is_skip_post_not_in_group,
-    comment_walk_area,
-    comment_walk_speed,
-    last_time_comment_walk,
-    match_rate_value_content_query_includes_common_comment_walk,
-    is_spammed_comment_walk: false,
-    content_query_includes_common_comment_walk:
-      await getContentQueryIncludesCommonData(),
-    content_query_excludes_common_comment_walk:
-      await getContentQueryExcludesCommonData(),
-    keywords_certain_choice_comment_walk:
-      await getKeywordsCertainChoiceCommentWalkData(),
-    ...timeDelay,
-  };
-}
-
-/**
- * @returns {Promise<PostConfig>}
- */
-async function getPostConfig() {
-  const timeDelay = await getTimeDelayData();
-  return {
-    max_group_per_batch: await getMaxGroupPerTimeData(),
-    is_shuffle_group_need_post: await getIsShuffleGroupNeedPostData(),
-    is_spammed: await getIsSpammedData(),
-    last_time_post: await getLastTimePostData(),
-    ...timeDelay,
-  };
-}
-
-/**
- *
- * @returns {Promise<DeviceSetting>}
- */
-async function getSettingByDeviceRequest() {
-  try {
-    const deviceId = await getDeviceId();
-    const res = await get("/devices/settings/" + deviceId);
-    return res?.data;
-  } catch (error) {
-    throw error;
-  }
-}
-
-/**
- *
- * @param {string} key
- * @param {any} value
- * @returns {Promise<any>}
- */
-async function updateDeviceSettingRequest(key, value) {
-  try {
-    const deviceId = await getDeviceId();
-
-    const res = await patch("/devices/settings", {
-      [key]: value,
-      device_id: deviceId,
-    });
-    const deviceSetting = await getDeviceSettingTemp();
-    if (deviceSetting) {
-      deviceSetting[key] = value;
-      await setDeviceSettingTemp(deviceSetting);
-    }
-    return res?.data;
-  } catch (error) {
-    throw error;
-  }
-}
-
-async function updatePostConfigSetting(key, value) {
-  try {
-    const deviceId = await getDeviceId();
-    await patch("/devices/settings/post-config", {
-      device_id: deviceId,
-      [key]: value,
-    });
-
-    const deviceSetting = await getDeviceSettingTemp();
-    if (deviceSetting) {
-      deviceSetting.post_config[key] = value;
-      await setDeviceSettingTemp(deviceSetting);
-    }
-    return true;
-  } catch (error) {
-    throw error;
-  }
-}
-
-async function updateCommentWalkSetting(key, value) {
-  try {
-    const deviceId = await getDeviceId();
-    await patch("/devices/settings/comment-walk-config", {
-      device_id: deviceId,
-      [key]: value,
-    });
-
-    const deviceSetting = await getDeviceSettingTemp();
-    if (deviceSetting) {
-      deviceSetting.comment_walk_config[key] = value;
-      await setDeviceSettingTemp(deviceSetting);
-    }
-    return true;
-  } catch (error) {
-    throw error;
-  }
-}
-
-/**
- *
- * @returns {Promise<DeviceSetting>}
- */
-async function getDeviceSetting() {
-  try {
-    let deviceSetting = await getDeviceSettingTemp();
-
-    const isUseLocalStorage = await getIsUseLocalStorage();
-    if (isUseLocalStorage) {
-      deviceSetting = await getSettingByDeviceInStorage();
-    } else {
-      deviceSetting = await getSettingByDeviceRequest();
-    }
-
-    return deviceSetting;
-  } catch (error) {
-    logError("Error at get device setting", error);
-    throw error;
-  }
-}
-
-async function initialDeviceSetting() {
-  try {
-    const isUseLocalStorage = await getIsUseLocalStorage();
-    let deviceSetting = null;
-    if (isUseLocalStorage) {
-      deviceSetting = await getSettingByDeviceInStorage();
-    } else {
-      deviceSetting = await getSettingByDeviceRequest();
-    }
-    await setDeviceSettingTemp(deviceSetting);
-  } catch (error) {
-    logError("Error at initialDeviceSetting: ", error);
-  }
-}
-
-async function logSettingHelper() {
-  const deviceSetting = await getDeviceSettingTemp();
-  console.log("deviceSetting", deviceSetting);
-}
-
 async function setIsCommentWalkData(b = false) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_COMMENT_WALK.IS_ACTIVE, b);
+      await updateDeviceSettingInStorage(KEY_COMMENT_WALK.IS_ACTIVE, b);
     } else {
       await updateCommentWalkSetting("is_comment_walk", b);
     }
@@ -999,7 +1028,7 @@ async function setTimeDelayCommentWalk(timeDelay) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(
+      await updateDeviceSettingInStorage(
         KEY_COMMENT_WALK.COMMENT_WALK_SETTING_TIME_DELAY,
         timeDelay,
       );
@@ -1115,7 +1144,7 @@ async function setMaxCommentWalkPerBatchData(max_comment_walk_per_batch) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(
+      await updateDeviceSettingInStorage(
         KEY_COMMENT_WALK.COMMENT_WALK_SETTING_MAX_COMMENT_PER_BATCH,
         max_comment_walk_per_batch,
       );
@@ -1154,7 +1183,7 @@ async function getTimeBreakWhenSpammedData() {
 async function setTimeBreakWhenSpammedData(time) {
   const isUseLocalStorage = await getIsUseLocalStorage();
   if (isUseLocalStorage) {
-    await DB_setValue(KEY_TIME_BREAK_WHEN_SPAMMED, time);
+    await updateDeviceSettingInStorage(KEY_TIME_BREAK_WHEN_SPAMMED, time);
   } else {
     await updateDeviceSettingRequest("time_break_when_spammed", time);
   }
@@ -1200,7 +1229,7 @@ async function getContentQueryIncludesCommonData() {
 async function setContentQueryIncludesCommonData(contentQueryIncludesCommon) {
   const isUseLocalStorage = await getIsUseLocalStorage();
   if (isUseLocalStorage) {
-    await DB_setValue(
+    await updateDeviceSettingInStorage(
       KEY_COMMENT_WALK.CONTENT_QUERY_INCLUDES_COMMON,
       contentQueryIncludesCommon,
     );
@@ -1254,7 +1283,7 @@ async function getContentQueryExcludesCommonData() {
 async function setContentQueryExcludesCommonData(contentQueryExcludesCommon) {
   const isUseLocalStorage = await getIsUseLocalStorage();
   if (isUseLocalStorage) {
-    await DB_setValue(
+    await updateDeviceSettingInStorage(
       KEY_COMMENT_WALK.CONTENT_QUERY_EXCLUDES_COMMON,
       contentQueryExcludesCommon,
     );
@@ -1300,7 +1329,7 @@ async function getMatchRateValueContentQueryIncludesCommonData() {
 async function setMatchRateValueContentQueryIncludesCommonData(rate) {
   const isUseLocalStorage = await getIsUseLocalStorage();
   if (isUseLocalStorage) {
-    await DB_setValue(
+    await updateDeviceSettingInStorage(
       KEY_COMMENT_WALK.MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
       rate,
     );
@@ -1341,12 +1370,13 @@ async function setIsStopTaskData(b = false) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_STOP_TASK, b);
+      await updateDeviceSettingInStorage(KEY_STOP_TASK, b);
     } else {
       const deviceId = await getDeviceId();
       await patch(`/devices/settings/${deviceId}/change-status-tool`, {
         is_stop_task: b,
       });
+      await updateListenerUpdateRequest();
     }
     const deviceSettingTemp = await getDeviceSettingTemp();
     if (deviceSettingTemp) {
@@ -1363,7 +1393,7 @@ async function setLastTimeCommentWalkData(lastTimeComment) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(
+      await updateDeviceSettingInStorage(
         KEY_COMMENT_WALK.LAST_TIME_COMMENT_WALK,
         lastTimeComment,
       );
@@ -1421,7 +1451,7 @@ async function setPriorityTaskPostData(priority = 1) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_PRIORITY_TASK.POST, priority);
+      await updateDeviceSettingInStorage(KEY_PRIORITY_TASK.POST, priority);
     } else {
       const deviceId = await getDeviceId();
       await patch(`/devices/settings/${deviceId}/update-priority-task`, {
@@ -1461,7 +1491,10 @@ async function setPriorityTaskCommentWalkData(priority = 1) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_PRIORITY_TASK.COMMENT_WALK, priority);
+      await updateDeviceSettingInStorage(
+        KEY_PRIORITY_TASK.COMMENT_WALK,
+        priority,
+      );
     } else {
       const deviceId = await getDeviceId();
       await patch(`/devices/settings/${deviceId}/update-priority-task`, {
@@ -1544,7 +1577,10 @@ async function setIsExecutePriorityTaskData(isExecutePriorityTask = false) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_IS_EXECUTE_PRIORITY_TASK, isExecutePriorityTask);
+      await updateDeviceSettingInStorage(
+        KEY_IS_EXECUTE_PRIORITY_TASK,
+        isExecutePriorityTask,
+      );
     } else {
       await updateDeviceSettingRequest(
         "is_execute_priority_task",
@@ -1588,7 +1624,10 @@ async function setCommentWalkAreaData(commentWalkArea) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_COMMENT_WALK.COMMENT_WALK_AREA, commentWalkArea);
+      await updateDeviceSettingInStorage(
+        KEY_COMMENT_WALK.COMMENT_WALK_AREA,
+        commentWalkArea,
+      );
     } else {
       await updateCommentWalkSetting("comment_walk_area", commentWalkArea);
     }
@@ -1631,7 +1670,7 @@ async function setKeywordsCertainChoiceCommentWalkData(keywords) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(
+      await updateDeviceSettingInStorage(
         KEY_COMMENT_WALK.KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
         keywords,
       );
@@ -1679,7 +1718,7 @@ async function setIsSkipPostNotInGroupData(isSkipPostNotInGroup) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(
+      await updateDeviceSettingInStorage(
         KEY_COMMENT_WALK.IS_SKIP_POST_NOT_IN_GROUP,
         isSkipPostNotInGroup,
       );
@@ -1728,7 +1767,7 @@ async function setIsCombineStrictlyTitleGroupData(isCombineStrictlyTitleGroup) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(
+      await updateDeviceSettingInStorage(
         KEY_COMMENT_WALK.IS_COMBINE_STRICTLY_TITLE_GROUP,
         isCombineStrictlyTitleGroup,
       );
@@ -1776,7 +1815,10 @@ async function setCommentWalkSpeedData(commentWalkSpeed) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(KEY_COMMENT_WALK.COMMENT_WALK_SPEED, commentWalkSpeed);
+      await updateDeviceSettingInStorage(
+        KEY_COMMENT_WALK.COMMENT_WALK_SPEED,
+        commentWalkSpeed,
+      );
     } else {
       await updateCommentWalkSetting("comment_walk_speed", commentWalkSpeed);
     }
@@ -1815,7 +1857,7 @@ async function setIsAIHelpCommentWalkData(isAIHelpCommentWalk) {
   try {
     const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      await DB_setValue(
+      await updateDeviceSettingInStorage(
         KEY_COMMENT_WALK.IS_AI_HELP_COMMENT_WALK,
         isAIHelpCommentWalk,
       );
@@ -1876,6 +1918,55 @@ async function setIsRemoteData(isRemote) {
   }
 }
 
+async function getIsInteractBeforeCommentWalkData() {
+  try {
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(
+        KEY_COMMENT_WALK.IS_INTERACT_BEFORE_COMMENT_WALK,
+        false,
+      );
+    }
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      return deviceSettingTemp.comment_walk_config
+        .is_interact_before_comment_walk;
+    }
+
+    const deviceSetting = await getDeviceSetting();
+    return deviceSetting.comment_walk_config.is_interact_before_comment_walk;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function setIsInteractBeforeCommentWalkData(isInteractBeforeCommentWalk) {
+  try {
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      await updateDeviceSettingInStorage(
+        KEY_COMMENT_WALK.IS_INTERACT_BEFORE_COMMENT_WALK,
+        isInteractBeforeCommentWalk,
+      );
+    } else {
+      await updateDeviceSettingRequest(
+        "is_interact_before_comment_walk",
+        isInteractBeforeCommentWalk,
+      );
+    }
+
+    const deviceSettingTemp = await getDeviceSettingTemp();
+    if (deviceSettingTemp) {
+      deviceSettingTemp.comment_walk_config.is_interact_before_comment_walk =
+        isInteractBeforeCommentWalk;
+      await setDeviceSettingTemp(deviceSettingTemp);
+    }
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
+
 export {
   getCommentWalkAreaData,
   getCommentWalkSpeedData,
@@ -1890,7 +1981,7 @@ export {
   getIsFixStealFocusData,
   getIsInteractBeforePostData,
   getIsRandomBreakBatchData,
-  getIsRandomTimePostData,
+  getIsRandomTimeTaskData,
   getIsSchedulerData,
   getIsShuffleGroupNeedPostData,
   getIsSkipPostNotInGroupData,
@@ -1925,7 +2016,7 @@ export {
   setIsFixStealFocusData,
   setIsInteractBeforePostData,
   setIsRandomBreakBatchData,
-  setIsRandomTimePostData,
+  setIsRandomTimeTaskData,
   setIsSchedulerData,
   setIsShuffleGroupNeedPostData,
   setIsSkipPostNotInGroupData,
@@ -1950,4 +2041,6 @@ export {
   setIsAIHelpCommentWalkData,
   getIsRemoteData,
   setIsRemoteData,
+  getIsInteractBeforeCommentWalkData,
+  setIsInteractBeforeCommentWalkData,
 };

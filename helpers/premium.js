@@ -15,7 +15,7 @@ async function handleShowOrHideElementPremium() {
       random_break_batch,
       fix_steal_all_focus,
       shuffle_scheduler_time,
-      random_time_post,
+      random_time_task,
       special_frame_hour,
       priority_task,
       comment_walk,
@@ -23,7 +23,7 @@ async function handleShowOrHideElementPremium() {
       checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.IS_RANDOM_BREAK_BATCH),
       checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.IS_FIX_STEAL_ALL_FOCUS),
       checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.IS_SHUFFLE_SCHEDULER_TIME),
-      checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.IS_RANDOM_TIME_POST),
+      checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.IS_RANDOM_TIME_TASK),
       checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.SPECIAL_FRAME_HOUR),
       checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.PRIORITY_TASK),
       checkFeatureEnable(KEY_FEATURE_FLAG.FIELD.COMMENT_WALK),
@@ -71,14 +71,14 @@ async function handleShowOrHideElementPremium() {
       hideElement(".special-frame-hours-container");
     }
 
-    if (random_time_post) {
+    if (random_time_task) {
       showField({
-        selector: "#tm_checkbox-is-random-time-post",
+        selector: "#tm_checkbox-is-random-time-task",
         fieldSelector: ".tm_field-container",
       });
     } else {
       hideField({
-        selector: "#tm_checkbox-is-random-time-post",
+        selector: "#tm_checkbox-is-random-time-task",
         fieldSelector: ".tm_field-container",
       });
     }

@@ -1,4 +1,7 @@
-import { KEY_FIRST_TIME_USE } from "../contants/constant-extention.js";
+import {
+  KEY_FIRST_TIME_USE,
+  KEY_LISTENER_UPDATE_REQUEST,
+} from "../contants/constant-extention.js";
 import {
   initialTimeDelay,
   KEY_CHANGE_GROUPS_CHECKED_FLAG,
@@ -314,6 +317,10 @@ async function setNextTimePostWhenSpammed(time) {
   await DB_setValue(KEY_NEXT_TIME_POST_WHEN_SPAMMED, time);
 }
 
+async function updateListenerUpdateRequest() {
+  await DB_setValue(KEY_LISTENER_UPDATE_REQUEST, new Date().getTime());
+}
+
 export {
   addHistoryLog,
   clearHistoryLogs,
@@ -351,4 +358,5 @@ export {
   setQueueInStorage,
   setTimeDelayForScheduler,
   setTimeDelayInStorage,
+  updateListenerUpdateRequest,
 };

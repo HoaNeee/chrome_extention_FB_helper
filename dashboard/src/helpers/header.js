@@ -15,6 +15,7 @@ import { setTheme } from "../../../services/storage-global-service.js";
 import { DB_getValue, DB_setValue } from "../../../utils/api-helper.js";
 import { handleErrorHelper } from "../../../utils/exception.js";
 import { getTextWithLanguage, logError, sleep } from "../../../utils/utils.js";
+import { updateDataSavedInfo } from "../draw_element/dataSavedInfo.js";
 import {
   closeDialogLoading,
   createDialog,
@@ -58,7 +59,7 @@ async function addEvtHeader() {
           //     onLogoutSuccess: handleLogout,
           //   }),
           // );
-          // location.reload();
+          location.reload();
         } catch (error) {
           handleErrorHelper({ error, isShowNotify: false });
         }

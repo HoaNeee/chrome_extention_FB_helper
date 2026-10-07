@@ -1,6 +1,7 @@
 import {
   KEY_COMMENT_WALK_AREA,
   KEY_COMMENT_WALK_SPEED,
+  KEY_FEATURE_FLAG,
 } from "../../../contants/constant-extention.js";
 import {
   DEFAULT_COMMENT_WALK_SETTING,
@@ -20,6 +21,10 @@ import {
 } from "../../../helpers/scheduler.js";
 import { commentWalkService } from "../../../services/comment-walk-service.js";
 import {
+  checkFeatureEnable,
+  getFeatureFlag,
+} from "../../../services/device-service.js";
+import {
   changeTypeScheduler,
   clearAndCreateSchedulerAlarm,
   clearSchedulerAuto,
@@ -37,7 +42,7 @@ import {
   setIsFixStealAllFocusData,
   setIsFixStealFocusData,
   setIsRandomBreakBatchData,
-  setIsRandomTimePostData,
+  setIsRandomTimeTaskData,
   setIsSchedulerData,
   setIsShuffleGroupNeedPostData,
   setIsSpammedData,
@@ -193,8 +198,8 @@ async function createPanelSetting(anchorElem = document.body) {
           <label for="${prefix}checkbox-is-random-batch-post" style="user-select: none;">${getTextWithLanguage({ vi: "Tự động nghỉ giữa các đợt", en: "Random break between batches" })}</label>
         </div>
         <div class="${prefix}field-container field-checkbox">
-          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-random-time-post">
-          <label for="${prefix}checkbox-is-random-time-post" style="user-select: none;">${getTextWithLanguage({ vi: "Ngẫu nhiên thời gian đăng bài", en: "Random time post" })}</label>
+          <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-random-time-task">
+          <label for="${prefix}checkbox-is-random-time-task" style="user-select: none;">${getTextWithLanguage({ vi: "Ngẫu nhiên thời gian thực hiện công việc", en: "Random time task" })}</label>
         </div>
         <div class="${prefix}field-container field-checkbox">
           <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-fix-steal-all-focus">
@@ -284,6 +289,10 @@ async function createPanelSetting(anchorElem = document.body) {
           <div class="${prefix}field-container field-checkbox">
             <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-comment-walk">
             <label for="${prefix}checkbox-is-comment-walk" style="user-select: none;">${getTextWithLanguage({ vi: "Bình luận dạo", en: "Comment walk" })}</label>
+          </div> 
+          <div class="${prefix}field-container field-checkbox">
+            <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-is-interact-before-comment-walk">
+            <label for="${prefix}checkbox-is-interact-before-comment-walk" style="user-select: none;">${getTextWithLanguage({ vi: "Tương tác trước khi bình luận", en: "Interact before comment walk" })}</label>
           </div> 
           <div class="${prefix}field-container field-checkbox">
             <input class="custom-checkbox" type="checkbox" id="${prefix}checkbox-${KEY_COMMENT_WALK.IS_SKIP_POST_NOT_IN_GROUP}">
@@ -405,6 +414,12 @@ async function createPanelSetting(anchorElem = document.body) {
       </div>
     `;
 
+    const featureFlags = await getFeatureFlag();
+    const ft_commentWalk = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.COMMENT_WALK,
+      featureFlags,
+    );
+
     const basicSettingHTML = `
       <div class="${prefix}basic-setting">
         ${toolSetting}
@@ -412,7 +427,7 @@ async function createPanelSetting(anchorElem = document.body) {
         ${optionalHTML}
         ${schedulerHTML}
         ${timeDelayHTML}
-        ${commentWalk}
+        ${ft_commentWalk ? commentWalk : ""}
       </div>
   `;
 
@@ -769,7 +784,7 @@ async function createPanelSetting(anchorElem = document.body) {
           inputCustomMinutes.value = value;
         }
 
-        const listTime = await createSchedulerMinutes(value);
+        const listTime = createSchedulerMinutes(value);
 
         await setSchedulerDetail(type, {
           scheduler_time_value: value,
@@ -1577,19 +1592,18 @@ async function createPanelSetting(anchorElem = document.body) {
           });
         }
 
-        const checkboxIsRandomTimePost = root.querySelector(
-          `#${prefix}checkbox-is-random-time-post`,
+        const checkboxIsRandomTimeTask = root.querySelector(
+          `#${prefix}checkbox-is-random-time-task`,
         );
-        if (checkboxIsRandomTimePost) {
-          checkboxIsRandomTimePost.addEventListener("change", async (e) => {
+        if (checkboxIsRandomTimeTask) {
+          checkboxIsRandomTimeTask.addEventListener("change", async (e) => {
             const val = e.target.checked;
-            // DB_setValue(KEY_IS_RANDOM_TIME_POST, val);
             try {
-              await setIsRandomTimePostData(val);
+              await setIsRandomTimeTaskData(val);
               updateDataSavedInfo();
             } catch (error) {
               handleErrorHelper({
-                name: "checkboxIsRandomTimePost",
+                name: "checkboxIsRandomTimeTask",
                 error,
                 isShowNotify: false,
               });
@@ -1962,6 +1976,32 @@ async function createPanelSetting(anchorElem = document.body) {
               e.target.checked = !isAiHelpCommentWalk;
             }
           });
+        }
+
+        const checkboxInteractBeforeCommentWalk = document.querySelector(
+          `#${prefix}checkbox-is-interact-before-comment-walk`,
+        );
+
+        if (checkboxInteractBeforeCommentWalk) {
+          checkboxInteractBeforeCommentWalk.checked =
+            await commentWalkService.getIsInteractBeforeCommentWalk();
+          checkboxInteractBeforeCommentWalk.addEventListener(
+            "change",
+            async (e) => {
+              const isInteractBeforeCommentWalk = e.target.checked;
+              try {
+                await commentWalkService.setIsInteractBeforeCommentWalk(
+                  isInteractBeforeCommentWalk,
+                );
+              } catch (error) {
+                handleErrorHelper({
+                  name: "checkboxInteractBeforeCommentWalk",
+                  error,
+                });
+                e.target.checked = !isInteractBeforeCommentWalk;
+              }
+            },
+          );
         }
       } catch (error) {
         logError("Error at addFieldsEvent: ", error);

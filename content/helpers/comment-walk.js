@@ -295,6 +295,8 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
     const isCombineStrictlyTitleGroup =
       setting?.is_combine_strictly_title_group || false;
     const speed = setting?.comment_walk_speed;
+    const isInteractBeforeCommentWalk =
+      setting?.is_interact_before_comment_walk || false;
 
     const isAIHelp = setting.is_ai_help_comment_walk;
 
@@ -486,13 +488,13 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 
       switch (speed) {
         case KEY_COMMENT_WALK_SPEED.SLOW:
-          return sleepSpeedHelper.slow();
+          return await sleepSpeedHelper.slow();
 
         case KEY_COMMENT_WALK_SPEED.NORMAL:
-          return sleepSpeedHelper.normal();
+          return await sleepSpeedHelper.normal();
 
         case KEY_COMMENT_WALK_SPEED.FAST:
-          return sleepSpeedHelper.fast();
+          return await sleepSpeedHelper.fast();
 
         default:
           break;
@@ -571,7 +573,8 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
     async function autoWalk(childs, reloaded = false) {
       try {
         for await (const child of childs) {
-          let existedDialog = findExistDialog();
+          const existedDialog = findExistDialog();
+
           if (existedDialog) {
             await closeDialog();
           }
@@ -587,6 +590,8 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
           if (isSkipPostNotInGroup) {
             const article = findElement('div[role="article"]', child);
             if (article) {
+              await scrollElementIntoView(article);
+              await sleepSpeedHelper.fast();
               logContent(
                 getTextLanguageContent({
                   en: "This post maybe is advertisement, skip it...",
@@ -691,11 +696,13 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             continue;
           }
 
-          await calculateValueSleep(speed);
+          if (areaComment.isHome) {
+            await calculateValueSleep(speed);
 
-          await scrollElementIntoView(divButtonToPost);
+            await scrollElementIntoView(divButtonToPost);
 
-          await calculateValueSleep(speed);
+            await calculateValueSleep(speed);
+          }
 
           if (isSkipPostNotInGroup && !checkIsFeedItemInGroup(child)) {
             logContent(
@@ -725,6 +732,10 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
             continue;
           }
 
+          if (isInteractBeforeCommentWalk) {
+            await interactBeforeComment(child);
+          }
+
           const matchContentExcludesNotShowMore = matchQueryKeywords(
             content_query_excludes_common,
             divFeedContent.textContent,
@@ -736,7 +747,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 
           const btnShowMore = findButtonShowMore(child);
           if (btnShowMore) {
-            await sleepHelper().fast();
+            await sleepSpeedHelper.fast();
 
             btnShowMore.click();
 
@@ -1085,6 +1096,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
                 vi: "Nội dung bình luận không rỗng, xóa nội dung...",
               }),
             );
+
             await clearContentFromInputEditor(inputEditor);
             await calculateValueSleep(speed);
             await clearFileFromInput(dialog);
@@ -1263,6 +1275,56 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
     logContent("This tab maybe will be closed after some seconds...");
     await sleep(random(8000, 12000));
     await CL_compeleteCommentWalkThisBatch();
+  }
+}
+
+async function interactBeforeComment(divItemFeed) {
+  try {
+    if (!divItemFeed) {
+      return;
+    }
+
+    logContent(
+      getTextLanguageContent({
+        vi: "Tương tác trước khi bình luận đang được bật, đang tính toán có tương tác hay không...",
+        en: "Interact before comment is enabled, calculating whether to interact or not...",
+      }),
+    );
+
+    const rd = randomRateBoolean(30);
+    if (!rd) {
+      logContent(
+        getTextLanguageContent({
+          en: "Decided to skip interaction.",
+          vi: "Quyết định bỏ qua tương tác.",
+        }),
+      );
+      return;
+    }
+
+    logContent(
+      getTextLanguageContent({
+        vi: "Quyết định thực hiện tương tác.",
+        en: "Decided to interact.",
+      }),
+    );
+
+    const lang = getLanguage();
+
+    const label = lang === "vi" ? "Thích" : "Like";
+
+    const btnReact = findElement(
+      `div[aria-label="${label}"][role="button"]`,
+      divItemFeed,
+    );
+
+    if (btnReact) {
+      await sleep(random(3000, 5000));
+      btnReact.click();
+      await sleep(random(1500, 3000));
+    }
+  } catch (error) {
+    logErrorContent("error in interactBeforeComment", error);
   }
 }
 

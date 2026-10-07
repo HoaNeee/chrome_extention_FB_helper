@@ -1,6 +1,11 @@
+import { KEY_FEATURE_FLAG } from "../../../contants/constant-extention.js";
 import { prefix } from "../../../contants/contants.js";
 import { commentWalkHelper } from "../../../helpers/comment-walk.js";
 import { commentWalkService } from "../../../services/comment-walk-service.js";
+import {
+  checkFeatureEnable,
+  getFeatureFlag,
+} from "../../../services/device-service.js";
 import {
   getTextWithLanguage,
   logError,
@@ -8,13 +13,27 @@ import {
 } from "../../../utils/utils.js";
 import { createButtonConfirm } from "./button.js";
 import { drawDataCommentWalkElement } from "./dialog-add-or-edit-comment-walk-html.js";
-import { createDialog } from "./dialog.js";
+import {
+  closeDialogLoading,
+  createDialog,
+  showDialogLoading,
+} from "./dialog.js";
 import { createDivItemListDataCommentWalk } from "./list-data-comment-walk.js";
 import { showNotify } from "./notify.js";
 import { addLog } from "./panel-log.js";
 
 async function createPanelCommentWalkTab(anchorElem = document.body) {
   try {
+    const featureFlags = await getFeatureFlag();
+    const ft_commentWalk = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.COMMENT_WALK,
+      featureFlags,
+    );
+
+    if (!ft_commentWalk) {
+      return;
+    }
+
     const container = document.createElement("div");
     container.className = `${prefix}comment-walk-tab`;
     container.setAttribute("data-tab-value", "comment-walk");
@@ -66,26 +85,40 @@ async function createPanelCommentWalkTab(anchorElem = document.body) {
     const { setIsShow: setIsShowDialogAddComment } = createDialog({
       html: drawDataCommentWalkElement({
         onSave: async (payload) => {
-          const files = await cleanFiles(payload.files);
-          payload.files = files;
+          try {
+            showDialogLoading();
+            const files = await cleanFiles(payload.files);
+            payload.files = files;
 
-          const newData = await commentWalkService.addNewCommentWalk(payload);
-          listDataCommentWalk.push(newData);
-          await drawListCommentWalk(listDataCommentWalk);
-          setIsShowDialogAddComment(false);
+            const newData = await commentWalkService.addNewCommentWalk(payload);
+            listDataCommentWalk.push(newData);
+            await drawListCommentWalk(listDataCommentWalk);
+            setIsShowDialogAddComment(false);
 
-          showNotify({
-            message: getTextWithLanguage({
-              vi: "Thêm dữ liệu bình luận thành công",
-              en: "Add data comment walk success",
-            }),
-            type: "success",
-          });
+            showNotify({
+              message: getTextWithLanguage({
+                vi: "Thêm dữ liệu bình luận thành công",
+                en: "Add data comment walk success",
+              }),
+              type: "success",
+            });
 
-          addLog({
-            vi: `Đã thêm dữ liệu "${payload.name || payload.title_query_search}" vào danh sách bình luận dạo`,
-            en: `Add "${payload.name || payload.title_query_search}" data comment walk success`,
-          });
+            addLog({
+              vi: `Đã thêm dữ liệu "${payload.name || payload.title_query_search}" vào danh sách bình luận dạo`,
+              en: `Add "${payload.name || payload.title_query_search}" data comment walk success`,
+            });
+          } catch (error) {
+            logError("Error at onSave: ", error);
+            showNotify({
+              message: getTextWithLanguage({
+                vi: "Đã có lỗi xảy ra",
+                en: "Something went wrong",
+              }),
+              type: "error",
+            });
+          } finally {
+            closeDialogLoading();
+          }
         },
         type: "add",
       }),
@@ -121,6 +154,7 @@ async function createPanelCommentWalkTab(anchorElem = document.body) {
 
       async function onDelete(id) {
         try {
+          showDialogLoading();
           const commentWalk = await commentWalkService.getCommentWalkById(id);
           const sucess = await commentWalkService.deleteDataCommentWalk(id);
           if (sucess) {
@@ -144,6 +178,8 @@ async function createPanelCommentWalkTab(anchorElem = document.body) {
           }
         } catch (error) {
           logError("Error at onDeleteGroup: ", error);
+        } finally {
+          closeDialogLoading();
         }
       }
 
@@ -167,36 +203,51 @@ async function createPanelCommentWalkTab(anchorElem = document.body) {
               type: "edit",
               onDelete: onDelete,
               onSave: async (payload, isEditFile) => {
-                if (isEditFile) {
-                  payload.files = await cleanFiles(payload.files);
-                }
-
-                const newData = await commentWalkService.updateDataCommentWalk(
-                  payload.id,
-                  payload,
-                );
-
-                listDataCommentWalk = listDataCommentWalk.map((item) => {
-                  if (item.id === payload.id) {
-                    return newData;
+                try {
+                  showDialogLoading();
+                  if (isEditFile) {
+                    payload.files = await cleanFiles(payload.files);
                   }
-                  return item;
-                });
-                await drawListCommentWalk(listDataCommentWalk);
-                setIsShowDialogEditComment(false);
 
-                showNotify({
-                  message: getTextWithLanguage({
-                    vi: "Cập nhật dữ liệu bình luận thành công",
-                    en: "Update data comment walk success",
-                  }),
-                  type: "success",
-                });
+                  const newData =
+                    await commentWalkService.updateDataCommentWalk(
+                      payload.id,
+                      payload,
+                    );
 
-                addLog({
-                  vi: `Đã cập nhật dữ liệu "${payload.name || payload.title_query_search}" trong danh sách bình luận dạo`,
-                  en: `Update "${payload.name || payload.title_query_search}" data comment walk success`,
-                });
+                  listDataCommentWalk = listDataCommentWalk.map((item) => {
+                    if (item.id === payload.id) {
+                      return newData;
+                    }
+                    return item;
+                  });
+                  await drawListCommentWalk(listDataCommentWalk);
+                  setIsShowDialogEditComment(false);
+
+                  showNotify({
+                    message: getTextWithLanguage({
+                      vi: "Cập nhật dữ liệu bình luận thành công",
+                      en: "Update data comment walk success",
+                    }),
+                    type: "success",
+                  });
+
+                  addLog({
+                    vi: `Đã cập nhật dữ liệu "${payload.name || payload.title_query_search}" trong danh sách bình luận dạo`,
+                    en: `Update "${payload.name || payload.title_query_search}" data comment walk success`,
+                  });
+                } catch (error) {
+                  logError("Error at onSave: ", error);
+                  showNotify({
+                    message: getTextWithLanguage({
+                      vi: "Đã có lỗi xảy ra",
+                      en: "Something went wrong",
+                    }),
+                    type: "error",
+                  });
+                } finally {
+                  closeDialogLoading();
+                }
               },
             });
 
@@ -232,7 +283,9 @@ async function createPanelCommentWalkTab(anchorElem = document.body) {
           }),
           titleConfirm: "Xác nhận xóa",
           onConfirm: async () => {
+            showDialogLoading();
             const success = await commentWalkService.clearAllDataCommentWalk();
+
             if (success) {
               showNotify({
                 message: getTextWithLanguage({
@@ -244,6 +297,7 @@ async function createPanelCommentWalkTab(anchorElem = document.body) {
               listDataCommentWalk = [];
               await drawListCommentWalk(listDataCommentWalk);
             }
+            closeDialogLoading();
           },
         });
         divDataCommentWalkBtnAction.appendChild(btnConfirm);

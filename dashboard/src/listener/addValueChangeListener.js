@@ -1,4 +1,7 @@
-import { KEY_MESSAGE_FROM_BACKGROUND } from "../../../contants/constant-extention.js";
+import {
+  KEY_LISTENER_UPDATE_REQUEST,
+  KEY_MESSAGE_FROM_BACKGROUND,
+} from "../../../contants/constant-extention.js";
 import {
   KEY_ALL_GROUPS,
   KEY_AUTH,
@@ -57,6 +60,7 @@ export default function addValueChangeListener() {
     KEY_STOP_TASK,
     KEY_MESSAGE_FROM_BACKGROUND.AUTOMATION.POST_CONTINUE,
     KEY_MESSAGE_FROM_BACKGROUND.AUTOMATION.COMMENT_WALK,
+    KEY_LISTENER_UPDATE_REQUEST,
   ];
   const { setIsTest, setIsCommentWalk } = getAllFieldsSetting();
   chrome.storage.onChanged.addListener(async (changes, areaName) => {

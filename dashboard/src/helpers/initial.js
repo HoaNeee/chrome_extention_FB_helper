@@ -1,4 +1,5 @@
 import { GoogleGenAIClass } from "../../../class/GoogleGenAI.js";
+import { KEY_FEATURE_FLAG } from "../../../contants/constant-extention.js";
 import {
   DEFAULT_COMMENT_WALK_SETTING,
   initialTimeDelay,
@@ -31,7 +32,11 @@ import {
 } from "../../../services/comment-service.js";
 import { commentWalkService } from "../../../services/comment-walk-service.js";
 import { getListDataGroupPost } from "../../../services/data-group-post-service.js";
-import { getDeviceId } from "../../../services/device-service.js";
+import {
+  checkFeatureEnable,
+  getDeviceId,
+  getFeatureFlag,
+} from "../../../services/device-service.js";
 import {
   getAllGroupPostedsInStorage,
   getListGroupsNeedPostInStorage,
@@ -56,7 +61,7 @@ import {
   getIsFixStealFocusData,
   getIsInteractBeforePostData,
   getIsRandomBreakBatchData,
-  getIsRandomTimePostData,
+  getIsRandomTimeTaskData,
   getIsSchedulerData,
   getIsShuffleGroupNeedPostData,
   getIsSpammedData,
@@ -99,6 +104,33 @@ import { updateAuthUI } from "./header.js";
 
 async function initialData({ anchorElement = document.body }) {
   try {
+    const featureFlags = await getFeatureFlag();
+    const ft_commentWalk = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.COMMENT_WALK,
+      featureFlags,
+    );
+    const ft_randomBreakBatch = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.IS_RANDOM_BREAK_BATCH,
+      featureFlags,
+    );
+    const ft_fixStealAllFocus = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.IS_FIX_STEAL_ALL_FOCUS,
+      featureFlags,
+    );
+
+    const ft_specialFrameHours = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.SPECIAL_FRAME_HOUR,
+      featureFlags,
+    );
+    const ft_priorityTask = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.PRIORITY_TASK,
+      featureFlags,
+    );
+    const ft_randomTimeTask = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.IS_RANDOM_TIME_TASK,
+      featureFlags,
+    );
+
     async function initialSettings() {
       const {
         setMaxGroupPerTime,
@@ -112,7 +144,7 @@ async function initialData({ anchorElement = document.body }) {
         setIsFixStealAllFocus,
         setIsShuffleGroupsNeedPost,
         setIsRandomBatchPost,
-        setIsRandomTimePost,
+        setIsRandomTimeTask,
         setIsSpecialFrameHours,
         setIsCommentWalkProcessing,
         setIsCommentWalk,
@@ -128,7 +160,18 @@ async function initialData({ anchorElement = document.body }) {
         setKeywordsCertainChoiceCommentWalk,
         setIsCombineStrictlyTitleGroup,
         setIsSkipPostNotInGroup,
+        setIsInteractBeforeCommentWalk,
       } = getAllFieldsSetting();
+
+      const {
+        setIsCommentWhenPostSuccess,
+        setKeyWordsComment,
+        setIsInteractBeforePost,
+        setMaxCommentPerTime,
+        setMaxPostInteract,
+        setApiKeyGeminiFree,
+        setApiKeyGeminiPaid,
+      } = getAllFieldsAdvancedSetting();
 
       //get max group
       try {
@@ -138,12 +181,124 @@ async function initialData({ anchorElement = document.body }) {
         logError("Error when get or set max group per time", error);
       }
 
-      const priorityTask = await getPriorityTaskData();
-      setPriorityTaskCommentWalk(priorityTask.priority_task_comment_walk);
-      setPriorityTaskPost(priorityTask.priority_task_post);
+      if (ft_priorityTask) {
+        const priorityTask = await getPriorityTaskData();
+        setPriorityTaskCommentWalk(priorityTask.priority_task_comment_walk);
+        setPriorityTaskPost(priorityTask.priority_task_post);
+        const isExecutePriorityTask = await getIsExecutePriorityTaskData();
+        setIsExecutePriorityTask(isExecutePriorityTask);
+      }
 
-      const isExecutePriorityTask = await getIsExecutePriorityTaskData();
-      setIsExecutePriorityTask(isExecutePriorityTask);
+      if (ft_commentWalk) {
+        const isProgressCommentWalk =
+          await commentWalkService.getIsCommentWalkProcessing();
+        if (isProgressCommentWalk) {
+          disabledElementProgress(KEY_COMMENT_WALK.IS_COMMENT_WALK_PROCESSING);
+        } else {
+          enabledElementProgress(KEY_COMMENT_WALK.IS_COMMENT_WALK_PROCESSING);
+        }
+        setIsCommentWalkProcessing(isProgressCommentWalk);
+
+        const contentQueryIncludes = await getContentQueryIncludesCommonData();
+        if (contentQueryIncludes) {
+          setContentQueryIncludesCommon(contentQueryIncludes.join(", "));
+        } else {
+          await setContentQueryIncludesCommonData(
+            KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_INCLUDES_COMMON,
+          );
+          setContentQueryIncludesCommon(
+            KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_INCLUDES_COMMON.join(", "),
+          );
+        }
+
+        const contentQueryExcludes = await getContentQueryExcludesCommonData();
+        if (contentQueryExcludes) {
+          setContentQueryExcludesCommon(contentQueryExcludes.join(", "));
+        } else {
+          await setContentQueryExcludesCommonData(
+            KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON,
+          );
+          setContentQueryExcludesCommon(
+            KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON.join(", "),
+          );
+        }
+
+        const keywordsCertainChoiceCommentWalk =
+          await getKeywordsCertainChoiceCommentWalkData();
+        if (keywordsCertainChoiceCommentWalk) {
+          setKeywordsCertainChoiceCommentWalk(
+            keywordsCertainChoiceCommentWalk.join(", "),
+          );
+        } else {
+          await setKeywordsCertainChoiceCommentWalkData(
+            KEY_DEFAULT_VALUE.DEFAULT_KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
+          );
+          setKeywordsCertainChoiceCommentWalk(
+            KEY_DEFAULT_VALUE.DEFAULT_KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK.join(
+              ", ",
+            ),
+          );
+        }
+
+        const matchRateValueContentQueryIncludesCommon =
+          await getMatchRateValueContentQueryIncludesCommonData();
+        if (matchRateValueContentQueryIncludesCommon) {
+          setMatchRateValueContentQueryIncludesCommon(
+            matchRateValueContentQueryIncludesCommon,
+          );
+        } else {
+          await setMatchRateValueContentQueryIncludesCommonData(
+            KEY_DEFAULT_VALUE.DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
+          );
+          setMatchRateValueContentQueryIncludesCommon(
+            KEY_DEFAULT_VALUE.DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
+          );
+        }
+
+        const isSkipPostNotInGroup =
+          await commentWalkService.getIsSkipPostNotInGroup();
+        setIsSkipPostNotInGroup(isSkipPostNotInGroup);
+
+        const isCombineStrictlyTitleGroup =
+          await commentWalkService.getIsCombineStrictlyTitleGroup();
+        setIsCombineStrictlyTitleGroup(isCombineStrictlyTitleGroup);
+
+        const isInteractBeforeCommentWalk =
+          await commentWalkService.getIsInteractBeforeCommentWalk();
+        setIsInteractBeforeCommentWalk(isInteractBeforeCommentWalk);
+
+        const maxCommentWalkPerBatch = await getMaxCommentWalkPerBatchData();
+        setMaxCommentWalkPerBatch(maxCommentWalkPerBatch);
+
+        const isCommentWalk = await getIsCommentWalkData();
+        setIsCommentWalk(isCommentWalk);
+
+        let apiKeyGeminiFree = await GoogleGenAIClass.getApiKeyGeminiFree();
+        setApiKeyGeminiFree(apiKeyGeminiFree || "");
+
+        let apiKeyGeminiPaid = await GoogleGenAIClass.getApiKeyGeminiPaid();
+        setApiKeyGeminiPaid(apiKeyGeminiPaid || "");
+      }
+
+      if (ft_fixStealAllFocus) {
+        const isFixStealAllFocus = await getIsFixStealAllFocusData();
+        setIsFixStealAllFocus(isFixStealAllFocus);
+      }
+
+      if (ft_specialFrameHours) {
+        const isSpecialFrameHours = await getIsSpecialFrameHoursData();
+        setIsSpecialFrameHours(isSpecialFrameHours);
+      }
+
+      if (ft_randomTimeTask) {
+        const isRandomTimeTask = await getIsRandomTimeTaskData();
+        setIsRandomTimeTask(isRandomTimeTask);
+      }
+
+      if (ft_randomBreakBatch) {
+        const isRandomBatchPost = await getIsRandomBreakBatchData();
+        setIsRandomBatchPost(isRandomBatchPost);
+      }
 
       const isTesting = await getIsTestInStorage();
       setIsTest(isTesting);
@@ -156,20 +311,8 @@ async function initialData({ anchorElement = document.body }) {
       }
       setIsProcessing(isProcessing);
 
-      const isProgressCommentWalk =
-        await commentWalkService.getIsCommentWalkProcessing();
-      if (isProgressCommentWalk) {
-        disabledElementProgress(KEY_COMMENT_WALK.IS_COMMENT_WALK_PROCESSING);
-      } else {
-        enabledElementProgress(KEY_COMMENT_WALK.IS_COMMENT_WALK_PROCESSING);
-      }
-      setIsCommentWalkProcessing(isProgressCommentWalk);
-
       const isFixStealFocus = await getIsFixStealFocusData();
       setIsFixStealFocus(isFixStealFocus);
-
-      const isFixStealAllFocus = await getIsFixStealAllFocusData();
-      setIsFixStealAllFocus(isFixStealAllFocus);
 
       const isSpammed = await getIsSpammedData();
       setIsSpammed(isSpammed);
@@ -179,12 +322,6 @@ async function initialData({ anchorElement = document.body }) {
 
       const isShuffleGroupsNeedPost = await getIsShuffleGroupNeedPostData();
       setIsShuffleGroupsNeedPost(isShuffleGroupsNeedPost);
-
-      const isRandomTimePost = await getIsRandomTimePostData();
-      setIsRandomTimePost(isRandomTimePost);
-
-      const isSpecialFrameHours = await getIsSpecialFrameHoursData();
-      setIsSpecialFrameHours(isSpecialFrameHours);
 
       const timeBreakWhenSpammed = await getTimeBreakWhenSpammedData();
       if (!timeBreakWhenSpammed) {
@@ -198,70 +335,6 @@ async function initialData({ anchorElement = document.body }) {
         setTimeBreakWhenSpammed(timeBreakWhenSpammed);
       }
 
-      const contentQueryIncludes = await getContentQueryIncludesCommonData();
-      if (contentQueryIncludes) {
-        setContentQueryIncludesCommon(contentQueryIncludes.join(", "));
-      } else {
-        await setContentQueryIncludesCommonData(
-          KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_INCLUDES_COMMON,
-        );
-        setContentQueryIncludesCommon(
-          KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_INCLUDES_COMMON.join(", "),
-        );
-      }
-
-      const contentQueryExcludes = await getContentQueryExcludesCommonData();
-      if (contentQueryExcludes) {
-        setContentQueryExcludesCommon(contentQueryExcludes.join(", "));
-      } else {
-        await setContentQueryExcludesCommonData(
-          KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON,
-        );
-        setContentQueryExcludesCommon(
-          KEY_DEFAULT_VALUE.DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON.join(", "),
-        );
-      }
-
-      const keywordsCertainChoiceCommentWalk =
-        await getKeywordsCertainChoiceCommentWalkData();
-      if (keywordsCertainChoiceCommentWalk) {
-        setKeywordsCertainChoiceCommentWalk(
-          keywordsCertainChoiceCommentWalk.join(", "),
-        );
-      } else {
-        await setKeywordsCertainChoiceCommentWalkData(
-          KEY_DEFAULT_VALUE.DEFAULT_KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
-        );
-        setKeywordsCertainChoiceCommentWalk(
-          KEY_DEFAULT_VALUE.DEFAULT_KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK.join(
-            ", ",
-          ),
-        );
-      }
-
-      const matchRateValueContentQueryIncludesCommon =
-        await getMatchRateValueContentQueryIncludesCommonData();
-      if (matchRateValueContentQueryIncludesCommon) {
-        setMatchRateValueContentQueryIncludesCommon(
-          matchRateValueContentQueryIncludesCommon,
-        );
-      } else {
-        await setMatchRateValueContentQueryIncludesCommonData(
-          KEY_DEFAULT_VALUE.DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
-        );
-        setMatchRateValueContentQueryIncludesCommon(
-          KEY_DEFAULT_VALUE.DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON,
-        );
-      }
-
-      const isSkipPostNotInGroup =
-        await commentWalkService.getIsSkipPostNotInGroup();
-      setIsSkipPostNotInGroup(isSkipPostNotInGroup);
-
-      const isCombineStrictlyTitleGroup =
-        await commentWalkService.getIsCombineStrictlyTitleGroup();
-      setIsCombineStrictlyTitleGroup(isCombineStrictlyTitleGroup);
-
       const isStopTask = await getIsStopTaskData();
       setStatusTool(!isStopTask);
 
@@ -274,7 +347,7 @@ async function initialData({ anchorElement = document.body }) {
         clearSchedulerAuto();
       }
 
-      //shuffle time
+      //shuffle time ===> FIX THEN
       if (getIsDashboardTab(location.href) && isShuffleSchedulerTime) {
         shuffleTimes();
       }
@@ -283,19 +356,6 @@ async function initialData({ anchorElement = document.body }) {
       if (strictlyMatchTitleGroup && Array.isArray(strictlyMatchTitleGroup)) {
         setStrictlyMatchTitleGroup(strictlyMatchTitleGroup.join(", "));
       }
-
-      const isRandomBatchPost = await getIsRandomBreakBatchData();
-      setIsRandomBatchPost(isRandomBatchPost);
-
-      const {
-        setIsCommentWhenPostSuccess,
-        setKeyWordsComment,
-        setIsInteractBeforePost,
-        setMaxCommentPerTime,
-        setMaxPostInteract,
-        setApiKeyGeminiFree,
-        setApiKeyGeminiPaid,
-      } = getAllFieldsAdvancedSetting();
 
       const isCommentWhenPostSuccess = await getIsCommentWhenPostSuccessData();
       setIsCommentWhenPostSuccess(isCommentWhenPostSuccess);
@@ -318,18 +378,6 @@ async function initialData({ anchorElement = document.body }) {
         await setMaxPostInteractService(maxPost);
       }
       setMaxPostInteract(maxPost);
-
-      const maxCommentWalkPerBatch = await getMaxCommentWalkPerBatchData();
-      setMaxCommentWalkPerBatch(maxCommentWalkPerBatch);
-
-      const isCommentWalk = await getIsCommentWalkData();
-      setIsCommentWalk(isCommentWalk);
-
-      let apiKeyGeminiFree = await GoogleGenAIClass.getApiKeyGeminiFree();
-      setApiKeyGeminiFree(apiKeyGeminiFree || "");
-
-      let apiKeyGeminiPaid = await GoogleGenAIClass.getApiKeyGeminiPaid();
-      setApiKeyGeminiPaid(apiKeyGeminiPaid || "");
     }
 
     await initialSettings();
@@ -381,42 +429,44 @@ async function initialData({ anchorElement = document.body }) {
           initialTimeDelay.time_delay_open_new_tab;
       }
 
-      const timeDelayCommentWalk = await getTimeDelayCommentWalk();
+      if (ft_commentWalk) {
+        const timeDelayCommentWalk = await getTimeDelayCommentWalk();
 
-      const inputTimeDelayFillContentCommentWalkMin =
-        anchorElement.querySelector(
-          `#tm_input-time-delay-fill-content-comment-walk-min`,
+        const inputTimeDelayFillContentCommentWalkMin =
+          anchorElement.querySelector(
+            `#tm_input-time-delay-fill-content-comment-walk-min`,
+          );
+        const inputTimeDelayFillContentCommentWalkMax =
+          anchorElement.querySelector(
+            `#tm_input-time-delay-fill-content-comment-walk-max`,
+          );
+        const inputTimeDelayFillFileCommentWalk = anchorElement.querySelector(
+          `#tm_input-time-delay-fill-file-comment-walk`,
         );
-      const inputTimeDelayFillContentCommentWalkMax =
-        anchorElement.querySelector(
-          `#tm_input-time-delay-fill-content-comment-walk-max`,
+        const inputTimeDelaySubmitCommentWalk = anchorElement.querySelector(
+          `#tm_input-time-delay-submit-comment-walk`,
         );
-      const inputTimeDelayFillFileCommentWalk = anchorElement.querySelector(
-        `#tm_input-time-delay-fill-file-comment-walk`,
-      );
-      const inputTimeDelaySubmitCommentWalk = anchorElement.querySelector(
-        `#tm_input-time-delay-submit-comment-walk`,
-      );
 
-      if (inputTimeDelayFillContentCommentWalkMin) {
-        inputTimeDelayFillContentCommentWalkMin.value =
-          timeDelayCommentWalk.time_delay_fill_content_comment_walk_min ||
-          DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_content_comment_walk_min;
-      }
-      if (inputTimeDelayFillContentCommentWalkMax) {
-        inputTimeDelayFillContentCommentWalkMax.value =
-          timeDelayCommentWalk.time_delay_fill_content_comment_walk_max ||
-          DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_content_comment_walk_max;
-      }
-      if (inputTimeDelayFillFileCommentWalk) {
-        inputTimeDelayFillFileCommentWalk.value =
-          timeDelayCommentWalk.time_delay_fill_file_comment_walk ||
-          DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_file_comment_walk;
-      }
-      if (inputTimeDelaySubmitCommentWalk) {
-        inputTimeDelaySubmitCommentWalk.value =
-          timeDelayCommentWalk.time_delay_submit_comment_walk ||
-          DEFAULT_COMMENT_WALK_SETTING.time_delay_submit_comment_walk;
+        if (inputTimeDelayFillContentCommentWalkMin) {
+          inputTimeDelayFillContentCommentWalkMin.value =
+            timeDelayCommentWalk.time_delay_fill_content_comment_walk_min ||
+            DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_content_comment_walk_min;
+        }
+        if (inputTimeDelayFillContentCommentWalkMax) {
+          inputTimeDelayFillContentCommentWalkMax.value =
+            timeDelayCommentWalk.time_delay_fill_content_comment_walk_max ||
+            DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_content_comment_walk_max;
+        }
+        if (inputTimeDelayFillFileCommentWalk) {
+          inputTimeDelayFillFileCommentWalk.value =
+            timeDelayCommentWalk.time_delay_fill_file_comment_walk ||
+            DEFAULT_COMMENT_WALK_SETTING.time_delay_fill_file_comment_walk;
+        }
+        if (inputTimeDelaySubmitCommentWalk) {
+          inputTimeDelaySubmitCommentWalk.value =
+            timeDelayCommentWalk.time_delay_submit_comment_walk ||
+            DEFAULT_COMMENT_WALK_SETTING.time_delay_submit_comment_walk;
+        }
       }
     }
 

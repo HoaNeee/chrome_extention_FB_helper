@@ -17,10 +17,10 @@ import {
   createDialog,
   showDialogLoading,
 } from "./dialog.js";
-import { createDivListGroups } from "./listGroup.js";
+import { createDivListGroups } from "./list-data-group-post-html.js";
 import { showNotify } from "./notify.js";
 import { addLog } from "./panel-log.js";
-import { drawPanelGroup } from "./panelGroup.js";
+import { drawPanelGroup } from "./dialog-add-or-edit-data-group-post.js";
 import { createButtonConfirm } from "./button.js";
 
 async function createPanelTabGroup(anchorElem = document.body) {

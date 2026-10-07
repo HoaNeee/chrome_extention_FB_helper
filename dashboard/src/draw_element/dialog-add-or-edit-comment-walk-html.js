@@ -9,6 +9,7 @@ import {
   splitString,
 } from "../../../utils/utils.js";
 import { createButtonConfirm } from "./button.js";
+import { closeDialogLoading, showDialogLoading } from "./dialog.js";
 
 /**
  *

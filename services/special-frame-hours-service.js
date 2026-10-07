@@ -33,7 +33,7 @@ async function setSpecialFrameHoursInStorage(data) {
  */
 async function getSpecialFrameHoursService() {
   try {
-    const isUseLocalStorage = getIsUseLocalStorage();
+    const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
       const framesHours = (await DB_getValue(KEY_SPECIAL_FRAME_HOURS)) || [];
       return framesHours;
@@ -91,17 +91,13 @@ async function addSpecialFrameHoursService(data) {
       apply_dates,
     };
 
-    const isUseLocalStorage = getIsUseLocalStorage();
+    const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
-      if (!data.id) {
-        data.id = genIDNumber();
-      }
+      payload.id = data.id || genIDNumber();
+      payload.is_active = true;
       const framesHours = await getSpecialFrameHoursService();
 
-      framesHours.push({
-        ...payload,
-        is_active: true,
-      });
+      framesHours.push(payload);
 
       await setSpecialFrameHoursInStorage(framesHours);
       return payload;
@@ -171,7 +167,7 @@ async function updateSpecialFrameHoursService(data) {
       is_active,
     };
 
-    const isUseLocalStorage = getIsUseLocalStorage();
+    const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
       const framesHours = await getSpecialFrameHoursService();
 
@@ -193,7 +189,7 @@ async function updateSpecialFrameHoursService(data) {
 
 async function changeStatus(id, status) {
   try {
-    const isUseLocalStorage = getIsUseLocalStorage();
+    const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
       const framesHours = await getSpecialFrameHoursService();
       const idx = framesHours.findIndex((fr) => fr.id === id);
@@ -221,7 +217,7 @@ async function changeStatus(id, status) {
  */
 async function deleteSpecialFrameHoursService(id) {
   try {
-    const isUseLocalStorage = getIsUseLocalStorage();
+    const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
       const framesHours = await getSpecialFrameHoursService();
       const newFramesHours = framesHours.filter((fr) => fr.id !== id);
@@ -264,7 +260,7 @@ async function getObjectIsInSpecialFrameHours() {
 
 async function clearAllSpecialFrameHours() {
   try {
-    const isUseLocalStorage = getIsUseLocalStorage();
+    const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
       await setSpecialFrameHoursInStorage([]);
       return true;

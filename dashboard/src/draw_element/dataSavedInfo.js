@@ -11,6 +11,7 @@ import {
   getTotalGroupsNeedPost,
 } from "../../../helpers/group.js";
 import { getNextTimePost } from "../../../helpers/scheduler.js";
+import { getPremiumService } from "../../../services/auth-service.js";
 import { commentWalkService } from "../../../services/comment-walk-service.js";
 import { getCurrentDataGroupPosting } from "../../../services/data-group-post-service.js";
 import {
@@ -34,7 +35,7 @@ import {
   getIsFixStealAllFocusData,
   getIsFixStealFocusData,
   getIsRandomBreakBatchData,
-  getIsRandomTimePostData,
+  getIsRandomTimeTaskData,
   getIsSchedulerData,
   getIsShuffleGroupNeedPostData,
   getIsSpammedData,
@@ -128,7 +129,7 @@ function getDataSavedHTML({
   isShuffleGroupsNeedPost = false,
   isRandomBatchPost = false,
   isPremium = false,
-  isRandomTimePost,
+  isRandomTimeTask = false,
   isSpecialFrameHours = false,
   maxGroupPerTimeInSpecialFrameHour = 0,
   isCommentWalk = false,
@@ -140,7 +141,7 @@ function getDataSavedHTML({
   isStopTask,
   currentTaskName = "",
   ft_RandomBreakBatch = false,
-  ft_RandomTimePost = false,
+  ft_RandomTimeTask = false,
   ft_CommentWalk = false,
   ft_SpecialFrameHours = false,
   ft_PriorityTask = false,
@@ -207,9 +208,9 @@ function getDataSavedHTML({
       <div id="${prefix}is-scheduler-status">${getTextWithLanguage({ vi: "Đang lên lịch", en: "Is Scheduler" })}: <span style="color: ${colorByDisabled(isScheduler)};">${enabledString(isScheduler)}</span></div>
       <div id="${prefix}is-fix-steal-focus-status">${getTextWithLanguage({ vi: "Tránh nhảy tab", en: "Is Fix Steal Focus" })}: <span style="color: ${colorByDisabled(isFixStealFocus)};">${enabledString(isFixStealFocus)}</span></div>
       <div id="${prefix}is-shuffle-groups-need-post-status">${getTextWithLanguage({ vi: "Trộn nhóm cần đăng", en: "Is Shuffle Groups Need Post" })}: <span style="color: ${colorByDisabled(isShuffleGroupsNeedPost)};">${enabledString(isShuffleGroupsNeedPost)}</span></div>
-      ${ft_RandomTimePost ? `<div id="${prefix}is-shuffle-time-status">${getTextWithLanguage({ vi: "Trộn lịch đăng", en: "Is Shuffle Time" })}: <span style="color: ${colorByDisabled(isShuffleTime)};">${enabledString(isShuffleTime)}</span></div>` : ""}
+      ${isPremium ? `<div id="${prefix}is-shuffle-time-status">${getTextWithLanguage({ vi: "Trộn lịch đăng", en: "Is Shuffle Time" })}: <span style="color: ${colorByDisabled(isShuffleTime)};">${enabledString(isShuffleTime)}</span></div>` : ""}
       ${ft_RandomBreakBatch ? `<div id="${prefix}is-random-batch-post-status">${getTextWithLanguage({ vi: "Đợt đăng bài ngẫu nhiên", en: "Is Random Batch Post" })}: <span style="color: ${colorByDisabled(isRandomBatchPost)};">${enabledString(isRandomBatchPost)}</span></div>` : ""}
-      ${isPremium ? `<div id="${prefix}is-random-time-post-status">${getTextWithLanguage({ vi: "Ngẫu nhiên thời gian đăng", en: "Random time post" })}: <span style="color: ${colorByDisabled(isRandomTimePost)};">${enabledString(isRandomTimePost)}</span></div>` : ""}
+      ${ft_RandomTimeTask ? `<div id="${prefix}is-random-time-task-status">${getTextWithLanguage({ vi: "Ngẫu nhiên thời gian đăng", en: "Random time task" })}: <span style="color: ${colorByDisabled(isRandomTimeTask)};">${enabledString(isRandomTimeTask)}</span></div>` : ""}
       ${ft_CommentWalk ? `<div id="${prefix}is-special-frame-hours">${getTextWithLanguage({ vi: "Khung giờ đặc biệt", en: "Special Frame Hours" })}: <span style="color: ${colorByDisabled(isSpecialFrameHours)};">${enabledString(isSpecialFrameHours)}</span></div>` : ""}
       ${ft_CommentWalk ? `<div id="${prefix}is-comment-walk-status">${getTextWithLanguage({ vi: "Bình luận dạo", en: "Is Comment Walk" })}: <span style="color: ${colorByDisabled(isCommentWalk)};">${enabledString(isCommentWalk)}</span></div>` : ""}
       ${ft_CommentWalk ? `<div id="${prefix}is-comment-walk-processing-status">${getTextWithLanguage({ vi: "Đang bình luận dạo", en: "Is Comment Walk Processing" })}: <span style="color: ${colorByDisabled(isCommentWalkProcessing)};">${enabledString(isCommentWalkProcessing)}</span></div>` : ""}
@@ -262,13 +263,13 @@ function getDataSavedAtDashboardHTML({
   maxCommentWalk = 0,
   lastTimeCommentWalk = 0,
   isStopTask,
-  isPremium,
   currentTaskName = "",
   listTaskInactive = [],
   isPriorityTask = false,
-  ft_RandomBreakBatch = false,
-  ft_RandomTimePost = false,
   ft_CommentWalk = false,
+  isPremium,
+  ft_RandomBreakBatch = false,
+  ft_RandomTimeTask = false,
   ft_SpecialFrameHours = false,
   ft_PriorityTask = false,
 } = {}) {
@@ -427,26 +428,8 @@ async function updateDataSavedInfo() {
     const objectTask = await getObjectTaskInStorage();
     const lastTimePost = await getLastTimePostData();
     const isShuffleTime = await getIsShuffleSchedulerTimeInStorage();
-    const isCommentWalk = await getIsCommentWalkData();
-    const isCommentWalkProcessing =
-      await commentWalkService.getIsCommentWalkProcessing();
-    const countCommentWalk =
-      await commentWalkService.getCountCommentWalkPostedPerBatch();
-    const maxCommentWalk = await commentWalkService.getMaxCommentWalkPerBatch();
-    const lastTimeCommentWalk =
-      await commentWalkService.getLastTimeCommentWalkSuccess();
-
-    const listCommented = await commentWalkService.getListUrlCommented();
-
-    const lengthCommented = listCommented.reduce((acc, item) => {
-      return acc + item.urls.length;
-    }, 0);
-
-    const listTaskInactive = await getListTaskNameInactive();
 
     const isStopTask = await getIsStopTaskData();
-
-    const currentTaskName = await getCurrentTaskName();
 
     let nextTime = await getNextTimePost();
 
@@ -490,29 +473,21 @@ async function updateDataSavedInfo() {
     const countBatch = await getCountBatchPost();
     const isShuffleGroupsNeedPost = await getIsShuffleGroupNeedPostData();
     const isSpammed = await getIsSpammedData();
-    const isRandomBatchPost = await getIsRandomBreakBatchData();
-    const isRandomTimePost = await getIsRandomTimePostData();
-    const isSpecialFrameHours = await getIsSpecialFrameHoursData();
-    const isPriorityTask = await getIsExecutePriorityTaskData();
-    let maxGroupPerTimeInSpecialFrameHour = 0;
 
-    if (isSpecialFrameHours) {
-      maxGroupPerTimeInSpecialFrameHour =
-        (await getObjectIsInSpecialFrameHours())?.max_group || 0;
-    }
-
-    const isPremium = (await DB_getValue(KEY_IS_PREMIUM)) || false;
+    const isPremium = await getPremiumService();
     const featureFlags = await getFeatureFlag();
+
     const ft_FixStealAllFocus = await checkFeatureEnable(
       KEY_FEATURE_FLAG.FIELD.IS_FIX_STEAL_ALL_FOCUS,
       featureFlags,
     );
+
     const ft_RandomBreakBatch = await checkFeatureEnable(
       KEY_FEATURE_FLAG.FIELD.IS_RANDOM_BREAK_BATCH,
       featureFlags,
     );
-    const ft_RandomTimePost = await checkFeatureEnable(
-      KEY_FEATURE_FLAG.FIELD.IS_RANDOM_TIME_POST,
+    const ft_RandomTimeTask = await checkFeatureEnable(
+      KEY_FEATURE_FLAG.FIELD.IS_RANDOM_TIME_TASK,
       featureFlags,
     );
     const ft_CommentWalk = await checkFeatureEnable(
@@ -527,6 +502,61 @@ async function updateDataSavedInfo() {
       KEY_FEATURE_FLAG.FIELD.PRIORITY_TASK,
       featureFlags,
     );
+
+    let isPriorityTask = false;
+    let isRandomTimeTask = false;
+    let isRandomBatchPost = false;
+    let isSpecialFrameHours = false;
+    let isCommentWalk = false;
+
+    let maxCommentWalk = 0;
+    let lastTimeCommentWalk = 0;
+
+    const isCommentWalkProcessing =
+      await commentWalkService.getIsCommentWalkProcessing();
+    const countCommentWalk =
+      await commentWalkService.getCountCommentWalkPostedPerBatch();
+
+    const listCommented = await commentWalkService.getListUrlCommented();
+
+    const lengthCommented = listCommented.reduce((acc, item) => {
+      return acc + item.urls.length;
+    }, 0);
+
+    let listTaskInactive = [];
+
+    let currentTaskName = KEY_TASK_NAME.POST;
+
+    if (ft_CommentWalk) {
+      isCommentWalk = await getIsCommentWalkData();
+      maxCommentWalk = await commentWalkService.getMaxCommentWalkPerBatch();
+      lastTimeCommentWalk =
+        await commentWalkService.getLastTimeCommentWalkSuccess();
+    }
+
+    if (ft_PriorityTask) {
+      listTaskInactive = await getListTaskNameInactive();
+      currentTaskName = await getCurrentTaskName();
+      isPriorityTask = await getIsExecutePriorityTaskData();
+    }
+
+    if (ft_RandomTimeTask) {
+      isRandomTimeTask = await getIsRandomTimeTaskData();
+    }
+
+    if (ft_RandomBreakBatch) {
+      isRandomBatchPost = await getIsRandomBreakBatchData();
+    }
+
+    if (ft_SpecialFrameHours) {
+      isSpecialFrameHours = await getIsSpecialFrameHoursData();
+    }
+
+    let maxGroupPerTimeInSpecialFrameHour = 0;
+    if (isSpecialFrameHours) {
+      maxGroupPerTimeInSpecialFrameHour =
+        (await getObjectIsInSpecialFrameHours())?.max_group || 0;
+    }
 
     const html = getDataSavedHTML({
       allGroups,
@@ -550,7 +580,7 @@ async function updateDataSavedInfo() {
       countBatch,
       isShuffleGroupsNeedPost,
       isRandomBatchPost,
-      isRandomTimePost,
+      isRandomTimeTask,
       isSpecialFrameHours,
       maxGroupPerTimeInSpecialFrameHour,
       isPremium,
@@ -564,7 +594,7 @@ async function updateDataSavedInfo() {
       currentTaskName,
       listTaskInactive,
       ft_RandomBreakBatch,
-      ft_RandomTimePost,
+      ft_RandomTimeTask,
       ft_CommentWalk,
       ft_SpecialFrameHours,
       ft_PriorityTask,
@@ -596,7 +626,7 @@ async function updateDataSavedInfo() {
       listTaskInactive,
       isPriorityTask,
       ft_RandomBreakBatch,
-      ft_RandomTimePost,
+      ft_RandomTimeTask,
       ft_CommentWalk,
       ft_SpecialFrameHours,
       ft_PriorityTask,

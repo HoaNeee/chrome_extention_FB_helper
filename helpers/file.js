@@ -12,7 +12,7 @@ async function initialFile(files, input, container) {
       return;
     }
 
-    const isUseLocalStorage = getIsUseLocalStorage();
+    const isUseLocalStorage = await getIsUseLocalStorage();
 
     const newDataTranfer = new DataTransfer();
     if (isUseLocalStorage) {

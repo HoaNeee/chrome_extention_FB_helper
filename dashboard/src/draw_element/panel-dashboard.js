@@ -417,7 +417,7 @@ async function createPanel(doc = document.body) {
             //   ),
             // );
 
-            console.log(await commentWalkService.getListCommentWalkRequest());
+            console.log(await commentWalkService.getListIdCommentWalkActive());
           } catch (error) {
             logError("Error at btnClick click event: ", error);
           }

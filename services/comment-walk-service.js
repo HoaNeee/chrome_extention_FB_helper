@@ -11,11 +11,12 @@ import {
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import { DataCommentWalkDB } from "../utils/data-comment-walk-db.js";
 import { CustomError } from "../utils/exception.js";
-import { get } from "../utils/request.js";
+import { del, get, patch, post, postImage } from "../utils/request.js";
 import {
   genID,
   getTextWithLanguage,
   logError,
+  parseBase64ToFile,
   random,
 } from "../utils/utils.js";
 import { getDeviceId } from "./device-service.js";
@@ -26,6 +27,7 @@ import {
   getContentQueryIncludesCommonData,
   getIsAIHelpCommentWalkData,
   getIsCombineStrictlyTitleGroupData,
+  getIsInteractBeforeCommentWalkData,
   getIsSkipPostNotInGroupData,
   getKeywordsCertainChoiceCommentWalkData,
   getMatchRateValueContentQueryIncludesCommonData,
@@ -36,6 +38,7 @@ import {
   setCommentWalkSpeedData,
   setIsAIHelpCommentWalkData,
   setIsCombineStrictlyTitleGroupData,
+  setIsInteractBeforeCommentWalkData,
   setIsSkipPostNotInGroupData,
 } from "./setting-service.js";
 import { getIsUseLocalStorage } from "./storage-global-service.js";
@@ -55,7 +58,7 @@ const commentWalkService = {
       if (isUseLocalStorage) {
         return await this.getListCommentWalkInStorage();
       }
-      return [];
+      return await this.getListCommentWalkRequest();
     } catch (error) {
       logError("getListCommentWalk", error);
       return [];
@@ -86,8 +89,14 @@ const commentWalkService = {
   /** */
   async addNewCommentWalk(data) {
     try {
-      const db = new DataCommentWalkDB();
-      return db.addDataCommentWalk(data);
+      const isUseLocalStorage = await getIsUseLocalStorage();
+      if (isUseLocalStorage) {
+        const db = new DataCommentWalkDB();
+        return db.addDataCommentWalk(data);
+      }
+
+      const res = await post("/comment-walks", data);
+      return res.data;
     } catch (error) {
       logError("addNewCommentWalk", error);
       return false;
@@ -96,8 +105,14 @@ const commentWalkService = {
 
   async updateDataCommentWalk(id, data) {
     try {
-      const db = new DataCommentWalkDB();
-      return db.updateDataCommentWalk(id, data);
+      const isUseLocalStorage = await getIsUseLocalStorage();
+      if (isUseLocalStorage) {
+        const db = new DataCommentWalkDB();
+        return db.updateDataCommentWalk(id, data);
+      }
+
+      const res = await patch("/comment-walks/" + id, data);
+      return res.data;
     } catch (error) {
       logError("updateDataCommentWalk", error);
       return false;
@@ -106,9 +121,15 @@ const commentWalkService = {
 
   async deleteDataCommentWalk(id) {
     try {
-      const db = new DataCommentWalkDB();
-      await db.deleteDataCommentWalk(id);
-      await this.updateStatusCommentWalk(id, false);
+      const isUseLocalStorage = await getIsUseLocalStorage();
+      if (isUseLocalStorage) {
+        const db = new DataCommentWalkDB();
+        await db.deleteDataCommentWalk(id);
+        await this.updateStatusCommentWalk(id, false);
+        return true;
+      }
+
+      await del("/comment-walks/" + id);
       return true;
     } catch (error) {
       logError("deleteDataCommentWalk", error);
@@ -118,8 +139,14 @@ const commentWalkService = {
 
   async getCommentWalkById(id) {
     try {
-      const db = new DataCommentWalkDB();
-      return db.getDataCommentWalkById(id);
+      const isUseLocalStorage = await getIsUseLocalStorage();
+      if (isUseLocalStorage) {
+        const db = new DataCommentWalkDB();
+        return db.getDataCommentWalkById(id);
+      }
+
+      const res = await get("/comment-walks/" + id);
+      return res?.data || null;
     } catch (error) {
       logError("getCommentWalkById", error);
       return null;
@@ -131,9 +158,15 @@ const commentWalkService = {
    */
   async clearAllDataCommentWalk() {
     try {
-      const db = new DataCommentWalkDB();
-      await db.clearDataCommentWalk();
-      await this.setListIdCommentWalkActive([]);
+      const isUseLocalStorage = await getIsUseLocalStorage();
+      if (isUseLocalStorage) {
+        const db = new DataCommentWalkDB();
+        await db.clearDataCommentWalk();
+        await this.setListIdCommentWalkActive([]);
+        return true;
+      }
+
+      await del("/comment-walks/delete-all-comment-walks");
       return true;
     } catch (error) {
       logError("clearAllDataCommentWalk", error);
@@ -142,17 +175,29 @@ const commentWalkService = {
   },
 
   async updateStatusCommentWalk(id, isActive) {
-    const listCommentWalkActive = await this.getListIdCommentWalkActive();
-    if (isActive) {
-      if (listCommentWalkActive.includes(id)) return;
-      listCommentWalkActive.push(id);
-    } else {
-      const index = listCommentWalkActive.indexOf(id);
-      if (index > -1) {
-        listCommentWalkActive.splice(index, 1);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      const listCommentWalkActive = await this.getListIdCommentWalkActive();
+      if (isActive) {
+        if (listCommentWalkActive.includes(id)) return;
+        listCommentWalkActive.push(id);
+      } else {
+        const index = listCommentWalkActive.indexOf(id);
+        if (index > -1) {
+          listCommentWalkActive.splice(index, 1);
+        }
       }
+      await this.setListIdCommentWalkActive(listCommentWalkActive);
+      return true;
     }
-    await this.setListIdCommentWalkActive(listCommentWalkActive);
+
+    const deviceId = await getDeviceId();
+    const res = await patch(`/comment-walks/details`, {
+      comment_walk_id: id,
+      is_active: isActive,
+      device_id: deviceId,
+    });
+    return res?.data || false;
   },
 
   /**
@@ -160,7 +205,19 @@ const commentWalkService = {
    * @returns {Promise<string[]>}
    */
   async getListIdCommentWalkActive() {
-    return await DB_getValue(KEY_COMMENT_WALK.LIST_ID_COMMENT_WALK_ACTIVE, []);
+    const isUseLocalStorage = await getIsUseLocalStorage();
+    if (isUseLocalStorage) {
+      return await DB_getValue(
+        KEY_COMMENT_WALK.LIST_ID_COMMENT_WALK_ACTIVE,
+        [],
+      );
+    }
+
+    const deviceId = await getDeviceId();
+    const res = await get(
+      "/comment-walks/list-id-comment-walk-active/" + deviceId,
+    );
+    return res?.data || [];
   },
 
   async setListIdCommentWalkActive(ids) {
@@ -256,6 +313,9 @@ const commentWalkService = {
 
       const isAIHelpCommentWalk = await getIsAIHelpCommentWalkData();
 
+      const isInteractBeforeCommentWalk =
+        await getIsInteractBeforeCommentWalkData();
+
       const setting = {};
 
       Object.keys(timeDelay).forEach((key) => {
@@ -279,6 +339,7 @@ const commentWalkService = {
       setting.strictly_match_title_group = strictlyMatchTitleGroup;
       setting.comment_walk_speed = commentWalkSpeed;
       setting.is_ai_help_comment_walk = isAIHelpCommentWalk;
+      setting.is_interact_before_comment_walk = isInteractBeforeCommentWalk;
 
       const currentId =
         await commentWalkService.getCurrentIdCommentWalkActive();
@@ -387,46 +448,98 @@ const commentWalkService = {
    * @returns {Promise<CommentWalk[]>}
    */
   async importDataCommentWalk(data) {
-    if (Array.isArray(data)) {
-      if (
-        data.some(
-          (item) =>
-            item[KEY_IMPORT_EXPORT_TYPE.KEY_FIELD_OBJECT_TYPE] !==
-            KEY_IMPORT_EXPORT_TYPE.COMMENT_WALK,
-        )
-      ) {
-        throw new CustomError(
-          ERROR_CODE.SELF,
-          getTextWithLanguage({
-            vi: "Định dạng dữ liệu không hợp lệ",
-            en: "Invalid data format",
-          }),
-        );
-      }
-      data = data.map((item) => ({
-        ...item,
-        id: genID(),
-      }));
-      const db = new DataCommentWalkDB();
-
-      return await db.addListCommentWalk(data);
-    } else {
-      if (
-        data[KEY_IMPORT_EXPORT_TYPE.KEY_FIELD_OBJECT_TYPE] !==
-        KEY_IMPORT_EXPORT_TYPE.COMMENT_WALK
-      ) {
-        throw new CustomError(
-          ERROR_CODE.SELF,
-          getTextWithLanguage({
-            vi: "Định dạng dữ liệu không hợp lệ",
-            en: "Invalid data format",
-          }),
-        );
-      }
-      data.id = genID();
-      const newData = await this.addNewCommentWalk(data);
-      return [newData];
+    if (!data) {
+      return [];
     }
+
+    const isUseLocalStorage = await getIsUseLocalStorage();
+
+    if (isUseLocalStorage) {
+      if (Array.isArray(data)) {
+        if (
+          data.some(
+            (item) =>
+              item[KEY_IMPORT_EXPORT_TYPE.KEY_FIELD_OBJECT_TYPE] !==
+              KEY_IMPORT_EXPORT_TYPE.COMMENT_WALK,
+          )
+        ) {
+          throw new CustomError(
+            ERROR_CODE.SELF,
+            getTextWithLanguage({
+              vi: "Định dạng dữ liệu không hợp lệ",
+              en: "Invalid data format",
+            }),
+          );
+        }
+        data = data.map((item) => ({
+          ...item,
+          id: genID(),
+        }));
+        const db = new DataCommentWalkDB();
+
+        return await db.addListCommentWalk(data);
+      } else {
+        if (
+          data[KEY_IMPORT_EXPORT_TYPE.KEY_FIELD_OBJECT_TYPE] !==
+          KEY_IMPORT_EXPORT_TYPE.COMMENT_WALK
+        ) {
+          throw new CustomError(
+            ERROR_CODE.SELF,
+            getTextWithLanguage({
+              vi: "Định dạng dữ liệu không hợp lệ",
+              en: "Invalid data format",
+            }),
+          );
+        }
+        data.id = genID();
+        const newData = await this.addNewCommentWalk(data);
+        return [newData];
+      }
+    }
+
+    let payload = [];
+
+    if (Array.isArray(data)) {
+      data = await Promise.all(
+        data.map(async (object) => {
+          if (object.files) {
+            try {
+              const files = object.files.map((obj) => parseBase64ToFile(obj));
+              const responseUrls = await postImage({
+                params: "/files/uploads",
+                isMultiple: true,
+                files,
+              });
+              object.files = responseUrls.data;
+            } catch (error) {
+              logError("Error importDataGroupPosts: " + error);
+              object.files = [];
+            }
+          }
+          return object;
+        }),
+      );
+      payload = data;
+    } else {
+      if (data.files) {
+        const files = data.files.map((obj) => parseBase64ToFile(obj));
+        const responseUrls = await postImage({
+          params: "/files/uploads",
+          isMultiple: true,
+          files,
+        });
+        data.files = responseUrls.data;
+      }
+      payload = [data];
+    }
+
+    const deviceId = await getDeviceId();
+
+    const res = await post("/comment-walks/import-data", {
+      list_comment_walk: payload,
+      device_id: deviceId,
+    });
+    return res.data;
   },
 
   async getLastTimeCommentWalkSuccess() {
@@ -509,6 +622,14 @@ const commentWalkService = {
 
   async setIsAIHelpCommentWalk(isAIHelpCommentWalk) {
     await setIsAIHelpCommentWalkData(isAIHelpCommentWalk);
+  },
+
+  async getIsInteractBeforeCommentWalk() {
+    return await getIsInteractBeforeCommentWalkData();
+  },
+
+  async setIsInteractBeforeCommentWalk(isInteractBeforeCommentWalk) {
+    await setIsInteractBeforeCommentWalkData(isInteractBeforeCommentWalk);
   },
 };
 

@@ -15,7 +15,7 @@ import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import { get, patch } from "../utils/request.js";
 import { getDeviceId } from "./device-service.js";
 import {
-  getIsRandomTimePostData,
+  getIsRandomTimeTaskData,
   getIsSchedulerData,
 } from "./setting-service.js";
 import { getIsUseLocalStorage } from "./storage-global-service.js";
@@ -56,8 +56,8 @@ let timeoutId = null;
 async function createSchedulerAuto(forceTime = 0) {
   try {
     const isScheduler = await getIsSchedulerData();
-    const isRandomTimePost = await getIsRandomTimePostData();
-    const randomMinutes = isRandomTimePost ? random(-2, 2) * 1000 * 60 : 0;
+    const isRandomTimeTask = await getIsRandomTimeTaskData();
+    const randomMinutes = isRandomTimeTask ? random(-2, 2) * 1000 * 60 : 0;
 
     if (isScheduler) {
       let nextTime = 0;
@@ -227,7 +227,7 @@ async function getSchedulerRequest() {
  */
 async function getSchedulerService() {
   try {
-    const isUseLocalStorage = getIsUseLocalStorage();
+    const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
       const schduler = await getSchedulerInStorage();
       if (!schduler) {
@@ -270,7 +270,7 @@ async function getSchedulerService() {
  */
 async function setSchedulerDetail(type, detail) {
   try {
-    const isUseLocalStorage = getIsUseLocalStorage();
+    const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
       await DB_setValue(type, detail);
       return;
@@ -342,11 +342,21 @@ async function getSchedulerDetail(type) {
 
     const data = await getSchedulerDetailRequest(type);
 
-    if (data && schedulerSettingTemp) {
-      schedulerSettingTemp.scheduler_detail = {
-        scheduler_time_list: data?.scheduler_time_list || [],
-        scheduler_time_value: data?.scheduler_time_value || 5,
-      };
+    if (data) {
+      if (schedulerSettingTemp) {
+        schedulerSettingTemp.scheduler_detail = {
+          scheduler_time_list: data?.scheduler_time_list || [],
+          scheduler_time_value: data?.scheduler_time_value || 5,
+        };
+      } else {
+        schedulerSettingTemp = {
+          scheduler_type: type,
+          scheduler_detail: {
+            scheduler_time_list: data?.scheduler_time_list || [],
+            scheduler_time_value: data?.scheduler_time_value || 5,
+          },
+        };
+      }
       await setSchedulerTemp(schedulerSettingTemp);
     }
 
@@ -414,7 +424,7 @@ async function removeSchedulerTime(time) {
  */
 async function changeTypeScheduler(type) {
   try {
-    const isUseLocalStorage = getIsUseLocalStorage();
+    const isUseLocalStorage = await getIsUseLocalStorage();
     if (isUseLocalStorage) {
       const scheduler = await getSchedulerService();
       scheduler.scheduler_type = type;
@@ -460,7 +470,7 @@ async function changeTypeScheduler(type) {
 
 async function initialSchedulerSetting() {
   try {
-    const isUseLocalStorage = getIsUseLocalStorage();
+    const isUseLocalStorage = await getIsUseLocalStorage();
 
     let scheduler = null;
     let detail = null;

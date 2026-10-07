@@ -21,8 +21,8 @@ function getAllFieldsSetting(root = document) {
   const checkboxIsRandomBatchPost = root.querySelector(
     `#tm_checkbox-is-random-batch-post`,
   );
-  const checkboxIsRandomTimePost = root.querySelector(
-    `#tm_checkbox-is-random-time-post`,
+  const checkboxIsRandomTimeTask = root.querySelector(
+    `#tm_checkbox-is-random-time-task`,
   );
 
   const checkboxIsFixStealFocus = root.querySelector(
@@ -93,20 +93,38 @@ function getAllFieldsSetting(root = document) {
     `#tm_checkbox-${KEY_COMMENT_WALK.IS_COMBINE_STRICTLY_TITLE_GROUP}`,
   );
 
+  const checkboxIsInteractBeforeCommentWalk = root.querySelector(
+    `#tm_checkbox-is-interact-before-comment-walk`,
+  );
+
+  function getIsInteractBeforeCommentWalk() {
+    return checkboxIsInteractBeforeCommentWalk?.checked;
+  }
+
+  function setIsInteractBeforeCommentWalk(val) {
+    if (checkboxIsInteractBeforeCommentWalk) {
+      checkboxIsInteractBeforeCommentWalk.checked = val;
+    }
+  }
+
   function getIsSkipPostNotInGroup() {
-    return checkboxIsSkipPostNotInGroup.checked;
+    return checkboxIsSkipPostNotInGroup?.checked;
   }
 
   function setIsSkipPostNotInGroup(val) {
-    checkboxIsSkipPostNotInGroup.checked = val;
+    if (checkboxIsSkipPostNotInGroup) {
+      checkboxIsSkipPostNotInGroup.checked = val;
+    }
   }
 
   function getIsCombineStrictlyTitleGroup() {
-    return checkboxIsCombineStrictlyTitleGroup.checked;
+    return checkboxIsCombineStrictlyTitleGroup?.checked;
   }
 
   function setIsCombineStrictlyTitleGroup(val) {
-    checkboxIsCombineStrictlyTitleGroup.checked = val;
+    if (checkboxIsCombineStrictlyTitleGroup) {
+      checkboxIsCombineStrictlyTitleGroup.checked = val;
+    }
   }
 
   function getKeywordsCertainChoiceCommentWalk() {
@@ -164,15 +182,19 @@ function getAllFieldsSetting(root = document) {
   }
 
   function setMatchRateValueContentQueryIncludesCommon(val) {
-    inputMatchRateValueContentQueryIncludesCommon.value = val;
+    if (inputMatchRateValueContentQueryIncludesCommon) {
+      inputMatchRateValueContentQueryIncludesCommon.value = val;
+    }
   }
 
   function getContentQueryIncludesCommon() {
-    return inputContentQueryIncludesCommon.value.split(",");
+    return inputContentQueryIncludesCommon?.value.split(",");
   }
 
   function setContentQueryIncludesCommon(val) {
-    inputContentQueryIncludesCommon.value = val;
+    if (inputContentQueryIncludesCommon) {
+      inputContentQueryIncludesCommon.value = val;
+    }
   }
 
   function getContentQueryExcludesCommon() {
@@ -180,7 +202,9 @@ function getAllFieldsSetting(root = document) {
   }
 
   function setContentQueryExcludesCommon(val) {
-    inputContentQueryExcludesCommon.value = val;
+    if (inputContentQueryExcludesCommon) {
+      inputContentQueryExcludesCommon.value = val;
+    }
   }
 
   function getTimeBreakWhenSpammed() {
@@ -188,15 +212,19 @@ function getAllFieldsSetting(root = document) {
   }
 
   function setTimeBreakWhenSpammed(val) {
-    inputTimeBreakWhenSpammed.value = val;
+    if (inputTimeBreakWhenSpammed) {
+      inputTimeBreakWhenSpammed.value = val;
+    }
   }
 
   function getIsCommentWalk() {
-    return checkboxIsCommentWalk.checked;
+    return checkboxIsCommentWalk?.checked;
   }
 
   function setIsCommentWalk(val) {
-    checkboxIsCommentWalk.checked = val;
+    if (checkboxIsCommentWalk) {
+      checkboxIsCommentWalk.checked = val;
+    }
   }
 
   function getMaxCommentWalkPerBatch() {
@@ -204,15 +232,19 @@ function getAllFieldsSetting(root = document) {
   }
 
   function setMaxCommentWalkPerBatch(val) {
-    inputMaxCommentWalkPerBatch.value = val;
+    if (inputMaxCommentWalkPerBatch) {
+      inputMaxCommentWalkPerBatch.value = val;
+    }
   }
 
   function getIsCommentWalkProcessing() {
-    return checkboxIsCommentWalkProcessing.checked;
+    return checkboxIsCommentWalkProcessing?.checked;
   }
 
   function setIsCommentWalkProcessing(val) {
-    checkboxIsCommentWalkProcessing.checked = val;
+    if (checkboxIsCommentWalkProcessing) {
+      checkboxIsCommentWalkProcessing.checked = val;
+    }
   }
 
   function setIsProcessing(val) {
@@ -287,9 +319,9 @@ function getAllFieldsSetting(root = document) {
     }
   }
 
-  function setIsRandomTimePost(val) {
-    if (checkboxIsRandomTimePost) {
-      checkboxIsRandomTimePost.checked = val;
+  function setIsRandomTimeTask(val) {
+    if (checkboxIsRandomTimeTask) {
+      checkboxIsRandomTimeTask.checked = val;
     }
   }
 
@@ -324,8 +356,8 @@ function getAllFieldsSetting(root = document) {
     setIsShuffleGroupsNeedPost: setIsShuffleGroupsNeedPost,
     getIsRandomBatchPost: () => checkboxIsRandomBatchPost.checked,
     setIsRandomBatchPost: setIsRandomBatchPost,
-    getIsRandomTimePost: () => checkboxIsRandomTimePost.checked,
-    setIsRandomTimePost: setIsRandomTimePost,
+    getIsRandomTimeTask: () => checkboxIsRandomTimeTask.checked,
+    setIsRandomTimeTask: setIsRandomTimeTask,
     getIsSpecialFrameHours: () => checkboxIsSpecialFrameHours.checked,
     setIsSpecialFrameHours: setIsSpecialFrameHours,
     getIsCommentWalkProcessing: () => checkboxIsCommentWalkProcessing.checked,
@@ -359,6 +391,8 @@ function getAllFieldsSetting(root = document) {
     setIsSkipPostNotInGroup: setIsSkipPostNotInGroup,
     getIsCombineStrictlyTitleGroup: getIsCombineStrictlyTitleGroup,
     setIsCombineStrictlyTitleGroup: setIsCombineStrictlyTitleGroup,
+    getIsInteractBeforeCommentWalk: getIsInteractBeforeCommentWalk,
+    setIsInteractBeforeCommentWalk: setIsInteractBeforeCommentWalk,
   };
 }
 

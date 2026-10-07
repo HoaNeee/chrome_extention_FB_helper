@@ -88,7 +88,8 @@
     IS_COMBINE_STRICTLY_TITLE_GROUP: "is_combine_strictly_title_group",
     IS_SKIP_POST_NOT_IN_GROUP: "is_skip_post_not_in_group",
     COMMENT_WALK_SPEED: "comment_walk_speed",
-    IS_AI_HELP_COMMENT_WALK: "is_ai_help_comment_walk"
+    IS_AI_HELP_COMMENT_WALK: "is_ai_help_comment_walk",
+    IS_INTERACT_BEFORE_COMMENT_WALK: "is_interact_before_comment_walk"
   };
   var STATUS_TASK = {
     PENDING: "pending",
@@ -1409,14 +1410,14 @@
       return null;
     }
   }
-  async function scrollElementIntoView(selector) {
+  async function scrollElementIntoView(selector, block = "center") {
     if (selector instanceof HTMLElement || selector instanceof Node) {
-      selector.scrollIntoView({ behavior: "smooth", block: "center" });
+      selector.scrollIntoView({ behavior: "smooth", block });
       return;
     }
     const element = document.querySelector(selector);
     if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.scrollIntoView({ behavior: "smooth", block });
     }
     await sleep(1e3 + random(100, 500));
   }
@@ -2098,6 +2099,7 @@
       const isSkipPostNotInGroup = setting?.is_skip_posts_not_in_group || false;
       const isCombineStrictlyTitleGroup = setting?.is_combine_strictly_title_group || false;
       const speed = setting?.comment_walk_speed;
+      const isInteractBeforeCommentWalk = setting?.is_interact_before_comment_walk || false;
       const isAIHelp = setting.is_ai_help_comment_walk;
       const strictlyMatchTitleGroup = await CL_getStrictlyMatchTitleGroup();
       async function getListMatchCommentWalkHomePageWithAIHelp(listComment, {
@@ -2142,11 +2144,11 @@
         let min = 2e3, max = 4e3;
         switch (speed2) {
           case KEY_COMMENT_WALK_SPEED.SLOW:
-            return sleepSpeedHelper.slow();
+            return await sleepSpeedHelper.slow();
           case KEY_COMMENT_WALK_SPEED.NORMAL:
-            return sleepSpeedHelper.normal();
+            return await sleepSpeedHelper.normal();
           case KEY_COMMENT_WALK_SPEED.FAST:
-            return sleepSpeedHelper.fast();
+            return await sleepSpeedHelper.fast();
           default:
             break;
         }
@@ -2199,7 +2201,7 @@
       async function autoWalk(childs2, reloaded = false) {
         try {
           for await (const child of childs2) {
-            let existedDialog = findExistDialog();
+            const existedDialog = findExistDialog();
             if (existedDialog) {
               await closeDialog();
             }
@@ -2211,6 +2213,8 @@
             if (isSkipPostNotInGroup) {
               const article = findElement('div[role="article"]', child);
               if (article) {
+                await scrollElementIntoView(article);
+                await sleepSpeedHelper.fast();
                 logContent(
                   getTextLanguageContent({
                     en: "This post maybe is advertisement, skip it...",
@@ -2297,9 +2301,11 @@
               );
               continue;
             }
-            await calculateValueSleep(speed);
-            await scrollElementIntoView(divButtonToPost);
-            await calculateValueSleep(speed);
+            if (areaComment.isHome) {
+              await calculateValueSleep(speed);
+              await scrollElementIntoView(divButtonToPost);
+              await calculateValueSleep(speed);
+            }
             if (isSkipPostNotInGroup && !checkIsFeedItemInGroup(child)) {
               logContent(
                 getTextLanguageContent({
@@ -2323,6 +2329,9 @@
               logErrorContent("Not found div feed content, skip post");
               continue;
             }
+            if (isInteractBeforeCommentWalk) {
+              await interactBeforeComment(child);
+            }
             const matchContentExcludesNotShowMore = matchQueryKeywords(
               content_query_excludes_common,
               divFeedContent.textContent
@@ -2333,7 +2342,7 @@
             }
             const btnShowMore = findButtonShowMore(child);
             if (btnShowMore) {
-              await sleepHelper().fast();
+              await sleepSpeedHelper.fast();
               btnShowMore.click();
               await calculateValueSleep(speed);
               await scrollElementIntoView(divButtonToPost);
@@ -2771,6 +2780,48 @@
       logContent("This tab maybe will be closed after some seconds...");
       await sleep(random(8e3, 12e3));
       await CL_compeleteCommentWalkThisBatch();
+    }
+  }
+  async function interactBeforeComment(divItemFeed) {
+    try {
+      if (!divItemFeed) {
+        return;
+      }
+      logContent(
+        getTextLanguageContent({
+          vi: "T\u01B0\u01A1ng t\xE1c tr\u01B0\u1EDBc khi b\xECnh lu\u1EADn \u0111ang \u0111\u01B0\u1EE3c b\u1EADt, \u0111ang t\xEDnh to\xE1n c\xF3 t\u01B0\u01A1ng t\xE1c hay kh\xF4ng...",
+          en: "Interact before comment is enabled, calculating whether to interact or not..."
+        })
+      );
+      const rd = randomRateBoolean(30);
+      if (!rd) {
+        logContent(
+          getTextLanguageContent({
+            en: "Decided to skip interaction.",
+            vi: "Quy\u1EBFt \u0111\u1ECBnh b\u1ECF qua t\u01B0\u01A1ng t\xE1c."
+          })
+        );
+        return;
+      }
+      logContent(
+        getTextLanguageContent({
+          vi: "Quy\u1EBFt \u0111\u1ECBnh th\u1EF1c hi\u1EC7n t\u01B0\u01A1ng t\xE1c.",
+          en: "Decided to interact."
+        })
+      );
+      const lang = getLanguage();
+      const label = lang === "vi" ? "Th\xEDch" : "Like";
+      const btnReact = findElement(
+        `div[aria-label="${label}"][role="button"]`,
+        divItemFeed
+      );
+      if (btnReact) {
+        await sleep(random(3e3, 5e3));
+        btnReact.click();
+        await sleep(random(1500, 3e3));
+      }
+    } catch (error) {
+      logErrorContent("error in interactBeforeComment", error);
     }
   }
   function checkPostIsFindRoom(divItemFeed) {
@@ -3287,7 +3338,7 @@
         return;
       }
       if (checkIsSearchPageUrl(href) || checkIsSearchPagePostUrl(href) || checkIsFacebookUrl(href)) {
-        await sleep(4e3);
+        await sleep(random(3e3, 7e3));
         const response = await CL_getCanCommentWalkThisTab();
         if (!response) return;
         await initWithMyTool();

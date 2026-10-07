@@ -22,8 +22,8 @@
 
 /**
  * @typedef {Object} TimeDelayCommentWalk
- * @property {number} min_time_delay_fill_content_comment_walk
- * @property {number} max_time_delay_fill_content_comment_walk
+ * @property {number} time_delay_fill_content_comment_walk_min
+ * @property {number} time_delay_fill_content_comment_walk_max
  * @property {number} time_delay_fill_file_comment_walk
  * @property {number} time_delay_submit_comment_walk
  */
@@ -60,6 +60,7 @@
  * @property {boolean} is_skip_post_not_in_group
  * @property {boolean} is_combine_keywords_title_group
  * @property {boolean} is_ai_help_comment_walk
+ * @property {boolean} is_interact_before_comment_walk
  */
 
 /**
@@ -68,7 +69,7 @@
  * @property {boolean} is_fix_steal_focus
  * @property {boolean} is_fix_steal_all_focus
  * @property {boolean} is_random_break_batch
- * @property {boolean} is_random_time_post
+ * @property {boolean} is_random_time_task
  * @property {boolean} is_special_frame_hours
  * @property {boolean} is_scheduler
  * @property {boolean} is_execute_priority_task
