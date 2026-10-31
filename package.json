@@ -1,0 +1,19 @@
+{
+  "name": "dist",
+  "version": "1.0.0",
+  "description": "If you need script watch change to build a one file script (Ex: content.js), run command",
+  "main": "background.js",
+  "scripts": {
+    "test": "node tests/special-frame-hours.test.js && node tests/scheduler.test.js",
+    "test:scheduler": "node tests/scheduler.test.js"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.11.0"
+  }
+}

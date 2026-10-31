@@ -7,6 +7,7 @@ function drawEditor({ id, anchorElement = document.body, onRemove }) {
     const selector = `tm_editor-content-${id}`;
     const outlerDiv = document.createElement("div");
     outlerDiv.style.position = "relative";
+    outlerDiv.id = "tm_editor-container-" + id;
 
     const div = document.createElement("div");
     div.setAttribute("id", selector);
@@ -37,7 +38,7 @@ function drawEditor({ id, anchorElement = document.body, onRemove }) {
 
     removeDiv.addEventListener("click", () => {
       outlerDiv.remove();
-      onRemove?.();
+      onRemove?.(id);
     });
 
     const Quill = window.Quill;

@@ -1,119 +1,169 @@
+import { GoogleGenAIClass } from "./class/GoogleGenAI.js";
 import {
   KEY_ADD_LOG,
-  KEY_CLEAR_NOTIFICATION,
+  KEY_ADD_TIME_DELAY_FOR_SCHEDULER,
+  KEY_ADD_URL_COMMENTED,
+  KEY_CAN_COMMENT_WALK_THIS_POST,
+  KEY_CAN_COMMENT_WALK_THIS_TAB,
   KEY_CLOSE_THIS_TAB,
   KEY_CLOSE_THIS_WINDOW,
+  KEY_COMMENT_WALK_REQUEST,
   KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST,
+  KEY_COMPLETED_COMMENT_WALK_THIS_BATCH,
+  KEY_CONTINUE_OLD_TASK,
   KEY_CURRENT_WINDOW_ID,
-  KEY_FIRST_TIME_USE,
+  KEY_GET_ALL_METADATA_COMMENT_WALK,
   KEY_GET_CURRENT_DATA_GROUP_SAVED_NEED_POST,
   KEY_GET_KEY_SAVED,
   KEY_GET_LIST_GROUPS,
-  KEY_NEXT_POST_GROUP,
-  KEY_NOTIFICATION,
-  KEY_OPEN_IN_TAB,
-  KEY_REGISTER_MENU_COMMAND,
-  KEY_SCHEDULER_ALARMS,
-  KEY_SET_KEY_SAVED,
-  KEY_UNREGISTER_MENU_COMMAND,
-  KEY_UPDATE_IS_SPAMMED,
-  KEY_UPDATE_STATUS_TASK,
-  KEY_ADD_TIME_DELAY_FOR_SCHEDULER,
-  KEY_XMLHTTP_REQUEST,
-  STATUS_RESPONSE,
-  KEY_INTERACT_BEFORE_POST_REQUEST,
+  KEY_GET_PARSE_FILE,
   KEY_GET_PREMIUM,
   KEY_GET_TOOL_SETTING,
+  KEY_INTERACT_BEFORE_POST_REQUEST,
+  KEY_MESSAGE_FROM_BACKGROUND,
+  KEY_NEXT_POST_GROUP,
+  KEY_OPEN_IN_TAB,
+  KEY_REQUEST_TO_BACKGROUND,
+  KEY_SCHEDULER_ALARMS,
+  KEY_SET_KEY_SAVED,
+  KEY_SET_PROCESSING_COMMENT_WALK,
+  KEY_STOP_TASK_REQUEST,
+  KEY_UPDATE_IS_SPAMMED,
+  KEY_UPDATE_STATUS_TASK,
+  STATUS_RESPONSE,
 } from "./contants/constant-extention.js";
 import {
   KEY_CAN_POST_THIS_TAB,
-  KEY_IS_FIX_STEAL_FOCUS,
-  KEY_IS_PREMIUM,
-  KEY_IS_RANDOM_BATCH_POST,
+  KEY_COMMENT_WALK,
+  KEY_DEFAULT_VALUE,
   KEY_IS_SCROLL_DETECT_LIST_GROUP,
-  KEY_IS_SHUFFLE_GROUPS_NEED_POST,
   KEY_IS_SHUFFLE_SCHEDULER_TIME,
-  KEY_IS_SPAMMED,
+  KEY_LAST_TIME_POST,
   KEY_NEXT_TIME_POST_WHEN_SPAMMED,
   KEY_TAB,
+  KEY_TASK_NAME,
+  KEY_TIME_DELAY,
   STATUS_TASK,
   URL_LIST_GROUPS,
 } from "./contants/contants.js";
 import { addLog } from "./dashboard/src/draw_element/panel-log.js";
+import { deviceHelper } from "./helpers/device-helper.js";
 import {
   checkPostedAllGroupOrMaxGroupPerTime,
-  getCurrentDataGroupSavedNeedPost,
-  getCurrentGroupNeedPost,
   resetPostedGroupAndSave,
-} from "./dashboard/src/helpers/group.js";
+} from "./helpers/group.js";
+import { hrefHelper } from "./helpers/href.js";
 import {
   getCorrectNextTime,
   logSchedulerHelper,
   shuffleTimes,
-} from "./dashboard/src/helpers/scheduler.js";
+} from "./helpers/scheduler.js";
 import {
-  getCountBatchPost,
-  getCurrentIndexGroupPost,
-  getDecidedInteractBeforePostInStorage,
-  getIsInteractBeforePostInStorage,
-  getIsRandomBatchPost,
-  getIsSpammedInStorage,
-  getIsStopTaskInStorage,
-  getMaxPostInteractInStorage,
-  getPremiumInStorage,
-  getRandomIndexGroupChecked,
-  getTimeDelayForScheduler,
-  getTimeFirstUse,
-  setCountBatchPost,
-  setCurrentCountPostLength,
-  setCurrentIndexGroupPost,
-  setDecidedInteractBeforePostInStorage,
-  setTimeDelayForScheduler,
-} from "./dashboard/src/services/storage-service.js";
+  getAuthFromStorage,
+  getPremiumService,
+  logoutService,
+  setPremiumService,
+  verifyToken,
+} from "./services/auth-service.js";
+import { openNewTaskHepler } from "./services/automation-service.js";
+import { getAllMetadataComments } from "./services/comment-service.js";
+import { commentWalkService } from "./services/comment-walk-service.js";
 import {
-  automationContinue,
-  openNewTaskHepler,
-} from "./dashboard/src/services/automation-service.js";
+  getCurrentDataGroupPosting,
+  getCurrentGroupNeedPost,
+  getCurrentIdDataGroupPost,
+  getRandomIdDataGroupPostChecked,
+  setCurrentIdDataGroupPost,
+} from "./services/data-group-post-service.js";
+import {
+  createNewDeviceAndForceSave,
+  getDeviceFromStorage,
+  getListTaskNameInactive,
+  getRandomTaskNameWithPriority,
+  setCurrentTaskName,
+} from "./services/device-service.js";
 import {
   getAllGroupPostedsInStorage,
   getListGroupsNeedPostInStorage,
-} from "./dashboard/src/services/groupService.js";
+} from "./services/groupService.js";
+import { getMaxPostInteractService } from "./services/interact-before-post-service.js";
 import {
   clearAndCreateSchedulerAlarm,
   clearSchedulerAuto,
-  getIsScheduler,
-  getSchedulerService,
-} from "./dashboard/src/services/scheduler-service.js";
+} from "./services/scheduler-service.js";
 import {
-  BG_deleteValue,
-  BG_getValue,
-  BG_setValue,
+  getIsChangedSettingData,
+  getIsCommentWalkData,
+  getIsCommentWhenPostSuccessData,
+  getIsExecutePriorityTaskData,
+  getIsInteractBeforePostData,
+  getIsRandomBreakBatchData,
+  getIsRemoteData,
+  getIsSchedulerData,
+  getIsSpammedData,
+  getIsStopTaskData,
+  getStrictlyMatchTitleGroupData,
+  getTimeBreakWhenSpammedData,
+  getTimeDelayData,
+  setIsChangedSettingData,
+  setIsFixStealFocusData,
+  setIsShuffleGroupNeedPostData,
+  setIsSpammedData,
+  setLastTimePostData,
+} from "./services/setting-service.js";
+import {
+  initIsUseLocalStorage,
+  setIsUseLocalStorage,
+} from "./services/storage-global-service.js";
+import {
+  getCountBatchPost,
+  getDecidedInteractBeforePostInStorage,
+  getIsFirstTimeUseToolInStorage,
+  getIsScrollDetectListGroupInStorage,
+  getNextTimePostWhenSpammed,
+  getTimeDelayForScheduler,
+  setCountBatchPost,
+  setCountResetGroupInStorage,
+  setCurrentCountPostLength,
+  setDecidedInteractBeforePostInStorage,
+  setIsScrollDetectListGroupInStorage,
+  setTimeDelayForScheduler,
+  setIsFirstTimeUseToolInStorage,
+  getTimeFirstUse,
+} from "./services/storage-service.js";
+import { systemSettingService } from "./services/system-setting-service.js";
+import {
+  DB_deleteValue,
+  DB_getValue,
+  DB_setValue,
+} from "./utils/api-helper.js";
+import {
   getProgressTool,
   getTask,
   saveTask,
   setProgressTool,
   setStatusTask,
 } from "./utils/bgr-storage.js";
+import { handleErrorHelper } from "./utils/exception.js";
 import {
   getIsDashboardTab,
   getTextWithLanguage,
   logActions,
   logError,
   now,
+  parseBlobToFile,
+  parseFileToObjectBase64,
+  parseUrlToBlob,
   random,
+  randomNumberValue,
   randomRateBoolean,
 } from "./utils/utils.js";
-import {
-  getAllMetadataComments,
-  getIsCommentWhenPostSuccessService,
-} from "./dashboard/src/services/comment-service.js";
-import { googleFirebaseService } from "./dashboard/src/services/firebase-service.js";
 
 //KEY TEST, DELETE AFTER FINISH
-const KEY_COUNT_TRIGGER_TEST = "count triggered";
+// const KEY_COUNT_TRIGGER_TEST = "count triggered";
 const KEY_OPEN_DASHBOARD = "OPEN_DASHBOARD";
 
-//ALARMS
+// //ALARMS
 chrome.alarms.onAlarm.addListener((alarm) => {
   handleOnAlarm(alarm);
 });
@@ -128,49 +178,12 @@ chrome.webNavigation.onCommitted.addListener((details) => {
   handleOnCommited(details);
 });
 
-// ============================================================
 // MESSAGE ROUTER: Listens for messages from content scripts
-// ============================================================
-
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   try {
     switch (msg.type) {
-      // --- GM_notification ---
-      case KEY_NOTIFICATION:
-        chrome.notifications.create(msg.id, {
-          type: "basic",
-          iconUrl: msg.iconUrl || "icons/icon-128.png",
-          title: msg.title || "FB Auto Post",
-          message: msg.message || "",
-        });
-        break;
-
-      case KEY_CLEAR_NOTIFICATION:
-        chrome.notifications.clear(msg.id);
-        break;
-
-      // --- GM_openInTab ---
       case KEY_OPEN_IN_TAB:
         handleOpenInTab(msg);
-        break;
-
-      // --- GM_registerMenuCommand ---
-      case KEY_REGISTER_MENU_COMMAND:
-        chrome.contextMenus.create({
-          id: msg.id,
-          title: msg.title,
-          contexts: ["page"],
-          documentUrlPatterns: ["https://www.facebook.com/*"],
-        });
-        break;
-
-      case KEY_UNREGISTER_MENU_COMMAND:
-        chrome.contextMenus.remove(msg.id).catch(() => {});
-        break;
-
-      // --- GM_xmlhttpRequest (CORS bypass via background fetch) ---
-      case KEY_XMLHTTP_REQUEST:
-        handleXHR(msg, sender);
         break;
 
       //CLOSE THIS TAB
@@ -233,12 +246,101 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         handleGetAllMetadataInteractBeforePost(sendResponse);
         return true;
 
-      case KEY_GET_PREMIUM:
-        handleGetPremium(sendResponse);
+      case KEY_LAST_TIME_POST:
+        handleUpdateLastTimePost(msg.data.time);
+        break;
+      case KEY_TIME_DELAY:
+        handleGetTimeDelay(sendResponse);
+        return true;
+
+      case KEY_GET_PARSE_FILE:
+        handleParseFile(msg.data?.files, sendResponse);
+        return true;
+
+      case KEY_CAN_COMMENT_WALK_THIS_TAB:
+        handleCanCommentWalkThisTab(sender, sendResponse);
+        return true;
+
+      case KEY_GET_ALL_METADATA_COMMENT_WALK:
+        handleGetAllMetadataCommentWalk(sendResponse);
+        return true;
+
+      case KEY_SET_PROCESSING_COMMENT_WALK:
+        handleSetProcessingCommentWalk(msg.data?.isProcessing);
+        break;
+
+      case KEY_CAN_COMMENT_WALK_THIS_POST:
+        handleCanCommentWalkThisPost(msg.data?.url, sendResponse);
+        return true;
+
+      case KEY_ADD_URL_COMMENTED:
+        handleAddUrlCommented(msg.data?.id, msg.data?.url);
+        break;
+
+      case KEY_COMPLETED_COMMENT_WALK_THIS_BATCH:
+        handleCompletedCommentWalkThisBatch(sender);
+        break;
+
+      case KEY_STOP_TASK_REQUEST.GET_IS_STOP_TASK:
+        handleGetIsStopTask(sendResponse);
+        return true;
+
+      case KEY_COMMENT_WALK_REQUEST.UPDATE_LAST_TIME_COMMENT:
+        handleUpdateLastTimeComment(msg.data?.time);
+        break;
+
+      case KEY_COMMENT_WALK_REQUEST.GET_COMMENT_WALK_NEVER_COMMENTED:
+        handleGetCommentWalkActiveNeverComment(
+          msg.data.ids,
+          msg.data.url,
+          sendResponse,
+        );
+        return true;
+
+      case KEY_REQUEST_TO_BACKGROUND.GET_STRICTLY_MATCH_TITLE_GROUP:
+        handleGetStrictlyMatchTitleGroup(sendResponse);
+        return true;
+
+      case KEY_REQUEST_TO_BACKGROUND.CHECK_DATA_COMMENT_WALK_MATCH_AT_SEARCH_PAGE:
+        handleCheckDataCommentWalkMatchAtSearchPage(
+          msg.data?.dataCommentWalk,
+          msg.data?.contentPost,
+          msg.data?.titlePost,
+          sendResponse,
+        );
+        return true;
+
+      case KEY_REQUEST_TO_BACKGROUND.CHECK_MULTI_DATA_COMMENT_WALK_AT_HOME_PAGE:
+        handleCheckMultiMatchDataCommentWalkAtHomePage(
+          msg.data?.listDataCommentWalk,
+          msg.data?.contentPost,
+          msg.data?.titlePost,
+          sendResponse,
+        );
+        return true;
+
+      case KEY_REQUEST_TO_BACKGROUND.GET_TASK_NEED_EXECUTE_BY_URL:
+        handleGetTaskNeedExecuteByUrl(msg.data?.url, sender, sendResponse);
+        return true;
+
+      case KEY_REQUEST_TO_BACKGROUND.GET_DATA_POST_THIS_BATCH:
+        handleGetDataPostThisBatch(sendResponse);
+        return true;
+
+      case KEY_REQUEST_TO_BACKGROUND.CHECK_CORRECT_URL_COMMENT_WALK:
+        handleCheckCorrectUrlCommentWalk(msg.data?.url, sendResponse);
+        return true;
+
+      case KEY_REQUEST_TO_BACKGROUND.CHECK_CORRECT_URL_POST_IN_GROUP:
+        handleCheckCorrectUrlPostInGroup(msg.data?.url, sendResponse);
         return true;
 
       case KEY_GET_TOOL_SETTING:
-        handleGetToolSetting(sendResponse);
+        handleGetToolSettingFromContent(sendResponse);
+        return true;
+
+      case KEY_GET_PREMIUM:
+        handleGetPremiumFromContent(sendResponse);
         return true;
     }
   } catch (error) {
@@ -251,22 +353,66 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
+async function handleGetTaskNeedExecuteByUrl(url, sender, sendResponse) {
+  try {
+    const isStop = await getIsStopTaskData();
+
+    const task = {
+      post: false,
+      comment_walk: false,
+      get_list_group: false,
+    };
+
+    //post
+    const lastTabPostId = await DB_getValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
+    if (lastTabPostId === sender.tab.id) {
+      task.post = true;
+    }
+
+    //comment walk
+    const commentTabId = await commentWalkService.getTabIdCommentWalk();
+    if (commentTabId && commentTabId === sender.tab.id) {
+      task.comment_walk = true;
+    }
+
+    //get list group
+    const tabGetListGroupId = await DB_getValue(KEY_TAB.TAB_GET_LIST_GROUP_ID);
+    if (tabGetListGroupId && tabGetListGroupId === sender.tab.id) {
+      task.get_list_group = true;
+    }
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: task,
+    });
+  } catch (error) {
+    logError("Error at handleGetTaskNeedExecuteByUrl: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: error.message || error || "Something went wrong",
+    });
+    return true;
+  }
+}
+
 async function nextGroupPost() {
   try {
-    const isStop = await getIsStopTaskInStorage();
-    const isSpammed = await getIsSpammedInStorage();
+    const isStop = await getIsStopTaskData();
     const isProgress = await getProgressTool();
+
+    const isSpammed = await getIsSpammedData();
 
     if (isStop || isSpammed || !isProgress) {
       setProgressTool(false);
+      clearAndCreateSchedulerAlarm();
       return;
     }
     const { isPostedAll, isPostedMaxGroupPerTime } =
       await checkPostedAllGroupOrMaxGroupPerTime();
 
     if (isPostedAll || isPostedMaxGroupPerTime) {
-      setCurrentCountPostLength(0);
-      setProgressTool(false);
+      await setCurrentCountPostLength(0);
+      await setProgressTool(false);
 
       if (isPostedAll) {
         logActions("[Background] All group have been posted");
@@ -276,7 +422,7 @@ async function nextGroupPost() {
         });
         await resetPostedGroupAndSave();
       } else {
-        const isRandomBatchPost = await getIsRandomBatchPost();
+        const isRandomBatchPost = await getIsRandomBreakBatchData();
         if (isRandomBatchPost) {
           const countBatchPost = await getCountBatchPost();
           setCountBatchPost(countBatchPost + 1);
@@ -288,19 +434,17 @@ async function nextGroupPost() {
         });
       }
 
-      const isScheduler = await getIsScheduler();
-      if (isScheduler) {
-        await clearAndCreateSchedulerAlarm();
-        await logSchedulerHelper();
-      }
+      await clearAndCreateSchedulerAlarm();
+      await logSchedulerHelper();
+
       return;
     }
 
     const objectList = await getListGroupsNeedPostInStorage();
-    let currentIndexGroup = await getCurrentIndexGroupPost();
+    let currentIdGroup = await getCurrentIdDataGroupPost();
 
-    if (!currentIndexGroup) {
-      setProgressTool(false);
+    if (!currentIdGroup) {
+      await setProgressTool(false);
       addLog({
         vi: "Không tìm thấy dữ liệu được chọn, hãy thêm hoặc đánh dấu dữ liệu cần đăng bài",
         en: "No group need post, please add or mark the data to be posted",
@@ -309,10 +453,10 @@ async function nextGroupPost() {
     }
 
     const listGroups = objectList?.groups || [];
-    const need = listGroups.find((gr) => gr.id === currentIndexGroup);
+    const need = listGroups.find((gr) => gr.id === currentIdGroup);
 
     if (!need || !need.groups || !need.groups.length) {
-      setProgressTool(false);
+      await setProgressTool(false);
       addLog({
         vi: "Dữ liệu hiện tại không có nhóm nào phù hợp, hãy tham gia thêm nhóm hoặc chọn lại dữ liệu khác",
         en: "Current data does not have any suitable group, please join more groups or select other data",
@@ -334,12 +478,15 @@ async function nextGroupPost() {
         vi: "Tất cả nhóm trong dữ liệu hiện tại đã được đăng, đang tìm dữ liệu khác được chọn phù hợp",
         en: "All group in current data have been posted, looking for other suitable data",
       });
-      let id = await getRandomIndexGroupChecked();
+      let id = await getRandomIdDataGroupPostChecked();
       if (!id) {
         await resetPostedGroupAndSave();
-        id = await getRandomIndexGroupChecked();
+        id = await getRandomIdDataGroupPostChecked();
       }
-      setCurrentIndexGroupPost(id);
+      if (!id) {
+        return;
+      }
+      await setCurrentIdDataGroupPost(id);
       const need = await getCurrentGroupNeedPost();
       groups = need?.groups || [];
     }
@@ -350,20 +497,20 @@ async function nextGroupPost() {
 
     if (nextTaskFind) {
       logActions("open next task: ", nextTaskFind);
-      saveTask({ task: nextTaskFind, time: now() });
+      await saveTask({ task: nextTaskFind, time: now() });
 
       await openNewTaskHepler(nextTaskFind);
     }
     //not found next task
     else {
-      setProgressTool(false);
+      await setProgressTool(false);
       addLog({
         vi: "Không tìm thấy nhóm tiếp theo để đăng, có thể tất cả nhóm trong dữ liệu hiện tại đã được đăng",
         en: "No next task to post, maybe all group in current data have been posted",
       });
     }
   } catch (error) {
-    setProgressTool(false);
+    await setProgressTool(false);
     logError("Error at next group post: ", error);
     addLog({
       vi: "Đã xảy ra lỗi khi tìm nhóm tiếp theo để đăng, tạm dừng tiện ích",
@@ -375,7 +522,7 @@ async function nextGroupPost() {
 //handle can post this tab
 async function handleCanPostThisTab(sender, sendResponse) {
   try {
-    const lastTabPostId = await BG_getValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
+    const lastTabPostId = await DB_getValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
     const taskObject = await getTask();
     const task = taskObject?.task;
 
@@ -384,8 +531,8 @@ async function handleCanPostThisTab(sender, sendResponse) {
       sendResponse({
         status: STATUS_RESPONSE.SUCCESS,
         data: {
-          canPost: true,
-          task,
+          can_post: true,
+          data: task,
         },
       });
 
@@ -402,13 +549,217 @@ async function handleCanPostThisTab(sender, sendResponse) {
   }
 }
 
+async function handleGetDataPostThisBatch(sendResponse) {
+  try {
+    const taskObject = await getTask();
+    const task = taskObject?.task;
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: task,
+    });
+    return true;
+  } catch (error) {
+    logError("Error at handleGetDataPostThisBatch: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: error.message || error || "Something went wrong",
+    });
+    return true;
+  }
+}
+
+async function handleCanCommentWalkThisTab(sender, sendResponse) {
+  try {
+    const commentTabId = await commentWalkService.getTabIdCommentWalk();
+    if (!commentTabId) {
+      sendResponse({
+        status: STATUS_RESPONSE.FAIL,
+        message:
+          "Can not comment walk this tab, because this tab maybe open by user, not by tool",
+      });
+      return true;
+    }
+
+    // const isComment = await getIsCommentWalkData();
+    // if (!isComment) {
+    //   sendResponse({
+    //     status: STATUS_RESPONSE.FAIL,
+    //     message:
+    //       "Can not comment walk this tab, because is comment walk disabled",
+    //   });
+    //   return true;
+    // }
+
+    if (commentTabId !== sender.tab.id) {
+      sendResponse({
+        status: STATUS_RESPONSE.FAIL,
+        message:
+          "Can not comment walk this tab, because this tab maybe open by user, not by tool",
+      });
+      return true;
+    }
+
+    // const currentId = await commentWalkService.getCurrentIdCommentWalkActive();
+    // if (!currentId) {
+    //   sendResponse({
+    //     status: STATUS_RESPONSE.FAIL,
+    //     message:
+    //       "Can not comment walk this tab, because id comment walk not found",
+    //   });
+    //   return true;
+    // }
+
+    // const commentWalk = await commentWalkService.getCommentWalkById(currentId);
+    // if (!commentWalk) {
+    //   sendResponse({
+    //     status: STATUS_RESPONSE.FAIL,
+    //     message:
+    //       "Can not comment walk this tab, because comment walk data not found",
+    //   });
+    //   return true;
+    // }
+
+    // const listCommentWalk = await commentWalkService.getListCommentWalk();
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: {
+        can_comment_walk: true,
+      },
+    });
+    return true;
+  } catch (error) {
+    logError("Error can comment walk this tab: ", error);
+  }
+}
+
+async function handleCanCommentWalkThisPost(url, sendResponse) {
+  try {
+    const id = await commentWalkService.getCurrentIdCommentWalkActive();
+    const commented = await commentWalkService.checkUrlCommented(id, url);
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: {
+        can_comment_walk: !commented,
+      },
+    });
+    return true;
+  } catch (error) {
+    logError("Error at handleCanCommentWalkThisPost: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+    return true;
+  }
+}
+
+async function handleGetCommentWalkActiveNeverComment(
+  ids = [],
+  url = "",
+  sendResponse,
+) {
+  try {
+    let listCommentNeverComment = [];
+
+    for (const id of ids) {
+      const commentWalk = await commentWalkService.getCommentWalkById(id);
+      if (!commentWalk) {
+        continue;
+      }
+      const commented = await commentWalkService.checkUrlCommented(id, url);
+      if (!commented) {
+        listCommentNeverComment.push(commentWalk);
+      }
+    }
+
+    let commentWalk = null;
+
+    if (listCommentNeverComment.length > 0) {
+      //get by score
+      const total = listCommentNeverComment.length;
+      const listValue = listCommentNeverComment.map((_, i) => total - i);
+      let value = null;
+
+      for (const item of listValue) {
+        if (randomRateBoolean(item, total)) {
+          value = item;
+          break;
+        }
+      }
+
+      if (!value) {
+        value = randomNumberValue(listValue);
+      }
+
+      const index = total - value;
+
+      commentWalk = listCommentNeverComment[index];
+    }
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: commentWalk,
+    });
+    return true;
+  } catch (error) {
+    logError("Error at handleGetCommentWalkActiveNeverComment: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+    return true;
+  }
+}
+
+async function handleCompletedCommentWalkThisBatch(sender) {
+  try {
+    await commentWalkService.setIsCommentWalkProcessing(false);
+    const tabId = sender.tab.id;
+    await commentWalkService.setTabIdCommentWalk(null);
+    await commentWalkService.setCountCommentWalkPostedPerBatch(0);
+
+    addLog({
+      vi: "Đã hoàn thành đợt bình luận dạo, chuyển sang đợt tiếp theo (nếu lên lịch đang được bật)",
+      en: "Completed comment walk batch, switching to the next batch (if scheduling is enabled)",
+    });
+
+    const countBatch = await getCountBatchPost();
+    await setCountBatchPost(countBatch + 1);
+
+    await handleCloseThisTab(tabId);
+    await clearAndCreateSchedulerAlarm();
+  } catch (error) {
+    logError("Error at handleCompletedCommentWalkThisBatch: ", error);
+    addLog({
+      vi:
+        "Đã xảy ra lỗi khi hoàn thành đợt bình luận dạo: " + error?.message ||
+        error?.msg ||
+        error,
+      en:
+        "Error occurred while completing comment walk batch: " +
+          error?.message ||
+        error?.msg ||
+        error,
+      type: "error",
+    });
+  }
+}
+
 async function handleOpenInTab(msg) {
   try {
     const t = await chrome.tabs.create({
       url: msg.url,
       active: msg.active !== false,
     });
-    await BG_setValue(KEY_TAB.LAST_POST_TAB_OPEN_ID, t.id);
+    await DB_setValue(KEY_TAB.LAST_POST_TAB_OPEN_ID, t.id);
   } catch (error) {
     logError("Error open in tab: ", error);
   }
@@ -416,12 +767,12 @@ async function handleOpenInTab(msg) {
 
 async function handleGetListGroups() {
   try {
-    await BG_setValue(KEY_IS_SCROLL_DETECT_LIST_GROUP, true);
+    await DB_setValue(KEY_IS_SCROLL_DETECT_LIST_GROUP, true);
     const tab = await chrome.tabs.create({
       url: URL_LIST_GROUPS,
       active: true,
     });
-    await BG_setValue(KEY_TAB.TAB_GET_LIST_GROUP_ID, tab.id);
+    await DB_setValue(KEY_TAB.TAB_GET_LIST_GROUP_ID, tab.id);
 
     //DO LATER: create popup window for get list group
     // const win = await chrome.windows.create({
@@ -466,7 +817,7 @@ async function handleGetCurrentDataGroupSavedNeedPost(sendResponse) {
       });
       return true;
     }
-    const data = await getCurrentDataGroupSavedNeedPost();
+    const data = await getCurrentDataGroupPosting();
     const contents = data?.contents || [];
 
     if (!contents.length) {
@@ -486,6 +837,18 @@ async function handleGetCurrentDataGroupSavedNeedPost(sendResponse) {
   }
 }
 
+async function handleGetIsStopTask(sendResponse) {
+  try {
+    const stop = await getIsStopTaskData();
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: stop,
+    });
+  } catch (error) {
+    logError("Error get is stop task: ", error);
+  }
+}
+
 async function handleUpdateIsSpammed(isSpammed) {
   try {
     if (isSpammed) {
@@ -494,9 +857,12 @@ async function handleUpdateIsSpammed(isSpammed) {
         en: "User account is spammed, pausing the tool",
       });
       setProgressTool(false);
-      const nextTime = now() + 1000 * 60 * 60 * 24 * 2; // 2 day
-      BG_setValue(KEY_NEXT_TIME_POST_WHEN_SPAMMED, nextTime);
-      BG_setValue(KEY_IS_SPAMMED, isSpammed);
+      const timeBreak =
+        (await getTimeBreakWhenSpammedData()) ||
+        KEY_DEFAULT_VALUE.DEFAULT_TIME_BREAK_WHEN_SPAMMED;
+      const nextTime = now() + 1000 * 60 * 60 * 24 * timeBreak;
+      await DB_setValue(KEY_NEXT_TIME_POST_WHEN_SPAMMED, nextTime);
+      await setIsSpammedData(isSpammed);
     }
   } catch (error) {
     logError("Error update is spammed: ", error);
@@ -508,38 +874,6 @@ async function handleAddLog(message) {
     addLog({ vi: message?.vi || "", en: message?.en || "" });
   } catch (error) {
     logError("Error add log: ", error);
-  }
-}
-
-async function handleWelcomeBack() {
-  try {
-    addLog({
-      vi: "Chào mừng bạn quay trở lại",
-      en: "Welcome back",
-    });
-
-    const isPremium = await getPremiumInStorage();
-
-    if (isPremium) {
-      addLog({
-        vi: "Chế độ Premium đã được kích hoạt",
-        en: "Premium mode is activated",
-      });
-    }
-
-    await logSchedulerHelper();
-
-    const isProgress = await getProgressTool();
-    if (isProgress) {
-      setProgressTool(false);
-      addLog({
-        vi: "Đã phát hiện tiện ích vừa được khởi động lại trong lúc đang có tác vụ chạy dở, đợt đăng bài trước đó đã bị ngắt",
-        en: "Detected that the tool was just restarted while a task was in progress, the previous posting batch has been interrupted",
-      });
-    }
-    setTimeDelayForScheduler(0);
-  } catch (error) {
-    logError("Error at handleWelcomeBack method: ", error);
   }
 }
 
@@ -559,18 +893,21 @@ async function handleCloseThisTab(tabId) {
 async function handleOnCommited(details) {
   try {
     if (details.frameId === 0) {
+      //start_page
+      //auto_bookmark, link, reload
+
       const currentId = details.tabId;
 
       if (details.transitionType === "reload") {
-        const tabIdGetListGroup = await BG_getValue(
+        const tabIdGetListGroup = await DB_getValue(
           KEY_TAB.TAB_GET_LIST_GROUP_ID,
         );
         //check get list groups tab was be reload
         if (currentId === tabIdGetListGroup) {
-          const isScroll = await BG_getValue(KEY_IS_SCROLL_DETECT_LIST_GROUP);
+          const isScroll = await getIsScrollDetectListGroupInStorage();
           if (isScroll) {
-            BG_setValue(KEY_IS_SCROLL_DETECT_LIST_GROUP, false);
-            BG_deleteValue(KEY_TAB.TAB_GET_LIST_GROUP_ID);
+            await setIsScrollDetectListGroupInStorage(false);
+            await DB_deleteValue(KEY_TAB.TAB_GET_LIST_GROUP_ID);
             addLog({
               vi: "Đã dừng lấy danh sách nhóm do tab bị load lại thủ công",
               en: "Stopped getting group list because tab was reloaded manually",
@@ -578,15 +915,38 @@ async function handleOnCommited(details) {
           }
         }
 
-        const tabIdPost = await BG_getValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
+        const tabIdPost = await DB_getValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
         //check when posting was be reload -> set
         if (currentId === tabIdPost) {
           setProgressTool(false);
-          BG_deleteValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
+          await DB_deleteValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
           addLog({
             vi: "Đã dừng đăng bài đợt này do tab bị load lại thủ công",
             en: "Stopped posting this batch because tab was reloaded manually",
           });
+        }
+
+        const tabIdCommentWalk = await commentWalkService.getTabIdCommentWalk();
+        if (currentId === tabIdCommentWalk) {
+          await commentWalkService.setIsCommentWalkProcessing(false);
+          await DB_deleteValue(KEY_COMMENT_WALK.TAB_ID_COMMENT_WALK);
+          addLog({
+            vi: "Đã dừng bình luận đợt này do tab bị load lại thủ công",
+            en: "Stopped comment this batch because tab was reloaded manually",
+          });
+        }
+
+        if (getIsDashboardTab(details.url)) {
+          await initialGlobalDataWhenReload();
+
+          const taskContinue = await DB_getValue(KEY_CONTINUE_OLD_TASK);
+          if (!taskContinue) return;
+          const value = taskContinue.value;
+          const time = taskContinue.time;
+          const diff = time + 1000 * 60 * 10; //in 10s
+          if (diff < Date.now() || !value) return;
+
+          console.log("Thực hiện task cũ");
         }
       }
 
@@ -595,8 +955,8 @@ async function handleOnCommited(details) {
 
         //when user open dashboard tab -> set tab id, not exist dashboard tab and reload it
         if (getIsDashboardTab(url)) {
-          await initialGlobalData();
-          BG_setValue(KEY_TAB.TAB_DASHBOARD_ID, currentId);
+          await initialDataWhenOpenTool();
+          await DB_setValue(KEY_TAB.TAB_DASHBOARD_ID, currentId);
         }
       }
     }
@@ -608,8 +968,8 @@ async function handleOnCommited(details) {
 async function handleOnRemove(tabId) {
   async function handleScheduler() {
     try {
-      const scheduler = await getSchedulerService();
-      if (scheduler.isScheduler) {
+      const isScheduler = await getIsSchedulerData();
+      if (isScheduler) {
         await clearAndCreateSchedulerAlarm();
         await logSchedulerHelper();
       }
@@ -619,12 +979,12 @@ async function handleOnRemove(tabId) {
   }
 
   try {
-    const tabIdGetListGroup = await BG_getValue(KEY_TAB.TAB_GET_LIST_GROUP_ID);
+    const tabIdGetListGroup = await DB_getValue(KEY_TAB.TAB_GET_LIST_GROUP_ID);
     if (tabId === tabIdGetListGroup) {
-      const isScroll = await BG_getValue(KEY_IS_SCROLL_DETECT_LIST_GROUP);
+      const isScroll = await getIsScrollDetectListGroupInStorage();
       if (isScroll) {
-        BG_setValue(KEY_IS_SCROLL_DETECT_LIST_GROUP, false);
-        BG_deleteValue(KEY_TAB.TAB_GET_LIST_GROUP_ID);
+        await setIsScrollDetectListGroupInStorage(false);
+        await DB_deleteValue(KEY_TAB.TAB_GET_LIST_GROUP_ID);
         addLog({
           vi: "Đã dừng lấy danh sách nhóm do tab bị đóng thủ công",
           en: "Stopped getting group list because tab was closed manually",
@@ -633,12 +993,12 @@ async function handleOnRemove(tabId) {
     }
 
     //check when posting was be close
-    const tabIdPost = await BG_getValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
+    const tabIdPost = await DB_getValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
     if (tabId === tabIdPost) {
       const isProgress = await getProgressTool();
       if (isProgress) {
-        setProgressTool(false);
-        BG_deleteValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
+        await setProgressTool(false);
+        await DB_deleteValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
         addLog({
           vi: "Đã dừng đăng bài đợt này do tab đăng bài bị đóng thủ công",
           en: "Stopped posting this batch because tab posting was closed manually",
@@ -647,21 +1007,566 @@ async function handleOnRemove(tabId) {
       }
     }
 
-    const tabIdDashboard = await BG_getValue(KEY_TAB.TAB_DASHBOARD_ID);
+    //check when comment walk was be close
+    const tabIdCommentWalk = await commentWalkService.getTabIdCommentWalk();
+    if (tabId === tabIdCommentWalk) {
+      const isCommentWalkProcessing =
+        await commentWalkService.getIsCommentWalkProcessing();
+      if (isCommentWalkProcessing) {
+        await commentWalkService.setIsCommentWalkProcessing(false);
+        await DB_deleteValue(KEY_COMMENT_WALK.TAB_ID_COMMENT_WALK);
+        addLog({
+          vi: "Đã dừng bình luận đợt này do tab bình luận bị đóng thủ công",
+          en: "Stopped comment this batch because tab comment was closed manually",
+        });
+        handleScheduler();
+      }
+    }
+
+    const tabIdDashboard = await DB_getValue(KEY_TAB.TAB_DASHBOARD_ID);
     if (tabId === tabIdDashboard) {
       clearSchedulerAuto();
-      BG_deleteValue(KEY_TAB.TAB_DASHBOARD_ID);
+      DB_deleteValue(KEY_TAB.TAB_DASHBOARD_ID);
     }
   } catch (error) {
     logError("Error at handleRemove", error);
   }
 }
 
+async function handleGetKeySaved(key, sendResponse) {
+  try {
+    const data = await DB_getValue(key);
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data,
+    });
+  } catch (error) {
+    logError("Error at handleGetKeySaved: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleSetKeySaved(key, value, sendResponse) {
+  try {
+    await DB_setValue(key, value);
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: true,
+    });
+  } catch (error) {
+    logError("Error at handleSetKeySaved: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lưu dữ liệu",
+        en: "Error saving data",
+      }),
+    });
+  }
+}
+
+async function handleGetAllMetadataComments(sendResponse) {
+  try {
+    const data = await getAllMetadataComments();
+    const numberComment = random(1, data.max_comment_per_post);
+    data.max_comment_per_post = numberComment;
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data,
+    });
+  } catch (error) {
+    logError("Error at handleGetAllMetadataComments: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleGetAllMetadataCommentWalk(sendResponse) {
+  try {
+    const data = await commentWalkService.getAllMetadataCommentWalk();
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data,
+    });
+  } catch (error) {
+    logError("Error at handleGetAllMetadataCommentWalk: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleParseFile(files, sendResponse) {
+  try {
+    const list = [];
+    if (files && Array.isArray(files)) {
+      for await (const file of files) {
+        let parse = file;
+        if (typeof file === "string") {
+          const blob = await parseUrlToBlob(file);
+          const newFile = parseBlobToFile(blob, file);
+          parse = await parseFileToObjectBase64(newFile);
+        }
+        if (parse) {
+          list.push(parse);
+        }
+      }
+    }
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: list,
+    });
+  } catch (error) {
+    logError("Error at handleParseFile: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi parse file",
+        en: "Error parsing file",
+      }),
+    });
+  }
+}
+
+async function handleSetProcessingCommentWalk(isProcessing) {
+  try {
+    await commentWalkService.setIsCommentWalkProcessing(isProcessing);
+  } catch (error) {
+    logError("Error at handleSetProcessingCommentWalk: ", error);
+  }
+}
+
+async function handleUpdateLastTimePost(time) {
+  try {
+    await setLastTimePostData(time);
+  } catch (error) {
+    logError("Error at handleUpdateLastTimePost: ", error);
+  }
+}
+
+async function handleUpdateLastTimeComment(time) {
+  try {
+    await commentWalkService.setLastTimeCommentWalkSuccess(time);
+  } catch (error) {
+    logError("Error at handleUpdateLastTimeComment: ", error);
+  }
+}
+
+async function handleAddUrlCommented(id, url) {
+  try {
+    await commentWalkService.addUrlCommented(id, url);
+  } catch (error) {
+    logError("Error at handleAddUrlCommented: ", error);
+  }
+}
+
+async function initialGlobalDataWhenReload() {
+  async function initialAuth() {
+    try {
+      const auth = await getAuthFromStorage();
+      if (auth) {
+        const res = await verifyToken();
+        if (!res) {
+          await logoutService();
+        }
+      } else {
+        await setIsUseLocalStorage(true);
+      }
+    } catch (error) {
+      handleErrorHelper({
+        name: "[background] initialAuth",
+        error,
+        code: error.code,
+        isShowNotify: false,
+      });
+    }
+  }
+
+  try {
+    await initialAuth();
+    await initIsUseLocalStorage();
+  } catch (error) {
+    logError("Error at initialGlobalDataWhenReload: ", error);
+  }
+}
+
+async function initialDataWhenOpenTool() {
+  try {
+    await initIsUseLocalStorage();
+
+    logActions("Initial data global run");
+    const currentWindow = await chrome.windows.getCurrent();
+
+    await DB_setValue(KEY_CURRENT_WINDOW_ID, currentWindow.id);
+
+    const isFirstTimeUse = await getIsFirstTimeUseToolInStorage();
+
+    async function handleWelcomeBack() {
+      try {
+        const verify = await verifyToken();
+        if (verify) {
+          const auth = await getAuthFromStorage();
+          addLog({
+            vi: "Chào mừng bạn quay trở lại, " + auth?.username,
+            en: "Welcome back, " + auth?.username,
+          });
+        } else {
+          addLog({
+            vi: "Chào mừng bạn quay trở lại",
+            en: "Welcome back",
+          });
+        }
+
+        const isPremium = await getPremiumService();
+
+        if (isPremium) {
+          addLog({
+            vi: "Chế độ Premium đã được kích hoạt",
+            en: "Premium mode is activated",
+          });
+        }
+
+        await logSchedulerHelper();
+
+        const isProgress = await getProgressTool();
+        const isCommentWalkProcessing =
+          await commentWalkService.getIsCommentWalkProcessing();
+        if (isProgress || isCommentWalkProcessing) {
+          if (isProgress) {
+            await setProgressTool(false);
+          }
+          if (isCommentWalkProcessing) {
+            await commentWalkService.setIsCommentWalkProcessing(false);
+          }
+          addLog({
+            vi: "Đã phát hiện tiện ích vừa được khởi động lại trong lúc đang có tác vụ chạy dở, tác vụ trước đó đã bị ngắt",
+            en: "Detected that the tool was just restarted while a task was in progress, the previous task has been interrupted",
+          });
+        }
+        await setTimeDelayForScheduler(0);
+        await setCountResetGroupInStorage(0);
+      } catch (error) {
+        logError("Error at handleWelcomeBack method: ", error);
+      }
+    }
+
+    //force can not login for first time use
+    if (isFirstTimeUse === undefined || isFirstTimeUse === null) {
+      await setIsFirstTimeUseToolInStorage(true);
+      addLog({
+        vi: "Bắt đầu sử dụng tiện ích",
+        en: "Start using the extension",
+      });
+
+      await Promise.all([
+        setIsShuffleGroupNeedPostData(true),
+        setIsFixStealFocusData(true),
+      ]);
+      await setPremiumService(false);
+
+      const device = await getDeviceFromStorage();
+      if (!device) {
+        await createNewDeviceAndForceSave();
+      }
+    } else {
+      await handleWelcomeBack();
+      await setIsFirstTimeUseToolInStorage(false);
+    }
+  } catch (error) {
+    logError("Error at initialGlobalData: ", error);
+  }
+}
+
+//TODO: DO LATER
+async function handleCloseThisWindow(sender) {
+  try {
+    console.log("Close this window");
+    console.log("Sender", sender);
+  } catch (error) {
+    logError("Error at handleCloseThisWindow: ", error);
+  }
+}
+
+async function handleAddTimeDelayForScheduler(timeDelay) {
+  try {
+    const time = await getTimeDelayForScheduler();
+    const newTimeDelay = time + timeDelay;
+    await setTimeDelayForScheduler(Number(newTimeDelay));
+  } catch (error) {
+    logError("Error at handleAddTimeDelayForScheduler: ", error);
+  }
+}
+
+async function handleGetAllMetadataInteractBeforePost(sendResponse) {
+  try {
+    const can_interact = await getDecidedInteractBeforePostInStorage();
+    const max_post_interact_per_batch = await getMaxPostInteractService();
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: {
+        can_interact,
+        max_post_interact_per_batch,
+      },
+    });
+  } catch (error) {
+    logError("Error at handleGetAllMetadataInteractBeforePost: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+// async function handleGetPremium(sendResponse) {
+//   try {
+//     let premium = await getPremiumInStorage();
+
+//     const timeFirstUse = await getTimeFirstUse();
+
+//     const setting = await googleFirebaseService.getSettingTool();
+
+//     if (timeFirstUse) {
+//       const diff = Date.now() - timeFirstUse;
+//       const dayDiff = Math.floor(diff / 1000 / 60 / 60 / 24);
+//       //free premium in 10 days
+//       if (dayDiff < Number(setting?.day_free_premium || 0)) {
+//         premium = true;
+//       }
+//     }
+
+//     sendResponse({
+//       status: STATUS_RESPONSE.SUCCESS,
+//       data: premium,
+//     });
+//   } catch (error) {
+//     logError("Error at handleGetPremium: ", error);
+//     sendResponse({
+//       status: STATUS_RESPONSE.FAIL,
+//       message: getTextWithLanguage({
+//         vi: "Lỗi khi lấy dữ liệu",
+//         en: "Error getting data",
+//       }),
+//     });
+//   }
+// }
+
+async function handleGetTimeDelay(sendResponse) {
+  try {
+    const timeDelay = await getTimeDelayData();
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: timeDelay,
+    });
+  } catch (error) {
+    logError("Error at handleGetTimeDelay: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleGetStrictlyMatchTitleGroup(sendResponse) {
+  try {
+    const data = await getStrictlyMatchTitleGroupData();
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data,
+    });
+  } catch (error) {
+    logError("Error at handleGetStrictlyMatchTitleGroup: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleCheckDataCommentWalkMatchAtSearchPage(
+  dataCommentWalk,
+  contentPost,
+  titlePost,
+  sendResponse,
+) {
+  try {
+    const ai = new GoogleGenAIClass();
+    const match = await ai.matchCommentWalkAtSearchPage(
+      dataCommentWalk,
+      contentPost,
+      titlePost,
+    );
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: match,
+    });
+  } catch (error) {
+    logError("Error at handleCheckDataCommentWalkMatchAtSearchPage: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleCheckMultiMatchDataCommentWalkAtHomePage(
+  listDataCommentWalk,
+  contentPost,
+  titlePost,
+  sendResponse,
+) {
+  try {
+    const ai = new GoogleGenAIClass();
+    const match = await ai.matchMultiCommentWalkHomePage(
+      listDataCommentWalk,
+      contentPost,
+      titlePost,
+    );
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: match,
+    });
+  } catch (error) {
+    logError("Error at handleCheckMultiDataCommentWalkAtHomePage: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleCheckCorrectUrlCommentWalk(url, sendResponse) {
+  try {
+    const isCorrect = await hrefHelper.checkUrlCommentWalkPage(url);
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: isCorrect,
+    });
+  } catch (error) {
+    logError("Error at handleCheckCorrectUrlCommentWalk: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleCheckCorrectUrlPostInGroup(url, sendResponse) {
+  try {
+    const isCorrect = await hrefHelper.checkUrlPostInGroup(url);
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: isCorrect,
+    });
+  } catch (error) {
+    logError("Error at handleCheckCorrectUrlPostInGroup: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi kiểm tra URL",
+        en: "Error checking URL",
+      }),
+    });
+  }
+}
+
+async function handleGetPremiumFromContent(sendResponse) {
+  try {
+    let premium = await getPremiumService();
+
+    const timeFirstUse = await getTimeFirstUse();
+
+    const setting = await systemSettingService.getAllSystemSetting();
+
+    if (timeFirstUse) {
+      const diff = Date.now() - timeFirstUse;
+      const dayDiff = Math.floor(diff / 1000 / 60 / 60 / 24);
+      //free premium in
+      if (dayDiff < Number(setting?.day_free_premium_for_new_user || 0)) {
+        premium = true;
+      }
+    }
+
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: premium,
+    });
+  } catch (error) {
+    logError("Error at handleGetPremium: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
+async function handleGetToolSettingFromContent(sendResponse) {
+  try {
+    const setting = await systemSettingService.getAllSystemSetting();
+    sendResponse({
+      status: STATUS_RESPONSE.SUCCESS,
+      data: setting,
+    });
+  } catch (error) {
+    logError("Error at handleGetToolSetting: ", error);
+    sendResponse({
+      status: STATUS_RESPONSE.FAIL,
+      message: getTextWithLanguage({
+        vi: "Lỗi khi lấy dữ liệu",
+        en: "Error getting data",
+      }),
+    });
+  }
+}
+
 async function handleOnAlarm(alarm) {
   try {
+    //
+
     async function randomInteractBeforePost() {
       try {
-        const isInteract = await getIsInteractBeforePostInStorage();
+        const isInteract = await getIsInteractBeforePostData();
         if (isInteract) {
           addLog({
             vi: "Chức năng tương tác trước khi đăng bài đang được bật, đang kiểm tra xem có nên tương tác bài viết trước không",
@@ -690,6 +1595,166 @@ async function handleOnAlarm(alarm) {
       }
     }
 
+    async function logWhenSpammedPost() {
+      const nextTimePost = await getNextTimePostWhenSpammed();
+      const date = new Date(nextTimePost).toLocaleString();
+      addLog({
+        vi: `Tài khoản của bạn đã bị đánh dấu là spam bởi Facebook, không thể đăng bài trong 1 khoảng thời gian, thời gian tiếp theo sẽ là ${date}`,
+        en: `Your account has been flagged as spam by Facebook, cannot post for a while, next post will be at ${date}`,
+      });
+      setCountBatchPost(0);
+      clearAndCreateSchedulerAlarm();
+      return;
+    }
+
+    async function handleStopTool() {
+      await commentWalkService.setIsCommentWalkProcessing(false);
+      await setProgressTool(false);
+      await clearAndCreateSchedulerAlarm();
+    }
+
+    async function sendMessageExecutePost() {
+      await DB_setValue(
+        KEY_MESSAGE_FROM_BACKGROUND.AUTOMATION.POST_CONTINUE,
+        Date.now(),
+      );
+    }
+
+    async function sendMessageExecuteCommentWalk() {
+      await DB_setValue(
+        KEY_MESSAGE_FROM_BACKGROUND.AUTOMATION.COMMENT_WALK,
+        Date.now(),
+      );
+    }
+
+    async function sendMessageReloadDashboard() {
+      await DB_setValue(
+        KEY_MESSAGE_FROM_BACKGROUND.RELOAD_DASHBOARD,
+        Date.now(),
+      );
+    }
+
+    async function handleExecuteTask() {
+      const premium = await getPremiumService();
+      const isSpammed = await getIsSpammedData();
+
+      async function executeTaskPost() {
+        if (isSpammed) {
+          await logWhenSpammedPost();
+          return;
+        }
+        const isCommentWhenPost = await getIsCommentWhenPostSuccessData();
+        if (isCommentWhenPost) {
+          addLog({
+            vi: "Chức năng bình luận sau khi đăng bài đang được bật, bình luận sẽ được ngẫu nhiên thực hiện hoặc không sau khi hoàn tất việc đăng bài",
+            en: "The function of commenting after posting is enabled, will be performed or not randomly after completing the posting",
+          });
+        }
+        await randomInteractBeforePost();
+
+        await sendMessageExecutePost();
+      }
+
+      async function executeTaskCommentWalk() {
+        addLog({
+          vi: "Chức năng bình luận dạo đang được bật, công việc hiện tại của tiện ích là bình luận dạo",
+          en: "The function of commenting walk is enabled, the current task of the tool is commenting walk",
+        });
+        await sendMessageExecuteCommentWalk();
+      }
+
+      if (!premium) {
+        await executeTaskPost();
+        return;
+      }
+
+      const isExecuteWithPriority = await getIsExecutePriorityTaskData();
+      const isCommentWalk = await getIsCommentWalkData();
+      if (!isExecuteWithPriority) {
+        if (isCommentWalk) {
+          await executeTaskCommentWalk();
+        } else {
+          await executeTaskPost();
+        }
+        return;
+      }
+
+      addLog({
+        vi: "Chế độ thực hiện công việc theo độ ưu tiên đang được bật, tiện ích sẽ chọn công việc ngẫu nhiên có độ ưu tiên cao để thực hiện",
+        en: "The mode of performing tasks according to priority is enabled, the tool will select the random task with high priority to perform",
+      });
+
+      const listTaskNameInactive = await getListTaskNameInactive();
+      if (listTaskNameInactive.length) {
+        const listLabelTask = listTaskNameInactive
+          .map((i) => deviceHelper.getTaskLabelWithName(i))
+          .join(", ");
+
+        addLog({
+          vi:
+            "Các tác vụ có thể không thực hiện được (có thể bị spam, bị tắt,...): " +
+            listLabelTask,
+          en:
+            "Tasks that may not be performed (maybe spammed, disabled,...): " +
+            listLabelTask,
+        });
+      }
+
+      const taskName = await getRandomTaskNameWithPriority();
+      await setCurrentTaskName(taskName);
+
+      addLog({
+        vi:
+          "Công việc hiện tại của tiện ích: " +
+          deviceHelper.getTaskLabelWithName(taskName),
+        en:
+          "Current task of the tool: " +
+          deviceHelper.getTaskLabelWithName(taskName),
+      });
+
+      switch (taskName) {
+        case KEY_TASK_NAME.POST:
+          await executeTaskPost();
+          break;
+        case KEY_TASK_NAME.COMMENT_WALK:
+          await sendMessageExecuteCommentWalk();
+          break;
+        default:
+          addLog({
+            vi: "Không tìm thấy công việc hợp lệ để thực hiện, có thể tất cả công việc đều đang bị spam, dừng tác vụ đợt này",
+            en: "No valid task found to perform, maybe all tasks are being spammed, stopping this batch",
+          });
+          await handleStopTool();
+          break;
+      }
+    }
+
+    async function checkChangedRemote() {
+      try {
+        const isRemoteControl = await getIsRemoteData();
+        if (!isRemoteControl) return false;
+
+        const isChanged = await getIsChangedSettingData();
+
+        if (!isChanged) return false;
+
+        addLog({
+          vi: "Phát hiện thay đổi dữ liệu từ xa, tải lại trang để cập nhật dữ liệu mới nhất",
+          en: "Remote data change detected, reload the page to update with the latest data.",
+        });
+
+        await setIsChangedSettingData(false);
+        await DB_setValue(KEY_CONTINUE_OLD_TASK, {
+          value: true,
+          time: Date.now(),
+        });
+        await sendMessageReloadDashboard();
+        return true;
+      } catch (error) {
+        logError("Error at checkChangedRemote", error);
+      }
+    }
+
     if (alarm.name === KEY_SCHEDULER_ALARMS) {
       const tabs = await chrome.tabs.query({});
 
@@ -701,34 +1766,75 @@ async function handleOnAlarm(alarm) {
           break;
         }
       }
+
       if (!isOpenningDashboardTab) {
         clearSchedulerAuto();
         return;
       }
+
+      const isCommentWalk = await getIsCommentWalkData();
+      let isSpammed = await getIsSpammedData();
+      const isDetectingGroup = await getIsScrollDetectListGroupInStorage();
+
+      if (isSpammed) {
+        const nextTimeWhenSpamed = await getNextTimePostWhenSpammed();
+        const now = Date.now();
+        if (now > nextTimeWhenSpamed) {
+          await setIsSpammedData(false);
+          isSpammed = false;
+        }
+      }
+
       const isProgress = await getProgressTool();
-      if (isProgress) {
-        setProgressTool(false);
+      const isProgressCommentWalk =
+        await commentWalkService.getIsCommentWalkProcessing();
+
+      if (isProgress || isProgressCommentWalk) {
+        if (isCommentWalk) {
+          commentWalkService.setIsCommentWalkProcessing(false);
+        } else {
+          setProgressTool(false);
+        }
+
         addLog({
-          vi: "Tiện ích đang bị treo do lỗi đăng bài trước đó, đang đặt lại trạng thái và chuyển sang đợt đăng bài tiếp theo",
-          en: "Tool is stuck due to previous posting error, resetting status and switching to next batch",
+          vi: "Tiện ích đang bị treo do lỗi khi thực hiện công việc trước đó, đang đặt lại trạng thái và chuyển sang đợt tiếp theo",
+          en: "Tool is stuck due to previous error when performing the task, resetting status and switching to the next batch",
         });
-        const lastTabPostOpenId = await BG_getValue(
+
+        const lastTabPostOpenId = await DB_getValue(
           KEY_TAB.LAST_POST_TAB_OPEN_ID,
         );
+
         if (lastTabPostOpenId !== undefined && lastTabPostOpenId !== null) {
-          handleCloseThisTab(lastTabPostOpenId);
-          BG_deleteValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
+          await handleCloseThisTab(lastTabPostOpenId);
+          await DB_deleteValue(KEY_TAB.LAST_POST_TAB_OPEN_ID);
         }
+
+        if (isCommentWalk) {
+          const tabIdCommentWalk =
+            await commentWalkService.getTabIdCommentWalk();
+          if (tabIdCommentWalk !== undefined && tabIdCommentWalk !== null) {
+            await handleCloseThisTab(tabIdCommentWalk);
+            await DB_deleteValue(KEY_COMMENT_WALK.TAB_ID_COMMENT_WALK);
+          }
+        }
+
+        clearAndCreateSchedulerAlarm();
+
+        await checkChangedRemote();
+
         return;
       }
-      logActions("Its time to post, random post this time or not");
 
-      const isRandomBatchPost =
-        (await BG_getValue(KEY_IS_RANDOM_BATCH_POST)) || false;
+      const changed = await checkChangedRemote();
+
+      if (changed) return;
+
+      const isRandomBatchPost = await getIsRandomBreakBatchData();
       if (isRandomBatchPost) {
         addLog({
-          vi: "Đã đến giờ đăng bài trong lịch trình, chế độ nghỉ ngẫu nhiên đang bật, đang tính toán có nên đăng bài đợt này không",
-          en: "It's time to post in the schedule, random rest mode is enabled, calculating whether to post this batch or not",
+          vi: "Đã đến giờ thực hiện công việc trong lịch trình, chế độ nghỉ ngẫu nhiên đang bật, đang tính toán có nên thực hiện công việc đợt này không",
+          en: "It's time to perform the task in the schedule, random rest mode is enabled, calculating whether to perform the task this batch or not",
         });
 
         async function sleepThisTime() {
@@ -736,312 +1842,102 @@ async function handleOnAlarm(alarm) {
           const date = new Date(nextTime);
           addLog({
             vi:
-              "Đã quyết định nghỉ đợt đăng bài lần này, chuyển sang đợt tiếp theo lúc: " +
+              "Đã quyết định nghỉ thực hiện các tác vụ đợt này, chuyển sang đợt tiếp theo lúc: " +
               date.toLocaleString(),
             en:
-              "Decided to skip this batch, will start next batch at: " +
+              "Decided to skip performing tasks this batch, will start next batch at: " +
               date.toLocaleString(),
           });
-          setProgressTool(false);
+
           setCountBatchPost(0);
-          clearAndCreateSchedulerAlarm();
+          //clearAndCreateSchedulerAlarm();
+          await handleStopTool();
         }
 
         const countBatchPost = await getCountBatchPost();
-        if (countBatchPost > 8) {
-          sleepThisTime();
-          return;
-        }
-
-        if (countBatchPost >= 5 && countBatchPost <= 8) {
-          //increase percent to sleep this time
-          if (randomRateBoolean(30, 100)) {
-            sleepThisTime();
-            return;
-          }
-        }
-
-        //random this time to post or not with 10% chance
-        if (randomRateBoolean(10, 100) && countBatchPost >= 2) {
+        if (randomRateBoolean(countBatchPost - 2, 8)) {
           sleepThisTime();
           return;
         }
 
         addLog({
-          vi: "Đã quyết định bắt đầu đợt đăng bài",
-          en: "Decided to start this batch",
+          vi: "Đã quyết định thực hiện các tác vụ đợt này",
+          en: "Decided to perform this batch of tasks",
         });
 
-        const isCommentWhenPost = await getIsCommentWhenPostSuccessService();
-        if (isCommentWhenPost) {
+        const isStop = await getIsStopTaskData();
+        if (isStop) {
           addLog({
-            vi: "Chức năng bình luận sau khi đăng bài đang được bật, bình luận sẽ được ngẫu nhiên thực hiện hoặc không sau khi hoàn tất việc đăng bài",
-            en: "The function of commenting after posting is enabled, will be performed or not randomly after completing the posting",
+            vi: "Tiện ích đang trong trạng thái tắt, dừng tác vụ",
+            en: "Tool is in off state, stopping task",
           });
+          await handleStopTool();
+          return;
         }
 
-        await randomInteractBeforePost();
+        if (isDetectingGroup) {
+          addLog({
+            vi: "Tiện ích đang trong trạng thái lấy danh sách nhóm của người dùng, dừng tác vụ",
+            en: "Tool is in detecting list group state of user, stopping task",
+          });
+          await handleStopTool();
+          return;
+        }
 
-        await automationContinue();
+        await handleExecuteTask();
 
         return;
       }
 
-      const isPremium = await getPremiumInStorage();
+      const isPremium = await getPremiumService();
       if (isPremium) {
         addLog({
-          vi: "Đã đến giờ đăng bài trong lịch trình, chế độ nghỉ ngẫu nhiên đang tắt, sẽ bắt đầu đợt đăng bài",
-          en: "It's time to post in the schedule, random rest mode is off, will start this batch",
+          vi: "Đã đến giờ thực hiện công việc trong lịch trình, chế độ nghỉ ngẫu nhiên đang tắt, sẽ bắt đầu đợt công việc",
+          en: "It's time to do work in the schedule, random rest mode is off, will start this work",
         });
       } else {
         addLog({
-          vi: "Đã đến giờ đăng bài trong lịch trình, sẽ bắt đầu đợt đăng bài",
-          en: "It's time to post in the schedule, will start this batch",
+          vi: "Đã đến giờ thực hiện công việc trong lịch trình, sẽ bắt đầu đợt công việc",
+          en: "It's time to do work in the schedule, will start this work",
         });
       }
 
-      await randomInteractBeforePost();
+      const isStop = await getIsStopTaskData();
+      if (isStop) {
+        addLog({
+          vi: "Tiện ích đang trong trạng thái tắt, dừng tác vụ",
+          en: "Tool is in off state, stopping task",
+        });
+        await handleStopTool();
+        return;
+      }
 
-      await automationContinue();
+      if (isDetectingGroup) {
+        addLog({
+          vi: "Tiện ích đang trong trạng thái lấy danh sách nhóm của người dùng, dừng tác vụ",
+          en: "Tool is in detecting list group state of user, stopping task",
+        });
+        await handleStopTool();
+        return;
+      }
+
+      await handleExecuteTask();
 
       const isShuffle =
-        (await BG_getValue(KEY_IS_SHUFFLE_SCHEDULER_TIME)) || false;
+        (await DB_getValue(KEY_IS_SHUFFLE_SCHEDULER_TIME)) || false;
       if (isShuffle) {
         shuffleTimes();
       }
 
-      //force create schduler when tab post was be frozen
-      const isScheduler = await getIsScheduler();
-      if (isScheduler) {
-        clearAndCreateSchedulerAlarm();
-      }
+      //TODO: FIX LATER
+      //force create schduler when tab post maybe frozen
+      // const isScheduler = await getIsSchedulerData();
+      // if (isScheduler) {
+      //   clearAndCreateSchedulerAlarm();
+      // }
     }
   } catch (error) {
     logError("Error at alarm: ", error);
-  }
-}
-
-async function handleGetKeySaved(key, sendResponse) {
-  try {
-    const data = await BG_getValue(key);
-    sendResponse({
-      status: STATUS_RESPONSE.SUCCESS,
-      data,
-    });
-  } catch (error) {
-    logError("Error at handleGetKeySaved: ", error);
-    sendResponse({
-      status: STATUS_RESPONSE.FAIL,
-      message: getTextWithLanguage({
-        vi: "Lỗi khi lấy dữ liệu",
-        en: "Error getting data",
-      }),
-    });
-  }
-}
-
-async function handleSetKeySaved(key, value, sendResponse) {
-  try {
-    await BG_setValue(key, value);
-    sendResponse({
-      status: STATUS_RESPONSE.SUCCESS,
-      data: true,
-    });
-  } catch (error) {
-    logError("Error at handleSetKeySaved: ", error);
-    sendResponse({
-      status: STATUS_RESPONSE.FAIL,
-      message: getTextWithLanguage({
-        vi: "Lỗi khi lưu dữ liệu",
-        en: "Error saving data",
-      }),
-    });
-  }
-}
-
-async function handleGetAllMetadataComments(sendResponse) {
-  try {
-    const data = await getAllMetadataComments();
-    const numberComment = random(1, data.maxComment);
-    data.numberComment = numberComment;
-    sendResponse({
-      status: STATUS_RESPONSE.SUCCESS,
-      data,
-    });
-  } catch (error) {
-    logError("Error at handleGetAllMetadataComments: ", error);
-    sendResponse({
-      status: STATUS_RESPONSE.FAIL,
-      message: getTextWithLanguage({
-        vi: "Lỗi khi lấy dữ liệu",
-        en: "Error getting data",
-      }),
-    });
-  }
-}
-
-async function initialGlobalData() {
-  try {
-    logActions("Initial data global run");
-    const currentWindow = await chrome.windows.getCurrent();
-
-    BG_setValue(KEY_CURRENT_WINDOW_ID, currentWindow.id);
-
-    const isFirstTimeUse = await BG_getValue(KEY_FIRST_TIME_USE);
-
-    if (isFirstTimeUse === undefined || isFirstTimeUse === null) {
-      BG_setValue(KEY_FIRST_TIME_USE, true);
-      addLog({
-        vi: "Bắt đầu sử dụng tiện ích",
-        en: "Start using the extension",
-      });
-      BG_setValue(KEY_IS_SHUFFLE_GROUPS_NEED_POST, true);
-      BG_setValue(KEY_IS_FIX_STEAL_FOCUS, true);
-      BG_setValue(KEY_IS_PREMIUM, false);
-    } else {
-      handleWelcomeBack();
-      BG_setValue(KEY_FIRST_TIME_USE, false);
-    }
-  } catch (error) {
-    logError("Error at initialGlobalData: ", error);
-  }
-}
-
-async function handleCloseThisWindow(sender) {
-  try {
-    console.log("Close this window");
-    console.log("Sender", sender);
-  } catch (error) {
-    logError("Error at handleCloseThisWindow: ", error);
-  }
-}
-
-async function handleAddTimeDelayForScheduler(timeDelay) {
-  try {
-    const time = await getTimeDelayForScheduler();
-    const newTimeDelay = time + timeDelay;
-    await setTimeDelayForScheduler(Number(newTimeDelay));
-  } catch (error) {
-    logError("Error at handleAddTimeDelayForScheduler: ", error);
-  }
-}
-
-async function handleGetAllMetadataInteractBeforePost(sendResponse) {
-  try {
-    const canInteract = await getDecidedInteractBeforePostInStorage();
-    const maxPost = await getMaxPostInteractInStorage();
-
-    sendResponse({
-      status: STATUS_RESPONSE.SUCCESS,
-      data: {
-        canInteract,
-        maxPost,
-      },
-    });
-  } catch (error) {
-    logError("Error at handleGetAllMetadataInteractBeforePost: ", error);
-    sendResponse({
-      status: STATUS_RESPONSE.FAIL,
-      message: getTextWithLanguage({
-        vi: "Lỗi khi lấy dữ liệu",
-        en: "Error getting data",
-      }),
-    });
-  }
-}
-
-async function handleGetPremium(sendResponse) {
-  try {
-    let premium = await getPremiumInStorage();
-
-    const timeFirstUse = await getTimeFirstUse();
-
-    const setting = await googleFirebaseService.getSettingTool();
-
-    if (timeFirstUse) {
-      const diff = Date.now() - timeFirstUse;
-      const dayDiff = Math.floor(diff / 1000 / 60 / 60 / 24);
-      //free premium in 10 days
-      if (dayDiff < Number(setting?.day_free_premium || 0)) {
-        premium = true;
-      }
-    }
-
-    sendResponse({
-      status: STATUS_RESPONSE.SUCCESS,
-      data: premium,
-    });
-  } catch (error) {
-    logError("Error at handleGetPremium: ", error);
-    sendResponse({
-      status: STATUS_RESPONSE.FAIL,
-      message: getTextWithLanguage({
-        vi: "Lỗi khi lấy dữ liệu",
-        en: "Error getting data",
-      }),
-    });
-  }
-}
-
-async function handleGetToolSetting(sendResponse) {
-  try {
-    const setting = await googleFirebaseService.getSettingTool();
-    sendResponse({
-      status: STATUS_RESPONSE.SUCCESS,
-      data: setting,
-    });
-  } catch (error) {
-    logError("Error at handleGetToolSetting: ", error);
-    sendResponse({
-      status: STATUS_RESPONSE.FAIL,
-      message: getTextWithLanguage({
-        vi: "Lỗi khi lấy dữ liệu",
-        en: "Error getting data",
-      }),
-    });
-  }
-}
-
-// ============================================================
-// XHR HANDLER: Proxies fetch requests from content scripts
-// ============================================================
-
-async function handleXHR(msg, sender) {
-  try {
-    const fetchOptions = {
-      method: msg.method || "GET",
-      headers: msg.headers || {},
-    };
-
-    if (msg.data && msg.method !== "GET" && msg.method !== "HEAD") {
-      fetchOptions.body = msg.data;
-    }
-
-    const response = await fetch(msg.url, fetchOptions);
-    const responseText = await response.text();
-
-    // Build response headers string
-    const headers = [];
-    response.headers.forEach((value, key) => {
-      headers.push(`${key}: ${value}`);
-    });
-
-    // Send response back to content script
-    chrome.tabs.sendMessage(sender.tab.id, {
-      type: "GM_xmlhttpRequest_response",
-      requestId: msg.requestId,
-      status: response.status,
-      statusText: response.statusText,
-      responseText: responseText,
-      responseHeaders: headers.join("\r\n"),
-      finalUrl: response.url,
-    });
-  } catch (e) {
-    chrome.tabs.sendMessage(sender.tab.id, {
-      type: "GM_xmlhttpRequest_response",
-      requestId: msg.requestId,
-      error: e.message,
-    });
   }
 }
 

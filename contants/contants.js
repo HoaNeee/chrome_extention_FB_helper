@@ -1,3 +1,14 @@
+import {
+  KEY_COMMENT_WALK_AREA,
+  KEY_COMMENT_WALK_SPEED,
+} from "./constant-extention.js";
+import {
+  DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON,
+  DEFAULT_CONTENT_QUERY_INCLUDES_COMMON,
+  DEFAULT_KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
+  DEFAULT_VALUE_STRICTLY_TITLE_MATCH_GROUP,
+} from "./default-value.js";
+
 const KEY_RETRY_CALL = "retry_call";
 const KEY_RE_POST_ALL_GROUP = "re_post_all_group";
 
@@ -10,6 +21,8 @@ const KEY_LANGUAGE = "language";
 const KEY_MY_SIGNATURE = "my_signature";
 
 const APP_NAME = "FB Tools Helper";
+
+const KEY_DEVICE = "device_in_storage";
 
 /**
  * Area setting input key
@@ -34,11 +47,14 @@ const KEY_IS_SHUFFLE_GROUPS_NEED_POST = "is_shuffle_groups_need_post";
 const KEY_IS_SPAMMED = "is_spammed";
 const KEY_IS_DARK_THEME = "is_dark_theme";
 const KEY_IS_RANDOM_BATCH_POST = "is_random_batch_post";
-const KEY_IS_RANDOM_TIME_POST = "is_random_time_post";
+const KEY_IS_RANDOM_TIME_TASK = "is_random_time_task";
 const KEY_IS_SPECIAL_FRAME_HOURS = "is_special_frame_hours";
 const KEY_CHANGE_GROUPS_CHECKED_FLAG = "change_groups_checked_flag";
+const KEY_IS_EXECUTE_PRIORITY_TASK = "is_execute_priority_task";
 
 const KEY_IS_PREMIUM = "is_premium";
+
+const KEY_USED_TO_LOGINED_THIS_DEVICE = "used_to_logined_this_device";
 
 /**
  * Area count key
@@ -72,6 +88,7 @@ const KEY_CAN_POST_THIS_TAB = "can_post_this_tab";
 const KEY_NEXT_TIME_POST_WHEN_SPAMMED = "next_time_post_when_spammed";
 const KEY_SPECIAL_FRAME_HOURS = "special_frame_hours";
 const KEY_TIME_DELAY_FOR_SCHEDULER = "time_delay_for_scheduler";
+const KEY_CURRENT_TASK = "current_task";
 
 const KEY_HISTORY_LOGS = "history_logs";
 const KEY_HISTORY_SYSTEM_LOGS = "history_system_logs";
@@ -91,6 +108,17 @@ const KEY_TAB = {
   TAB_DASHBOARD_ID: "tab_dashboard_id",
 };
 
+const KEY_PRIORITY_TASK = {
+  POST: "priority_task_post",
+  COMMENT_WALK: "priority_task_comment_walk",
+};
+
+const KEY_TASK_NAME = {
+  POST: "task_post",
+  COMMENT_WALK: "task_comment_walk",
+  UNKNOWN: "unknown",
+};
+
 const KEY_INTERACT_BEFORE_POST = {
   IS_ACTIVE: "is_interact_before_post",
   MAX_POST_INTERACT: "max_post_interact",
@@ -100,6 +128,40 @@ const KEY_INTERACT_BEFORE_POST = {
 const KEY_WINDOW = {
   WINDOW_GET_LIST_GROUP_ID: "window_get_list_group_id",
 };
+
+const KEY_COMMENT_WALK = {
+  IS_ACTIVE: "is_comment_walk",
+  COMMENT_WALK_SETTING_MAX_COMMENT_PER_BATCH: "max_comment_walk_per_batch",
+  CURRENT_COMMENT_WALK_OBJECT: "current_comment_walk_object",
+  CURRENT_COMMENT_WALK_AREA: "current_comment_walk_area",
+  COMMENT_WALK_SETTING_TIME_DELAY: "comment_walk_setting_time_delay",
+  LIST_ID_COMMENT_WALK_ACTIVE: "list_ids_comment_walk_active",
+  IS_COMMENT_WALK_PROCESSING: "is_comment_walk_processing",
+  TAB_ID_COMMENT_WALK: "tab_id_comment_walk",
+  CURRENT_ID_COMMENT_WALK: "current_id_comment_walk",
+  LIST_URL_COMMENT_WALK_COMMENTED: "list_url_comment_walk_commented",
+  COUNT_COMMENT_WALK_POSTED_PER_BATCH: "count_comment_walk_posted_per_batch",
+  CONTENT_QUERY_INCLUDES_COMMON: "content_query_includes_common",
+  CONTENT_QUERY_EXCLUDES_COMMON: "content_query_excludes_common",
+  MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON:
+    "match_rate_value_content_query_includes_common",
+  LAST_TIME_COMMENT_WALK: "last_time_comment_walk",
+  COMMENT_WALK_AREA: "comment_walk_area",
+  KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK: "keywords_certain_choice_comment_walk",
+  IS_COMBINE_STRICTLY_TITLE_GROUP: "is_combine_strictly_title_group",
+  IS_SKIP_POST_NOT_IN_GROUP: "is_skip_post_not_in_group",
+  COMMENT_WALK_SPEED: "comment_walk_speed",
+  IS_AI_HELP_COMMENT_WALK: "is_ai_help_comment_walk",
+  IS_INTERACT_BEFORE_COMMENT_WALK: "is_interact_before_comment_walk",
+};
+
+const KEY_CURRENT_DATA_GROUP_POST = "current_data_group_post";
+
+const KEY_TIME_BREAK_WHEN_SPAMMED = "time_break_when_spammed";
+
+const KEY_AUTH = "auth_data";
+
+//end key
 
 const KEY_IS_NEW_USER = "is_new_user";
 const KEY_TIME_FIRST_USE = "time_first_use";
@@ -113,27 +175,72 @@ const STATUS_TASK = {
 };
 
 const SCHEDULER_TYPE = {
-  EVERY_MINUTES: "custom-every-minutes",
-  EVERY_HOURS: "custom-every-hours",
-  FRAME_HOURS: "custom-frame-hours",
-  DAILY_HOURS: "daily-hours",
-  SCHEDULER_MINUTES: "scheduler-minutes",
-  SCHEDULER_HOURS: "scheduler-hours",
+  EVERY_MINUTES: "EVERY_MINUTES",
+  EVERY_HOURS: "EVERY_HOURS",
+  CUSTOM_DAILY_MINUTES: "CUSTOM_DAILY_MINUTES",
+  CUSTOM_DAILY_HOURS: "CUSTOM_DAILY_HOURS",
+  DAILY_HOURS: "DAILY_HOURS",
+  FRAME_HOURS: "FRAME_HOURS",
 };
 
 const URL_LIST_GROUPS = "https://www.facebook.com/groups/joins/?nav_source=tab";
+
+const DEFAULT_KEY_FILTER_RECENT_POST =
+  "eyJyZWNlbnRfcG9zdHM6MCI6IntcIm5hbWVcIjpcInJlY2VudF9wb3N0c1wiLFwiYXJnc1wiOlwiXCJ9In0%3D"; //maybe need change later
 
 const MAX_Z_INDEX = 99;
 
 const prefix = "tm_";
 
 const initialTimeDelay = {
-  clickToPost: 4,
-  fillContent: 5,
-  fillFile: 7,
-  post: 5,
-  openNewTab: 2,
+  time_delay_click_to_post: 4,
+  time_delay_fill_content: 5,
+  time_delay_fill_file: 7,
+  time_delay_post: 5,
+  time_delay_open_new_tab: 2,
 };
+
+const DEFAULT_COMMENT_WALK_SETTING = {
+  max_comment_walk_per_batch: 1,
+  time_delay_fill_content_comment_walk_min: 100,
+  time_delay_fill_content_comment_walk_max: 200,
+  time_delay_fill_file_comment_walk: 5,
+  time_delay_submit_comment_walk: 11,
+  comment_walk_area: KEY_COMMENT_WALK_AREA.RANDOM,
+  comment_walk_speed: KEY_COMMENT_WALK_SPEED.NORMAL,
+};
+
+const DEFAULT_PATTERN_URL_POST_COMMENT_WALKS = [
+  "^https:\\/\\/www\\.facebook\\.com\\/groups\\/[a-zA-Z0-9._-]+\\/permalink\\/[A-Za-z0-9_.-\\/]+(\\/?)$",
+];
+const DEFAULT_PATTERN_URL_POST_IN_GROUPS = [
+  "^https:\\/\\/www\\.facebook\\.com\\/groups\\/[a-zA-Z0-9.]+\\/?$",
+];
+const DEFAULT_URL_COMMENT_WALKS = ["facebook.com/search/top"];
+const DEFAULT_URL_GET_LIST_GROUPS = [
+  "https://www.facebook.com/groups/joins/?nav_source=tab",
+];
+const DEFAULT_URL_COMMENT_WALK_HOMES = ["facebook.com"];
+
+const KEY_DEFAULT_VALUE = {
+  DEFAULT_TIME_BREAK_WHEN_SPAMMED: 2,
+  DEFAULT_CONTENT_QUERY_INCLUDES_COMMON,
+  DEFAULT_CONTENT_QUERY_EXCLUDES_COMMON,
+  DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES_COMMON: 2, //Example: 2 nghĩa là bắt buộc phải có 3 từ trong danh sách "content_query_includes_common" thì mới được post
+  DEFAULT_MATCH_RATE_VALUE_CONTENT_QUERY_INCLUDES: 1,
+  DEFAULT_PRIORITY_TASK_POST: 1,
+  DEFAULT_PRIORITY_TASK_COMMENT_WALK: 2,
+  DEFAULT_KEYWORDS_CERTAIN_CHOICE_COMMENT_WALK,
+  DEFAULT_VALUE_STRICTLY_TITLE_MATCH_GROUP,
+  DEFAULT_SERVER_DOMAIN: "http://localhost:8080",
+  DEFAULT_PATTERN_URL_POST_COMMENT_WALKS,
+  DEFAULT_PATTERN_URL_POST_IN_GROUPS,
+  DEFAULT_URL_COMMENT_WALKS,
+  DEFAULT_URL_GET_LIST_GROUPS,
+  DEFAULT_URL_COMMENT_WALK_HOMES,
+};
+
+const KEY_BASE_SERVER_DOMAIN = "base_server_domain";
 
 export {
   KEY_RETRY_CALL,
@@ -180,7 +287,7 @@ export {
   KEY_IS_SHUFFLE_GROUPS_NEED_POST,
   KEY_IS_RANDOM_BATCH_POST,
   KEY_IS_PREMIUM,
-  KEY_IS_RANDOM_TIME_POST,
+  KEY_IS_RANDOM_TIME_TASK,
   KEY_IS_SPECIAL_FRAME_HOURS,
   KEY_SPECIAL_FRAME_HOURS,
   KEY_CHANGE_GROUPS_CHECKED_FLAG,
@@ -189,6 +296,20 @@ export {
   KEY_COMMENT_WHEN_POST_SUCCESS,
   KEY_INTERACT_BEFORE_POST,
   KEY_TIME_DELAY_FOR_SCHEDULER,
+  KEY_CURRENT_DATA_GROUP_POST,
+  KEY_AUTH,
+  KEY_USED_TO_LOGINED_THIS_DEVICE,
+  KEY_DEVICE,
+  DEFAULT_KEY_FILTER_RECENT_POST,
+  KEY_COMMENT_WALK,
+  DEFAULT_COMMENT_WALK_SETTING,
+  KEY_TIME_BREAK_WHEN_SPAMMED,
+  KEY_DEFAULT_VALUE,
+  KEY_PRIORITY_TASK,
+  KEY_IS_EXECUTE_PRIORITY_TASK,
+  KEY_TASK_NAME,
+  KEY_CURRENT_TASK,
   KEY_IS_NEW_USER,
   KEY_TIME_FIRST_USE,
+  KEY_BASE_SERVER_DOMAIN,
 };

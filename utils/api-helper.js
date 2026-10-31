@@ -15,8 +15,8 @@ import {
   KEY_XMLHTTP_REQUEST,
   KEY_XMLHTTP_REQUEST_RESPONSE,
   URL_MATCH,
-} from "../../../contants/constant-extention.js";
-import { logError } from "../../../utils/utils.js";
+} from "../contants/constant-extention.js";
+import { logError } from "../utils/utils.js";
 
 // ============================================================
 // STORAGE: DB_getValue, DB_setValue, DB_deleteValue, DB_listValues
@@ -236,28 +236,28 @@ async function DB_openInTab(url, options) {
   });
 
   //force close tab that is open this tool after 7 minutes
-  setTimeout(
-    () => {
-      try {
-        //check tab if exist
-        chrome.tabs.query({ url: URL_MATCH }, function (tabs) {
-          try {
-            if (tabs && tabs.length > 0) {
-              const find = tabs.find((t) => t.id === tab.id);
-              if (find) {
-                chrome.tabs.remove(tab.id);
-              }
-            }
-          } catch (error) {
-            logError("Error at DB_openInTab force close tab: " + error);
-          }
-        });
-      } catch (error) {
-        logError("Error at DB_openInTab force close tab: " + error);
-      }
-    },
-    1000 * 60 * 7,
-  );
+  // setTimeout(
+  //   () => {
+  //     try {
+  //       //check tab if exist
+  //       chrome.tabs.query({ url: URL_MATCH }, function (tabs) {
+  //         try {
+  //           if (tabs && tabs.length > 0) {
+  //             const find = tabs.find((t) => t.id === tab.id);
+  //             if (find) {
+  //               chrome.tabs.remove(tab.id);
+  //             }
+  //           }
+  //         } catch (error) {
+  //           logError("Error at DB_openInTab force close tab: " + error);
+  //         }
+  //       });
+  //     } catch (error) {
+  //       logError("Error at DB_openInTab force close tab: " + error);
+  //     }
+  //   },
+  //   1000 * 60 * 7,
+  // );
 
   return tab.id;
 }

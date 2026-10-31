@@ -1,28 +1,27 @@
+import { prefix } from "../../../contants/contants.js";
+import { handleErrorHelper } from "../../../utils/exception.js";
 import {
-  KEY_INDEXS_GROUP_CHECKED,
-  prefix,
-} from "../../../contants/contants.js";
-import {
-  findMatch,
+  cloneData,
   getTextWithLanguage,
   logError,
-  now,
-  randomID,
 } from "../../../utils/utils.js";
 import {
-  getDataSavedInStorage,
-  setDataSavedInStorage,
-} from "../services/dataSavedService.js";
+  clearDataGroupPost,
+  deleteDataGroupPost,
+  exportDataGroupPost,
+  getListDataGroupPost,
+  importDataGroupPosts,
+} from "../../../services/data-group-post-service.js";
 import {
-  DB_deleteValue,
-  DB_getValue,
-  DB_setValue,
-} from "../utils/api-helper.js";
-import { createDialog } from "./dialog.js";
-import { createDivListGroups } from "./listGroup.js";
+  closeDialogLoading,
+  createDialog,
+  showDialogLoading,
+} from "./dialog.js";
+import { createDivListGroups } from "./list-data-group-post-html.js";
 import { showNotify } from "./notify.js";
 import { addLog } from "./panel-log.js";
-import { drawPanelGroup } from "./panelGroup.js";
+import { drawPanelGroup } from "./dialog-add-or-edit-data-group-post.js";
+import { createButtonConfirm } from "./button.js";
 
 async function createPanelTabGroup(anchorElem = document.body) {
   try {
@@ -39,7 +38,7 @@ async function createPanelTabGroup(anchorElem = document.body) {
         <button id="${prefix}btn-add-data-group">${getTextWithLanguage({ vi: "Thêm dữ liệu nhóm", en: "Add data group" })}</button>
         <button id="${prefix}btn-export-data-groups">${getTextWithLanguage({ vi: "Xuất dữ liệu nhóm", en: "Export data group" })}</button>
         <button id="${prefix}btn-import-data-groups">${getTextWithLanguage({ vi: "Nhập dữ liệu nhóm", en: "Import data group" })}</button>
-        <button id="${prefix}btn-clear-data-groups">${getTextWithLanguage({ vi: "Xóa tất cả dữ liệu nhóm", en: "Clear all data group" })}</button>
+        <div id="${prefix}div-btn-clear-data-group"></div>
         <input type="file" id="${prefix}input-import-data-groups" style="display: none;" accept=".json">
     </div>
         <div style="padding: 8px;" id="${prefix}list-data-groups-container"></div>
@@ -70,7 +69,7 @@ async function createPanelTabGroup(anchorElem = document.body) {
       `#${prefix}list-data-groups-container`,
     );
 
-    const dataListDataSaved = await getDataSavedInStorage();
+    let listDataGroupPost = await getListDataGroupPost();
 
     async function drawListGroups(data) {
       const divs = await createDivListGroups(data);
@@ -87,19 +86,16 @@ async function createPanelTabGroup(anchorElem = document.body) {
 
       async function onDeleteGroup(id) {
         try {
-          const dataSaved = (await getDataSavedInStorage()) || [];
+          showDialogLoading();
+          await deleteDataGroupPost(id);
+
           const groupTitle =
-            dataSaved.find((item) => item.id === id)?.name || "";
-          const newDataSaved = dataSaved.filter((item) => item.id !== id);
+            listDataGroupPost.find((item) => item.id === id)?.name || "";
+          listDataGroupPost = listDataGroupPost.filter(
+            (item) => item.id !== id,
+          );
 
-          const indexsChecked =
-            (await DB_getValue(KEY_INDEXS_GROUP_CHECKED)) || [];
-          const set = new Set(indexsChecked);
-          set.delete(id);
-          DB_setValue(KEY_INDEXS_GROUP_CHECKED, Array.from(set));
-
-          setDataSavedInStorage(newDataSaved);
-          await drawListGroups(newDataSaved);
+          await drawListGroups(listDataGroupPost);
           setIsShowDialogEditGroup(false);
           showNotify({
             message: "Delete group successfully",
@@ -120,45 +116,49 @@ async function createPanelTabGroup(anchorElem = document.body) {
             type: "error",
           });
           logError("Error at onDeleteGroup: ", error);
+        } finally {
+          closeDialogLoading();
         }
       }
 
       for (const div of divs) {
-        const id = div.getAttribute("data-group-id");
-        const btnView = div.querySelector(`#${prefix}btn-view-data-group`);
+        let id = div.getAttribute("data-group-id");
+        const btnView = div.querySelector(`.${prefix}btn-view-data-group`);
 
-        const group = findMatch({
-          data: data,
-          key: "id",
-          value: id,
-        });
+        const dataPost = data.find((item) => item.id === id);
 
-        if (group) {
+        if (dataPost) {
           btnView?.addEventListener("click", () => {
             const elementPanel = drawPanelGroup({
               initialData: {
-                id: id || group.id,
-                title: group.title,
-                contents: group.contents,
-                files: group.files,
-                name: group?.name || "",
-                priority: group?.priority || "",
+                id: id || dataPost.id,
+                title: dataPost.title,
+                contents: dataPost.contents,
+                files: dataPost.files,
+                name: dataPost?.name || "",
+                priority: dataPost?.priority || "",
               },
               type: "edit",
-              onDelete: () => {
-                onDeleteGroup(id);
+              onDelete: async () => {
+                await onDeleteGroup(id);
               },
-              onSave: async () => {
-                const dataSaved = (await getDataSavedInStorage()) || [];
-                await drawListGroups(dataSaved);
-                setIsShowDialogEditGroup(false);
-                showNotify({
-                  message: getTextWithLanguage({
-                    vi: "Lưu dữ liệu nhóm thành công",
-                    en: "Save data group successfully",
-                  }),
-                  type: "success",
-                });
+              onSave: async (data) => {
+                const index = listDataGroupPost.findIndex(
+                  (item) => item.id === data?.id,
+                );
+                if (index !== -1) {
+                  listDataGroupPost[index] = data;
+
+                  await drawListGroups(listDataGroupPost);
+                  setIsShowDialogEditGroup(false);
+                  showNotify({
+                    message: getTextWithLanguage({
+                      vi: "Chỉnh sửa dữ liệu nhóm thành công",
+                      en: "Edit data group successfully",
+                    }),
+                    type: "success",
+                  });
+                }
               },
             });
             changeContentDialogEditGroup(elementPanel);
@@ -172,15 +172,16 @@ async function createPanelTabGroup(anchorElem = document.body) {
     }
 
     if (listGroupsContainer) {
-      await drawListGroups(dataListDataSaved || []);
+      await drawListGroups(listDataGroupPost || []);
     }
     //end work at list groups
 
     //dialog add group
     const panelAddGroupHTML = drawPanelGroup({
-      onSave: async () => {
-        const dataSaved = (await getDataSavedInStorage()) || [];
-        await drawListGroups(dataSaved);
+      onSave: async (dataPost) => {
+        // const dataSaved = (await getDataSavedInStorage()) || [];
+        listDataGroupPost.push(dataPost);
+        await drawListGroups(listDataGroupPost);
         setIsShowAddDialogGroup(false);
         showNotify({
           message: getTextWithLanguage({
@@ -190,7 +191,7 @@ async function createPanelTabGroup(anchorElem = document.body) {
           type: "success",
         });
       },
-      initPriority: dataListDataSaved.length + 1,
+      initPriority: listDataGroupPost.length + 1,
     });
 
     const { setIsShow: setIsShowAddDialogGroup } = createDialog({
@@ -213,62 +214,69 @@ async function createPanelTabGroup(anchorElem = document.body) {
         }
 
         //clear groups
-        const btnClearGroup = document.querySelector(
-          `#tm_btn-clear-data-groups`,
+        const divBtnClearDataGroup = document.querySelector(
+          `#tm_div-btn-clear-data-group`,
         );
-        if (btnClearGroup) {
-          let isConfirmingClearGroups = false;
-          let timeOutIdClearGroups = null;
-          btnClearGroup.addEventListener("click", () => {
-            if (isConfirmingClearGroups) {
-              if (timeOutIdClearGroups) {
-                clearTimeout(timeOutIdClearGroups);
-                timeOutIdClearGroups = null;
-              }
-              setDataSavedInStorage([]);
-              DB_deleteValue(KEY_INDEXS_GROUP_CHECKED);
-              drawListGroups([]);
-              showNotify({
-                message: getTextWithLanguage({
-                  vi: "Xóa dữ liệu nhóm thành công",
-                  en: "Clear data group successfully",
-                }),
-                type: "success",
-              });
-              isConfirmingClearGroups = false;
-              btnClearGroup.innerText = getTextWithLanguage({
-                en: "Clear data group",
-                vi: "Xóa dữ liệu nhóm",
-              });
-              btnClearGroup.style.background = "";
-              addLog({
-                vi: "Bạn vừa xóa hết danh sách dữ liệu nhóm",
-                en: "You just cleared all data group",
-              });
-            } else {
-              isConfirmingClearGroups = true;
-              btnClearGroup.innerText = getTextWithLanguage({
-                en: "Click again to confirm",
-                vi: "Xác nhận lại",
-              });
-              btnClearGroup.style.background = "var(--tm-text-danger)";
-              timeOutIdClearGroups = setTimeout(() => {
-                isConfirmingClearGroups = false;
-                btnClearGroup.innerText = getTextWithLanguage({
-                  en: "Clear data groups",
-                  vi: "Xóa dữ liệu nhóm",
+        if (divBtnClearDataGroup) {
+          const btnConfirm = createButtonConfirm({
+            title: getTextWithLanguage({
+              vi: "Xóa tất cả dữ liệu nhóm",
+              en: "Clear all data group",
+            }),
+            titleConfirm: getTextWithLanguage({
+              vi: "Xác nhận xóa",
+              en: "Confirm delete",
+            }),
+            onConfirm: async () => {
+              try {
+                showDialogLoading();
+                await clearDataGroupPost();
+                drawListGroups([]);
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Đã dọn sạch dữ liệu nhóm",
+                    en: "Cleaned all data group successfully",
+                  }),
+                  type: "success",
                 });
-                btnClearGroup.style.background = "";
-              }, 3000);
-            }
+                addLog({
+                  vi: "Bạn vừa xóa hết danh sách dữ liệu nhóm",
+                  en: "You just cleared all data group",
+                });
+              } catch (error) {
+                logError("Error at clearDataGroupPost in addEvent: " + error);
+                showNotify({
+                  message: getTextWithLanguage({
+                    vi: "Không thể dọn sạch dữ liệu nhóm",
+                    en: "Cannot clean all data group",
+                  }),
+                  type: "error",
+                });
+              } finally {
+                closeDialogLoading();
+              }
+            },
           });
+          divBtnClearDataGroup.appendChild(btnConfirm);
         }
 
         const btnExportGroups = document.querySelector(
           `#tm_btn-export-data-groups`,
         );
         if (btnExportGroups) {
-          btnExportGroups.addEventListener("click", exportGroupsEvent);
+          btnExportGroups.addEventListener("click", () => {
+            if (!listDataGroupPost.length) {
+              showNotify({
+                message: getTextWithLanguage({
+                  vi: "Không có dữ liệu nhóm",
+                  en: "No data groups",
+                }),
+                type: "error",
+              });
+              return;
+            }
+            exportGroupsEvent(listDataGroupPost);
+          });
         }
 
         const btnImportGroups = document.querySelector(
@@ -276,9 +284,9 @@ async function createPanelTabGroup(anchorElem = document.body) {
         );
         if (btnImportGroups) {
           btnImportGroups.addEventListener("click", async () => {
-            await importGroupsEvent(async () => {
-              const dataSaved = (await getDataSavedInStorage()) || [];
-              await drawListGroups(dataSaved);
+            await importGroupsEvent(async (listDataGroupImported) => {
+              listDataGroupPost = listDataGroupImported;
+              await drawListGroups(listDataGroupPost);
             });
           });
         }
@@ -291,134 +299,71 @@ async function createPanelTabGroup(anchorElem = document.body) {
   }
 }
 
-async function exportGroupsEvent() {
+async function exportGroupsEvent(listDataGroupPost) {
   try {
-    const dataSaved = (await getDataSavedInStorage()) || [];
-    if (!dataSaved || !dataSaved.length) {
-      showNotify({
-        message: getTextWithLanguage({
-          vi: "Không có dữ liệu để xuất",
-          en: "No data to export",
-        }),
-        type: "error",
+    showDialogLoading();
+    const list = cloneData(listDataGroupPost);
+    const success = await exportDataGroupPost(list);
+    if (success) {
+      addLog({
+        vi: `Bạn vừa xuất ${listDataGroupPost.length} dữ liệu nhóm vào file JSON`,
+        en: `You just exported ${listDataGroupPost.length} data groups to a JSON file`,
       });
-      return;
     }
-    const dataStr = JSON.stringify(dataSaved);
-
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-
-    const timeNow = now();
-    const name = `data_groups_${timeNow}.json`;
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(url);
-    addLog({
-      vi: `Bạn vừa xuất ${dataSaved.length} nhóm vào file json ${name}`,
-      en: `You just exported ${dataSaved.length} groups to a JSON file ${name}`,
-    });
+    closeDialogLoading();
   } catch (error) {
-    logError("Error exportGroupsEvent: ", error);
-    showNotify({
-      message: getTextWithLanguage({
+    handleErrorHelper({
+      error,
+      code: error.code,
+      msg: getTextWithLanguage({
         vi: "Không thể xuất dữ liệu nhóm",
         en: "Cannot export data group",
       }),
-      type: "error",
     });
+    closeDialogLoading();
   }
 }
 
 async function importGroupsEvent(cb) {
   const inputImportGroups = document.querySelector(
-    `#tm_input-import-data-groups`,
+    `#${prefix}input-import-data-groups`,
   );
   if (inputImportGroups) {
+    inputImportGroups.value = "";
     inputImportGroups.click();
     inputImportGroups.onchange = function (event) {
       try {
+        showDialogLoading();
         const file = event.target.files[0];
         const reader = new FileReader();
         reader.onload = async function (e) {
           try {
             const content = e.target.result;
             const data = JSON.parse(content);
-            if (data) {
-              const dataSaved = (await getDataSavedInStorage()) || [];
-              let prio = dataSaved.length + 1;
-              if (Array.isArray(data)) {
-                for (const item of data) {
-                  item.id = randomID();
-                  item.priority = prio;
-                  ++prio;
-                }
-                const newDataSaved = [...dataSaved, ...data];
-                setDataSavedInStorage(newDataSaved);
-                showNotify({
-                  message: getTextWithLanguage({
-                    vi: "Nhập dữ liệu nhóm thành công",
-                    en: "Import data group successfully",
-                  }),
-                  type: "success",
-                });
-                // await drawListGroups(newDataSaved);
-                cb?.();
-                addLog({
-                  vi: `Bạn vừa thêm ${data.length} nhóm vào danh sách nhóm từ file`,
-                  en: `You just added ${data.length} groups to the list of groups from importing a file`,
-                });
-              }
-              //import only one not array
-              else {
-                data.id = randomID();
-                data.priority = prio;
-                dataSaved.push(data);
-                setDataSavedInStorage(dataSaved);
-                showNotify({
-                  message: getTextWithLanguage({
-                    vi: "Nhập dữ liệu nhóm thành công",
-                    en: "Import data group successfully",
-                  }),
-                  type: "success",
-                });
-                // await drawListGroups(dataSaved);
-                cb?.();
-                addLog({
-                  vi: `Bạn vừa thêm 1 nhóm vào danh sách nhóm từ file`,
-                  en: `You just added 1 group to the list of groups from importing a file`,
-                });
-              }
+            const listDataGroupImported = await importDataGroupPosts(data);
+            cb?.(listDataGroupImported);
+            if (listDataGroupImported.length) {
+              showNotify({
+                message: getTextWithLanguage({
+                  vi: "Nhập dữ liệu nhóm thành công",
+                  en: "Import data group successfully",
+                }),
+                type: "success",
+              });
+              addLog({
+                vi: `Bạn vừa thêm ${listDataGroupImported.length} nhóm vào danh sách nhóm từ file`,
+                en: `You just added ${listDataGroupImported.length} groups to the list of groups from importing a file`,
+              });
             }
           } catch (err) {
-            showNotify({
-              message: getTextWithLanguage({
-                vi: "Định dạng file không hợp lệ",
-                en: "Invalid file format",
-              }),
-              type: "error",
-            });
-            logError("Error at importGroupsEvent: ", err);
-            return;
+            handleErrorHelper({ name: "importDataGroupPost", error: err });
+          } finally {
+            closeDialogLoading();
           }
         };
         reader.readAsText(file);
       } catch (error) {
         logError("Error at importGroupsEvent: ", error);
-        addLog({
-          vi: `Nhập dữ liệu nhóm thất bại, ${error?.message || error}`,
-          en: `Import data group failed, ${error?.message || error}`,
-        });
-        showNotify({
-          message: getTextWithLanguage({
-            vi: "Nhập dữ liệu nhóm thất bại",
-            en: "Import data group failed",
-          }),
-          type: "error",
-        });
       }
     };
   }

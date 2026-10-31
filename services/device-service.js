@@ -1,0 +1,363 @@
+import {
+  API_RESPONSE_CODE,
+  KEY_FEATURE_FLAG,
+} from "../contants/constant-extention.js";
+import {
+  KEY_CURRENT_TASK,
+  KEY_DEVICE,
+  KEY_TASK_NAME,
+  KEY_USED_TO_LOGINED_THIS_DEVICE,
+} from "../contants/contants.js";
+import { deviceHelper } from "../helpers/device-helper.js";
+import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
+import { get, post } from "../utils/request.js";
+import {
+  genID,
+  logError,
+  random,
+  randomNumberValue,
+  randomRateBoolean,
+} from "../utils/utils.js";
+import { getPremiumService } from "./auth-service.js";
+import {
+  getIsCommentWalkData,
+  getIsSpammedData,
+  getPriorityTaskData,
+} from "./setting-service.js";
+
+/**
+ * @typedef {import('../types/types.js').Device} Device
+ * @typedef {import('../types/types.js').IpAddress} IpAddress
+ */
+
+/**
+ * Get device id from storage
+ * @returns {Promise<string>}
+ */
+async function getDeviceId() {
+  const device = await getDeviceFromStorage();
+  if (device) {
+    return device.id;
+  }
+  const newDevice = createNewDevice();
+  await createNewDeviceAndForceSave(newDevice);
+  return newDevice.id;
+}
+
+async function getUsedToLoginedThisDevice() {
+  return (await DB_getValue(KEY_USED_TO_LOGINED_THIS_DEVICE)) || false;
+}
+
+async function setUsedToLoginedThisDevice(b) {
+  await DB_setValue(KEY_USED_TO_LOGINED_THIS_DEVICE, b);
+}
+
+/**
+ * Get device from storage
+ * @returns {Promise<Device>}
+ */
+async function getDeviceFromStorage() {
+  try {
+    const device = await DB_getValue(KEY_DEVICE);
+    return device || null;
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * Set device to storage
+ * @param {Device} device
+ */
+async function setDeviceInStorage(device) {
+  try {
+    const existed = await getDeviceFromStorage();
+    if (existed === undefined || existed === null) {
+      await DB_setValue(KEY_DEVICE, device);
+    }
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * Create new device
+ * @returns {Device}
+ */
+function createNewDevice() {
+  return {
+    id: genID(12),
+    device_name: "New Device " + random(100, 999),
+    device_type: getDeviceTypeByBrowser(),
+  };
+}
+
+async function createNewDeviceAndForceSave() {
+  const device = createNewDevice();
+  await DB_setValue(KEY_DEVICE, device);
+  return device;
+}
+
+async function createNewDeviceRequest(device) {
+  try {
+    const res = await post("/devices", device);
+    return res?.data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * Get device type by browser
+ * @returns {string}
+ */
+function getDeviceTypeByBrowser() {
+  if (typeof window !== "undefined") {
+    const browser = window?.browser;
+    if (browser?.coccoc) {
+      return "Coc Coc";
+    }
+    if (browser?.chrome) {
+      return "Chrome";
+    } else if (browser?.firefox) {
+      return "Firefox";
+    } else if (browser?.safari) {
+      return "Safari";
+    } else if (browser?.edge) {
+      return "Edge";
+    }
+  }
+  return "Chrome";
+}
+
+/**
+ *
+ * @returns {Promise<Array<{name: string, priority: number}>>}
+ */
+async function getListTask() {
+  const priorityTask = await getPriorityTaskData();
+  const data = [];
+
+  for (const k in priorityTask) {
+    const name = deviceHelper.getTaskName(k);
+    data.push({
+      name,
+      priority: priorityTask[k],
+    });
+  }
+
+  return data.sort((a, b) => a.priority - b.priority);
+}
+
+async function getListTaskActive() {
+  const list = await getListTask();
+
+  const listActive = await Promise.all(
+    list.map(async (i) => {
+      const active = await checkTaskActive(i.name);
+      return {
+        name: i.name,
+        priority: i.priority,
+        active,
+      };
+    }),
+  ).then((list) => {
+    return list.filter((i) => i.active);
+  });
+
+  return listActive;
+}
+
+async function getListTaskNameInactive() {
+  const listActive = await getListTaskActive();
+  const list = await getListTask();
+
+  const listActiveName = listActive.map((i) => i.name);
+
+  return list
+    .filter((i) => !listActiveName.includes(i.name))
+    .map((i) => i.name);
+}
+
+async function getRandomTaskNameWithPriority() {
+  try {
+    const listActive = await getListTaskActive();
+
+    const listPriority = listActive.map((i) => i.priority);
+    const total = listPriority.reduce((acc, val) => acc + val, 0);
+    const listReverseValue = listPriority.map((i) => total - i);
+
+    async function deepGet(ignoreKeys = []) {
+      let priority = -1;
+      for await (const item of listActive) {
+        if (ignoreKeys.includes(item.name)) continue;
+        const rate = randomRateBoolean(total - item.priority, total);
+        if (rate) {
+          priority = item.priority;
+          break;
+        }
+      }
+
+      if (priority === -1) {
+        const randomReverseValue = randomNumberValue(listReverseValue);
+        priority = total - randomReverseValue;
+      }
+
+      const listSame = listActive.filter((i) => {
+        return i.priority === priority && !ignoreKeys.includes(i.name);
+      });
+
+      if (listSame.length) {
+        const randomIndex = random(0, listSame.length - 1);
+        const taskName = listSame[randomIndex].name;
+        const isActive = await checkTaskActive(taskName);
+        if (isActive) return taskName;
+        return await deepGet([...ignoreKeys, taskName]);
+      }
+
+      return KEY_TASK_NAME.UNKNOWN;
+    }
+
+    return await deepGet();
+  } catch (err) {
+    logError("getRandomTaskNameWithPriority error: ", err);
+    return KEY_TASK_NAME.UNKNOWN;
+  }
+}
+
+async function checkTaskActive(taskName) {
+  if (taskName === KEY_TASK_NAME.POST) {
+    return !(await getIsSpammedData());
+  }
+
+  if (taskName === KEY_TASK_NAME.COMMENT_WALK) {
+    const isCommentWalk = await getIsCommentWalkData();
+    if (isCommentWalk) {
+      return true;
+    }
+    return false;
+  }
+
+  return false;
+}
+
+async function getCurrentTaskName() {
+  return await DB_getValue(KEY_CURRENT_TASK, KEY_TASK_NAME.UNKNOWN);
+}
+
+async function setCurrentTaskName(taskName) {
+  await DB_setValue(KEY_CURRENT_TASK, taskName);
+}
+
+async function getFeatureFlag() {
+  const premium = await getPremiumService();
+
+  if (premium) {
+    return {
+      [KEY_FEATURE_FLAG.FIELD.COMMENT_WALK]: KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+      [KEY_FEATURE_FLAG.FIELD.SPECIAL_FRAME_HOUR]:
+        KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+      [KEY_FEATURE_FLAG.FIELD.IS_RANDOM_BREAK_BATCH]:
+        KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+      [KEY_FEATURE_FLAG.FIELD.IS_RANDOM_TIME_POST]:
+        KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+      [KEY_FEATURE_FLAG.FIELD.IS_FIX_STEAL_ALL_FOCUS]:
+        KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+      [KEY_FEATURE_FLAG.FIELD.IS_SHUFFLE_SCHEDULER_TIME]:
+        KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+      [KEY_FEATURE_FLAG.FIELD.PRIORITY_TASK]: KEY_FEATURE_FLAG.STATUS.UNLOCKED,
+    };
+  }
+
+  return {
+    [KEY_FEATURE_FLAG.FIELD.COMMENT_WALK]: KEY_FEATURE_FLAG.STATUS.LOCKED,
+
+    [KEY_FEATURE_FLAG.FIELD.SPECIAL_FRAME_HOUR]: KEY_FEATURE_FLAG.STATUS.LOCKED,
+
+    [KEY_FEATURE_FLAG.FIELD.IS_RANDOM_BREAK_BATCH]:
+      KEY_FEATURE_FLAG.STATUS.LOCKED,
+
+    [KEY_FEATURE_FLAG.FIELD.IS_RANDOM_TIME_TASK]:
+      KEY_FEATURE_FLAG.STATUS.LOCKED,
+
+    [KEY_FEATURE_FLAG.FIELD.IS_FIX_STEAL_ALL_FOCUS]:
+      KEY_FEATURE_FLAG.STATUS.LOCKED,
+
+    [KEY_FEATURE_FLAG.FIELD.IS_SHUFFLE_SCHEDULER_TIME]:
+      KEY_FEATURE_FLAG.STATUS.LOCKED,
+
+    [KEY_FEATURE_FLAG.FIELD.PRIORITY_TASK]: KEY_FEATURE_FLAG.STATUS.LOCKED,
+  };
+}
+
+async function checkFeatureEnable(name, flags) {
+  if (!flags) {
+    flags = await getFeatureFlag();
+    if (!flags) {
+      return false;
+    }
+  }
+  return flags?.[name] === KEY_FEATURE_FLAG.STATUS.UNLOCKED;
+}
+
+/**
+ * Check or create device
+ * @returns {Promise<Device>}
+ */
+async function checkOrCreateDeviceService() {
+  try {
+    const deviceId = await getDeviceId();
+
+    const res = await get("/devices/" + deviceId);
+
+    return res?.data;
+  } catch (error) {
+    if (error?.code && error.code === API_RESPONSE_CODE.NOT_FOUND) {
+      let device = await getDeviceFromStorage();
+      if (!device) {
+        device = await createNewDeviceAndForceSave();
+      }
+      await createNewDeviceRequest(device);
+    }
+    return null;
+  }
+}
+
+/**
+ * Check or create ip address
+ * @returns {Promise<IpAddress>}
+ */
+async function checkOrCreateIpAddress() {
+  try {
+    const res = await get("/ip-addresses/check");
+    return res?.data;
+  } catch (error) {
+    if (error?.code && error.code === API_RESPONSE_CODE.NOT_FOUND) {
+      const res = await post("/ip-addresses");
+      return res?.data;
+    }
+    return null;
+  }
+}
+
+export {
+  checkTaskActive,
+  createNewDevice,
+  createNewDeviceAndForceSave,
+  createNewDeviceRequest,
+  getCurrentTaskName,
+  getDeviceFromStorage,
+  getDeviceId,
+  getDeviceTypeByBrowser,
+  getListTask,
+  getListTaskNameInactive,
+  getRandomTaskNameWithPriority,
+  getUsedToLoginedThisDevice,
+  setCurrentTaskName,
+  setDeviceInStorage,
+  setUsedToLoginedThisDevice,
+  getFeatureFlag,
+  checkFeatureEnable,
+  checkOrCreateDeviceService,
+  checkOrCreateIpAddress,
+};

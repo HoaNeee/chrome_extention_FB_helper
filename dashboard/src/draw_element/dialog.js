@@ -4,10 +4,7 @@ import {
   logError,
   randomID,
 } from "../../../utils/utils.js";
-import {
-  getSchedulerService,
-  setSchedulerService,
-} from "../services/scheduler-service.js";
+import { removeSchedulerTime } from "../../../services/scheduler-service.js";
 
 let dialogContainerElement = null;
 let anchorElemDialog = null;
@@ -43,6 +40,9 @@ function createDialog({
   isConfirm = false,
   showClose = true,
   clickOutSideToClose = true,
+  width = 540,
+  height,
+  titleAlign = "left",
 }) {
   try {
     if (!anchorElemDialog) {
@@ -54,9 +54,28 @@ function createDialog({
     const innerDiv = document.createElement("div");
     innerDiv.style.position = "relative";
     innerDiv.style.minHeight = "50px";
+
+    let currentWidth = 540;
+    let currentHeight = "85vh";
+    if (width) {
+      if (typeof width === "number") {
+        currentWidth = width + "px";
+      } else {
+        currentWidth = width;
+      }
+    }
+
+    if (height) {
+      if (typeof height === "number") {
+        currentHeight = height + "px";
+      } else {
+        currentHeight = height;
+      }
+    }
+
     if (!isConfirm) {
-      innerDiv.style.height = "85vh";
-      innerDiv.style.minWidth = "540px";
+      innerDiv.style.height = currentHeight;
+      innerDiv.style.minWidth = currentWidth;
       innerDiv.style.padding = "32px 16px 12px 16px";
     } else {
       innerDiv.style.padding = "24px 16px 12px 16px";
@@ -95,9 +114,14 @@ function createDialog({
     const h3Title = document.createElement("h3");
     h3Title.style.position = "absolute";
     h3Title.style.top = "10px";
-    h3Title.style.left = "30px";
     h3Title.style.zIndex = MAX_Z_INDEX + 1;
     h3Title.textContent = title;
+    if (titleAlign === "center") {
+      h3Title.style.left = "50%";
+      h3Title.style.transform = "translateX(-50%)";
+    } else if (titleAlign === "left") {
+      h3Title.style.left = "10px";
+    }
 
     function close() {
       onClose?.();
@@ -178,7 +202,7 @@ function createDialog({
  * @param {Array<{h: number, m: number}>} schedulers
  * @returns {HTMLElement}
  */
-function dialogViewScheduler(schedulers) {
+function dialogViewScheduler(type, schedulers) {
   if (!schedulers || !Array.isArray(schedulers)) {
     schedulers = [];
   }
@@ -201,64 +225,57 @@ function dialogViewScheduler(schedulers) {
   listContainer.style.overflowY = "auto";
   listContainer.classList.add("scrollbar-custom");
 
-  (schedulers || []).forEach((time) => {
-    const timeDiv = document.createElement("div");
-    timeDiv.style.display = "flex";
-    timeDiv.style.alignItems = "center";
-    timeDiv.style.gap = "8px";
-    timeDiv.style.justifyContent = "center";
-
-    timeDiv.textContent = `${time.h}:${time.m.toString().padStart(2, "0")}`;
-    const btnDel = document.createElement("span");
-    btnDel.textContent = "✖";
-    btnDel.style.cursor = "pointer";
-    btnDel.style.userSelect = "none";
-    btnDel.title = getTextWithLanguage({
-      vi: "Xóa khoảng thời gian này",
-      en: "Delete this time",
-    });
-
-    btnDel.addEventListener("click", async () => {
-      try {
-        const scheduler = await getSchedulerService();
-        switch (scheduler.type) {
-          case SCHEDULER_TYPE.DAILY_HOURS:
-            const dailyHours = scheduler.dailyHours.filter((o) => {
-              return !(o.h === time.h && o.m === time.m);
-            });
-            scheduler.dailyHours = dailyHours;
-            break;
-          case SCHEDULER_TYPE.EVERY_MINUTES:
-            const minutes = scheduler.schedulerMinutes.filter((o) => {
-              return !(o.h === time.h && o.m === time.m);
-            });
-            scheduler.schedulerMinutes = minutes;
-            break;
-          case SCHEDULER_TYPE.EVERY_HOURS:
-            const hours = scheduler.schedulerHours.filter((o) => {
-              return !(o.h === time.h && o.m === time.m);
-            });
-            scheduler.schedulerHours = hours;
-            break;
-          case SCHEDULER_TYPE.FRAME_HOURS:
-            const frameHours = scheduler.frameHours.filter((o) => {
-              return !(o.h === time.h && o.m === time.m);
-            });
-            scheduler.frameHours = frameHours;
-            break;
-          default:
-            break;
-        }
-        setSchedulerService(scheduler);
-        timeDiv.remove();
-      } catch (error) {
-        logError("Error delete scheduler: " + error);
-      }
-    });
-
-    timeDiv.appendChild(btnDel);
-    listContainer.appendChild(timeDiv);
+  const pEmpty = document.createElement("p");
+  pEmpty.textContent = getTextWithLanguage({
+    vi: "Không có lịch trình đăng",
+    en: "No scheduler",
   });
+
+  if (
+    type === SCHEDULER_TYPE.EVERY_MINUTES ||
+    type === SCHEDULER_TYPE.EVERY_HOURS
+  ) {
+    const pNot = document.createElement("p");
+    pNot.textContent = getTextWithLanguage({
+      vi: "Loại lịch hiện tại không có bộ lịch cố định",
+      en: "The current schedule type does not have a fixed schedule set",
+    });
+    listContainer.appendChild(pNot);
+  } else if (!schedulers.length) {
+    listContainer.appendChild(pEmpty);
+  } else {
+    schedulers.forEach((time) => {
+      const timeDiv = document.createElement("div");
+      timeDiv.style.display = "flex";
+      timeDiv.style.alignItems = "center";
+      timeDiv.style.gap = "8px";
+      timeDiv.style.justifyContent = "center";
+
+      timeDiv.textContent = `${time.h}:${time.m.toString().padStart(2, "0")}`;
+      const btnDel = document.createElement("span");
+      btnDel.textContent = "✖";
+      btnDel.style.cursor = "pointer";
+      btnDel.style.userSelect = "none";
+      btnDel.title = getTextWithLanguage({
+        vi: "Xóa khoảng thời gian này",
+        en: "Delete this time",
+      });
+
+      btnDel.addEventListener("click", async () => {
+        try {
+          const success = await removeSchedulerTime(time);
+          if (success) {
+            timeDiv.remove();
+          }
+        } catch (error) {
+          logError("Error delete scheduler: " + error);
+        }
+      });
+
+      timeDiv.appendChild(btnDel);
+      listContainer.appendChild(timeDiv);
+    });
+  }
 
   div.appendChild(h3);
   div.appendChild(listContainer);
@@ -313,6 +330,48 @@ function dialogConfirm({
   return div;
 }
 
+let swalDialogLoading = null;
+
+function showDialogLoading(title) {
+  try {
+    if (swalDialogLoading) return;
+
+    swalDialogLoading = Swal.fire({
+      html: `<p>${
+        title ||
+        getTextWithLanguage({
+          en: "Loading...",
+          vi: "Đang tải...",
+        })
+      } </p>`,
+      background: "var(--tm-bg-dialog)",
+      color: "var(--tm-text-primary)",
+      heightAuto: false,
+      allowOutsideClick: false,
+      width: `300px`,
+      customClass: {
+        container: "swal-container-custom",
+      },
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+  } catch (error) {
+    logError("Error at dialog loading: ", error);
+  }
+}
+
+function closeDialogLoading() {
+  try {
+    if (swalDialogLoading) {
+      swalDialogLoading.close();
+      swalDialogLoading = null;
+    }
+  } catch (error) {
+    logError("Error at close dialog loading: ", error);
+  }
+}
+
 function dialogDisabledTool(deviceId) {
   const div = document.createElement("div");
   div.style.display = "flex";
@@ -363,53 +422,12 @@ function dialogDisabledTool(deviceId) {
 
   return div;
 }
-
-let swalDialogLoading = null;
-
-function showDialogLoading(title) {
-  try {
-    swalDialogLoading = Swal.fire({
-      html: `<p>${
-        title ||
-        getTextWithLanguage({
-          en: "Loading...",
-          vi: "Đang tải...",
-        })
-      } </p>`,
-      background: "var(--tm-bg-dialog)",
-      color: "var(--tm-text-primary)",
-      heightAuto: false,
-      allowOutsideClick: false,
-      width: `300px`,
-      customClass: {
-        container: "swal-container-custom",
-      },
-      didOpen: () => {
-        Swal.showLoading();
-      },
-    });
-  } catch (error) {
-    logError("Error at dialog loading: ", error);
-  }
-}
-
-function closeDialogLoading() {
-  try {
-    if (swalDialogLoading) {
-      swalDialogLoading.close();
-      swalDialogLoading = null;
-    }
-  } catch (error) {
-    logError("Error at close dialog loading: ", error);
-  }
-}
-
 export {
   createDialog,
   dialogViewScheduler,
   dialogContainer,
   dialogConfirm,
-  dialogDisabledTool,
   showDialogLoading,
   closeDialogLoading,
+  dialogDisabledTool,
 };

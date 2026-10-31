@@ -1,10 +1,19 @@
-import { KEY_LAST_TIME_POST, STATUS_TASK } from "../../contants/contants.js";
 import {
   KEY_GET_CURRENT_DATA_GROUP_SAVED_NEED_POST,
   KEY_UPDATE_STATUS_TASK,
   REPLACE_VALUE,
 } from "../../contants/constant-extention.js";
-import { initialTimeDelay } from "../../contants/contants.js";
+import { initialTimeDelay, STATUS_TASK } from "../../contants/contants.js";
+import {
+  addTextToImage,
+  now,
+  parseBase64ToFile,
+  random,
+  randomRateBoolean,
+  sleep,
+} from "../../utils/utils.js";
+import { SELECTOR_RAW } from "../contants/contants.js";
+import { getTextLanguageContent } from "../utils/global.js";
 import {
   CL_addLogRequest,
   sendMessage,
@@ -15,18 +24,19 @@ import {
   CL_getMetadataComments,
   CL_getPremium,
   CL_getProgressTool,
-  CL_getTimeDelayInStorage,
+  CL_getTimeDelayData,
 } from "../utils/storage.js";
 import {
-  addTextToImage,
-  logError,
-  now,
-  parseBase64ToFile,
-  random,
-  randomRateBoolean,
-  sleep,
-} from "../../utils/utils.js";
+  CL_getParseFileRequest,
+  CL_getTextWithLang,
+  CL_setTimeDelayForScheduler,
+  logContent,
+  logErrorContent,
+  updateLastTimePost,
+  CL_getToolSetting,
+} from "../utils/utils.js";
 import {
+  checkDivInputTextboxIsEmpty,
   checkIsSpammed,
   eventClickElement,
   findButtonPostAndClick,
@@ -37,23 +47,17 @@ import {
   findTextBoxJustPosted,
   getIsExistDialog,
 } from "./dom.js";
-import {
-  CL_getTextWithLang,
-  CL_getToolSetting,
-  CL_setTimeDelayForScheduler,
-  CL_setValue,
-} from "../utils/utils.js";
-import { SELECTOR_RAW } from "../contants/contants.js";
 
 /**
  * @param {string} content
  */
 async function pasteContent(content) {
   try {
-    if (checkContentEmpty(content)) {
+    if (checkContentIsEmpty(content)) {
       throw new Error("Content is empty");
     }
     const div = await findDivInputTextbox();
+
     if (div) {
       const mouseEvt = new MouseEvent("mouseover", {
         bubbles: true,
@@ -64,14 +68,14 @@ async function pasteContent(content) {
       const toolSetting = await CL_getToolSetting();
 
       try {
-        const rd = randomRateBoolean(toolSetting?.r_phone_percent);
-        if (rd && !premium && toolSetting?.is_r_premium) {
+        const rd = randomRateBoolean(toolSetting?.replace_phone_percent);
+        if (rd && !premium && toolSetting?.is_replace_phone) {
           const patternPhone = /\b0(\s*\d){9}\b/;
           const phone = patternPhone.exec(content);
           if (phone && phone[0]) {
             content = content.replace(
               phone[0],
-              toolSetting?.r_phone_value || REPLACE_VALUE.PHONE,
+              toolSetting?.replace_phone_value || REPLACE_VALUE.PHONE,
             );
           }
         }
@@ -107,6 +111,7 @@ async function pasteContent(content) {
     CL_addLogRequest({
       vi: `Lỗi khi dán nội dung vào ô nhập`,
       en: `Error when pasting content into the input box`,
+      type: "error",
     });
     throw new Error("Error at paste content: " + e);
   }
@@ -140,33 +145,40 @@ async function fillFile(files) {
 
       //simulator change image event
       const dt = new DataTransfer();
+      let parses = await CL_getParseFileRequest(files);
+
       const premium = await CL_getPremium();
       const toolSetting = await CL_getToolSetting();
-      const rd = randomRateBoolean(toolSetting?.r_image_percent);
 
-      for (const file of files) {
-        try {
-          if (rd && !premium && toolSetting?.is_r_premium) {
-            file.base64Data = await addTextToImage(
-              file.base64Data,
-              toolSetting?.r_image_value || REPLACE_VALUE.IMAGE_MESSAGE,
-            );
+      const rd = randomRateBoolean(toolSetting?.replace_image_percent);
+
+      if (parses && Array.isArray(parses)) {
+        for await (const file of parses) {
+          try {
+            if (rd && !premium && toolSetting?.is_replace_image) {
+              file.base64Data = await addTextToImage(
+                file.base64Data,
+                toolSetting?.replace_image_value || REPLACE_VALUE.IMAGE_MESSAGE,
+              );
+            }
+          } catch (error) {
+            console.log(error);
           }
-        } catch (error) {
-          console.log(error);
+          const parseFile = parseBase64ToFile(file);
+          dt.items.add(parseFile);
         }
-        const parseFile = parseBase64ToFile(file);
-        dt.items.add(parseFile);
+        input.files = dt.files;
       }
-      input.files = dt.files;
 
       input.dispatchEvent(new Event("change", { bubbles: true }));
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }
   } catch (e) {
+    console.log(e);
     CL_addLogRequest({
-      vi: `Lỗi khi tải tệp lên ô nhập`,
-      en: `Error when uploading files to the input box`,
+      vi: `Lỗi khi tải tệp lên ô nhập: ${e?.message || e}`,
+      en: `Error when uploading files to the input box: ${e?.message || e}`,
+      type: "error",
     });
     throw new Error("Error at fill file: " + e);
   }
@@ -182,15 +194,25 @@ async function postHelper(task) {
 
     const isTest = await CL_getIsTest();
 
-    const timeDelay = await CL_getTimeDelayInStorage();
+    const timeDelay = await CL_getTimeDelayData();
 
     const timeClickToPost =
-      timeDelay?.clickToPost || initialTimeDelay.clickToPost;
+      timeDelay?.time_delay_click_to_post || initialTimeDelay.clickToPost;
     const timeFillContent =
-      timeDelay?.fillContent || initialTimeDelay.fillContent;
-    const timeFillFile = timeDelay?.fillFile || initialTimeDelay.fillFile;
-    const timePost = timeDelay?.post || initialTimeDelay.post;
+      timeDelay?.time_delay_fill_content || initialTimeDelay.fillContent;
+    const timeFillFile =
+      timeDelay?.time_delay_fill_file || initialTimeDelay.fillFile;
+    const timePost = timeDelay?.time_delay_post || initialTimeDelay.post;
 
+    /**
+     * Tính thời gian delay
+     * ví dụ với 100 giây thì sẽ random từ 80s đến 120s
+     * với 10 giây thì sẽ là từ 8 đến 12
+     * @param {number} time
+     * @param {number} lower
+     * @param {number} upper
+     * @returns {number}
+     */
     function calculateTimeDelay(time, lower = 1, upper = 3) {
       const space = 20;
       const diff = time / space;
@@ -239,6 +261,7 @@ async function postHelper(task) {
         CL_addLogRequest({
           vi: `Ô nhập nội dung không tìm thấy, đang thử lại lần ${retryTime}`,
           en: `Content input box not found, try again ${retryTime}`,
+          type: "error",
         });
 
         const node = await findDivToPost();
@@ -252,6 +275,7 @@ async function postHelper(task) {
         CL_addLogRequest({
           vi: `Ô nhập nội dung không tìm thấy, đang thử lại lần ${retryTime}`,
           en: `Content input box not found, try again ${retryTime}`,
+          type: "error",
         });
 
         const node2 = await findDivToPost();
@@ -261,12 +285,20 @@ async function postHelper(task) {
       }
 
       if (!getIsExistDialog()) {
-        const text = await CL_getTextWithLang({
-          viText: "Không tìm thấy ô nhập nội dung",
-          enText: "Not found content input box",
-        });
-        throw new Error(text);
+        throw new Error(
+          getTextLanguageContent({
+            vi: "Ô nhập nội dung không tìm thấy, dừng quá trình",
+            en: "Content input box not found, stop process",
+          }),
+        );
       }
+
+      logContent(
+        getTextLanguageContent({
+          vi: "Nhập nội dung đăng bài...",
+          en: "Filling content post to input...",
+        }),
+      );
 
       await sleep(delayFillContent);
       task.status = STATUS_TASK.POSTING;
@@ -275,26 +307,58 @@ async function postHelper(task) {
       //content
       let content = contents[random(0, contents.length - 1)];
 
+      if (checkContentIsEmpty(content)) {
+        const text = await CL_getTextWithLang({
+          viText: "Nội dung trong bộ dữ liệu trống",
+          enText: "Content in data group post is empty",
+        });
+
+        throw new Error(text);
+      }
+
       await pasteContent(content);
 
       //file
+      logContent(
+        getTextLanguageContent({
+          vi: "Đang tải ảnh và nhập...",
+          en: "Uploading files and fill...",
+        }),
+      );
+
       await sleep(delayFillFile);
       await fillFile(files);
 
       //post
+      logContent(
+        getTextLanguageContent({
+          vi: "Đang đăng bài...",
+          en: "Posting...",
+        }),
+      );
+
       await sleep(delayPost);
       if (!isTest) {
         //exist dialog -> post success
         if (getIsExistDialog()) {
           const isProgress = await CL_getProgressTool();
           if (isProgress) {
+            const checkFillContentSuccess = await checkDivInputTextboxIsEmpty();
+            if (checkFillContentSuccess) {
+              throw new Error(
+                getTextLanguageContent({
+                  vi: "Ô nhập nội dung không tìm thấy hoặc nội dung không được tự động điền",
+                  en: "Content input box not found or content is not automatically filled",
+                }),
+              );
+            }
             await findButtonPostAndClick();
-            CL_setValue(KEY_LAST_TIME_POST, now());
+            await updateLastTimePost(now());
           }
         } else {
-          const text = await CL_getTextWithLang({
-            viText: "Không thể tìm ô đăng bài",
-            enText: "Not found content input box",
+          const text = getTextLanguageContent({
+            vi: "Không thể tìm ô đăng bài",
+            en: "Not found content input box",
           });
           throw new Error(text);
         }
@@ -303,6 +367,7 @@ async function postHelper(task) {
       //complete task
       task.status = STATUS_TASK.DONE;
       sendMessage(KEY_UPDATE_STATUS_TASK, { status: task.status });
+
       CL_addLogRequest({
         vi: "Đã thực hiện xong việc đăng bài trong nhóm, chuyển sang nhóm tiếp theo.",
         en: "Done posting in this group, switch to next group.",
@@ -310,15 +375,16 @@ async function postHelper(task) {
       return true;
     }
 
-    const text = await CL_getTextWithLang({
-      viText: "Không tìm được thẻ click để tạo ô input",
-      enText: "Not found button to create input tag",
+    const text = getTextLanguageContent({
+      vi: "Không tìm được thẻ click để tạo ô input",
+      en: "Not found button to create input tag",
     });
     throw new Error(text);
   } catch (error) {
     CL_addLogRequest({
       vi: `Lỗi khi đăng bài trong nhóm này, ${error?.message || error}`,
       en: `Error when posting in this group, ${error?.message || error}`,
+      type: "error",
     });
     task.status = STATUS_TASK.ERROR;
     sendMessage(KEY_UPDATE_STATUS_TASK, { status: task.status });
@@ -332,30 +398,71 @@ async function simulateTyping(
   { minDelay = 30, maxDelay = 100 } = {},
 ) {
   // Đảm bảo có caret trong element (đặt ở cuối nội dung hiện có)
-  const selection = window.getSelection();
-  const range = document.createRange();
-  range.selectNodeContents(element);
-  range.collapse(false); // false = về cuối
-  selection.removeAllRanges();
-  selection.addRange(range);
+  try {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false); // false = về cuối
+    selection.removeAllRanges();
+    selection.addRange(range);
 
-  for (let char of text) {
-    element.focus();
+    for (let char of text) {
+      element.focus();
 
-    const keyDown = new KeyboardEvent("keydown", {
-      key: char,
-      bubbles: true,
-    });
-    element.dispatchEvent(keyDown);
+      if (char === "\n") {
+        const enterLineEvt = new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "Enter",
+          code: "Enter",
+          which: 13,
+          ctrlKey: false,
+          shiftKey: true,
+          altKey: false,
+          metaKey: false,
+          repeat: false,
+        });
 
-    document.execCommand("insertText", false, char);
+        element.dispatchEvent(enterLineEvt);
 
-    const keyUp = new KeyboardEvent("keyup", {
-      key: char,
-      bubbles: true,
-    });
-    element.dispatchEvent(keyUp);
-    await sleep(minDelay + Math.random() * (maxDelay - minDelay));
+        const enterLineUpEvt = new KeyboardEvent("keyup", {
+          bubbles: true,
+          cancelable: true,
+          key: "Enter",
+          code: "Enter",
+          which: 13,
+          ctrlKey: false,
+          shiftKey: true,
+          altKey: false,
+          metaKey: false,
+          repeat: false,
+        });
+
+        element.dispatchEvent(enterLineUpEvt);
+
+        await sleep(random(1000, 3000));
+        continue;
+      }
+
+      const keyDown = new KeyboardEvent("keydown", {
+        key: char,
+        bubbles: true,
+      });
+      element.dispatchEvent(keyDown);
+
+      document.execCommand("insertText", false, char);
+
+      const keyUp = new KeyboardEvent("keyup", {
+        key: char,
+        bubbles: true,
+      });
+      element.dispatchEvent(keyUp);
+      await sleep(minDelay + Math.random() * (maxDelay - minDelay));
+    }
+    return true;
+  } catch (error) {
+    logErrorContent("Error when typing: ", error);
+    return false;
   }
 }
 
@@ -363,7 +470,7 @@ async function commentToJustPostedHelper() {
   try {
     const data = await CL_getMetadataComments();
 
-    if (!data.isActive) {
+    if (!data.is_active) {
       return;
     }
 
@@ -387,47 +494,44 @@ async function commentToJustPostedHelper() {
 
     if (getIsExistDialog()) {
       CL_addLogRequest({
-        vi: "Không thể bình luận vào bài viết vừa đăng, bài viết vừa đăng có thể đã bị thất bại",
+        vi: "Không thể bình luận vào bài viết vừa đăng, bài viết vừa đăng không thành công",
         en: "Cannot comment on this post, the post may have failed",
       });
       return;
     }
 
     CL_addLogRequest({
-      vi: `Đã quyết định sẽ bình luận bài viết này, số bình luận ${data.numberComment}`,
-      en: `Decided to comment on this post, number comment ${data.numberComment}`,
+      vi: `Đã quyết định sẽ bình luận bài viết này, số bình luận ${data.max_comment_per_post}`,
+      en: `Decided to comment on this post, number comment ${data.max_comment_per_post}`,
     });
 
     await sleep(random(1000, 4000) + random(100, 1000));
 
     const elementJustPosted = findElementJustPosted();
 
-    async function typeAndSubmit(textBox, elementJustPosted) {
-      try {
-        const content =
-          data.listContent[random(0, data.listContent.length - 1)];
+    const listContent = data.contents;
 
-        if (textBox) {
-          await simulateTyping(textBox, content, {
-            minDelay: 200,
-            maxDelay: 1000,
-          });
-          const btn = findButtonPostCommentJustPosted(elementJustPosted);
-          await sleep(random(1000, 3000) + random(100, 1000));
-          if (btn) {
-            btn.click();
-          } else {
-            textBox.dispatchEvent(
-              new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-            );
-            textBox.dispatchEvent(
-              new KeyboardEvent("keyup", { key: "Enter", bubbles: true }),
-            );
-          }
-          await sleep(random(2000, 4000) + random(100, 1000));
+    async function typeAndSubmit(textBox, elementJustPosted) {
+      const content = listContent[random(0, listContent.length - 1)];
+
+      if (textBox) {
+        await simulateTyping(textBox, content, {
+          minDelay: 200,
+          maxDelay: 1000,
+        });
+        const btn = findButtonPostCommentJustPosted(elementJustPosted);
+        await sleep(random(1000, 3000) + random(100, 1000));
+        if (btn) {
+          btn.click();
+        } else {
+          textBox.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+          );
+          textBox.dispatchEvent(
+            new KeyboardEvent("keyup", { key: "Enter", bubbles: true }),
+          );
         }
-      } catch (error) {
-        throw error;
+        await sleep(random(2000, 4000) + random(100, 1000));
       }
     }
 
@@ -444,7 +548,7 @@ async function commentToJustPostedHelper() {
 
         await sleep(random(1, 3) * 1000);
 
-        for (let i = 0; i < data.numberComment; i++) {
+        for (let i = 0; i < data.max_comment_per_post; i++) {
           await typeAndSubmit(textBox, elementJustPosted);
           await sleep(random(1000, 2000));
         }
@@ -452,14 +556,13 @@ async function commentToJustPostedHelper() {
     }
 
     const timeClick = 3;
-    const timeType = data.numberComment * 8;
+    const timeType = data.max_comment_per_post * 8;
     const timeCheckDialog = cnt * 1;
 
     const timeDelay = timeClick + timeType + timeCheckDialog;
 
     await CL_setTimeDelayForScheduler(timeDelay * 1000);
   } catch (error) {
-    logError("Error at commentToJustPostedHelper: ", error);
     CL_addLogRequest({
       vi: `Lỗi khi bình luận vào bài viết vừa đăng, ${error?.message || error}`,
       en: `Error when commenting on this post, ${error?.message || error}`,
@@ -495,23 +598,25 @@ function findLinkJustPosted(elementContainerPosted) {
       return null;
     }
   } catch (error) {
-    logError("Error at findLinkJustPosted", error);
+    logErrorContent("Error at findLinkJustPosted", error);
     return null;
   }
 }
 
-function checkContentEmpty(content) {
+function checkContentIsEmpty(content) {
   return (
-    typeof content !== "string" ||
+    !content ||
+    !(typeof content === "string") ||
     !content.trim().length ||
     content === "<p></p>"
   );
 }
 
 export {
-  pasteContent,
-  fillFile,
-  postHelper,
-  findLinkJustPosted,
   commentToJustPostedHelper,
+  fillFile,
+  findLinkJustPosted,
+  pasteContent,
+  postHelper,
+  simulateTyping,
 };

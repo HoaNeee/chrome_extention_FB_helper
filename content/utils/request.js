@@ -1,8 +1,11 @@
 import {
   KEY_ADD_LOG,
+  KEY_CLOSE_THIS_TAB,
   STATUS_RESPONSE,
 } from "../../contants/constant-extention";
 import { logError } from "../../utils/utils";
+import { getTextLanguageContent } from "./global";
+import { logContent, logErrorContent } from "./utils";
 
 async function sendMessage(type, data) {
   try {
@@ -11,7 +14,8 @@ async function sendMessage(type, data) {
       data,
     });
   } catch (error) {
-    throw new Error("Error at sendMessage: " + error);
+    logError("Error send message", error);
+    throw error;
   }
 }
 
@@ -34,20 +38,41 @@ async function sendMessageWithResponse(type, data) {
     }
     return res;
   } catch (error) {
-    throw new Error("Error at sendMessageWithResponse: " + error);
+    logError("Error at sendMessageWithResponse", error);
+    throw error;
   }
 }
 
 /**
  * Add log to background
- * @param {{vi: string, en: string}} message
+ * @param {{vi: string, en: string, type: "info" | "error" | "success" | "warning"}} message
  */
-async function CL_addLogRequest({ vi, en }) {
+async function CL_addLogRequest({ vi, en, type = "info" }) {
   try {
-    await sendMessage(KEY_ADD_LOG, { vi, en });
+    const languageContent = getTextLanguageContent({ vi, en });
+    if (type === "error") {
+      logErrorContent(languageContent);
+    } else {
+      logContent(languageContent);
+    }
+
+    await sendMessage(KEY_ADD_LOG, { vi, en, type });
   } catch (error) {
-    logError("Error at CL_addLogRequest: " + error);
+    logErrorContent("Error at CL_addLogRequest: " + error);
   }
 }
 
-export { sendMessage, sendMessageWithResponse, CL_addLogRequest };
+async function CL_closeThisTab() {
+  try {
+    await sendMessage(KEY_CLOSE_THIS_TAB);
+  } catch (error) {
+    logErrorContent("Error at CL_closeThisTab: " + error);
+  }
+}
+
+export {
+  sendMessage,
+  sendMessageWithResponse,
+  CL_addLogRequest,
+  CL_closeThisTab,
+};
