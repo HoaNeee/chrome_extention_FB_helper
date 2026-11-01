@@ -1,54 +1,54 @@
 import CommentWalk from "../../class/CommentWalk";
 import {
-  KEY_ADD_URL_COMMENTED,
-  KEY_CAN_COMMENT_WALK_THIS_POST,
-  KEY_COMMENT_WALK_REQUEST,
-  KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST,
-  KEY_COMPLETED_COMMENT_WALK_THIS_BATCH,
-  KEY_GET_ALL_METADATA_COMMENT_WALK,
-  KEY_GET_KEY_SAVED,
-  KEY_GET_PREMIUM,
-  KEY_INTERACT_BEFORE_POST_REQUEST,
-  KEY_REQUEST_TO_BACKGROUND,
-  KEY_SET_KEY_SAVED,
-  KEY_SET_PROCESSING_COMMENT_WALK,
-  KEY_STOP_TASK_REQUEST,
+	KEY_ADD_URL_COMMENTED,
+	KEY_CAN_COMMENT_WALK_THIS_POST,
+	KEY_COMMENT_WALK_REQUEST,
+	KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST,
+	KEY_COMPLETED_COMMENT_WALK_THIS_BATCH,
+	KEY_GET_ALL_METADATA_COMMENT_WALK,
+	KEY_GET_KEY_SAVED,
+	KEY_GET_PREMIUM,
+	KEY_INTERACT_BEFORE_POST_REQUEST,
+	KEY_REQUEST_TO_BACKGROUND,
+	KEY_SET_KEY_SAVED,
+	KEY_SET_PROCESSING_COMMENT_WALK,
+	KEY_STOP_TASK_REQUEST,
 } from "../../contants/constant-extention";
 import {
-  initialTimeDelay,
-  KEY_ALL_GROUPS,
-  KEY_CAN_POST_THIS_TAB,
-  KEY_COMMENT_WALK,
-  KEY_INTERACT_BEFORE_POST,
-  KEY_IS_DEVELOPER_MODE,
-  KEY_IS_IN_PROGRESS,
-  KEY_IS_SCROLL_DETECT_LIST_GROUP,
-  KEY_IS_TEST,
-  KEY_TIME_DELAY,
+	initialTimeDelay,
+	KEY_ALL_GROUPS,
+	KEY_CAN_POST_THIS_TAB,
+	KEY_COMMENT_WALK,
+	KEY_INTERACT_BEFORE_POST,
+	KEY_IS_DEVELOPER_MODE,
+	KEY_IS_IN_PROGRESS,
+	KEY_IS_SCROLL_DETECT_LIST_GROUP,
+	KEY_IS_TEST,
+	KEY_TIME_DELAY,
 } from "../../contants/contants";
 import { logError } from "../../utils/utils";
 import {
-  CL_addLogRequest,
-  sendMessage,
-  sendMessageWithResponse,
+	CL_addLogRequest,
+	sendMessage,
+	sendMessageWithResponse,
 } from "./request";
 import { CL_getValue, CL_setValue, logErrorContent } from "./utils";
 
 async function CL_getIsTest() {
-  try {
-    const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
-      key: KEY_IS_TEST,
-    });
+	try {
+		const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
+			key: KEY_IS_TEST,
+		});
 
-    return response?.data || false;
-  } catch (error) {
-    logErrorContent("Error at CL_getIsTest: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy trạng thái test",
-      en: error?.message || "Error when getting test status",
-    });
-    return false;
-  }
+		return response?.data || false;
+	} catch (error) {
+		logErrorContent("Error at CL_getIsTest: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy trạng thái test",
+			en: error?.message || "Error when getting test status",
+		});
+		return false;
+	}
 }
 
 /**
@@ -56,18 +56,18 @@ async function CL_getIsTest() {
  * @returns {Promise<typeof initialTimeDelay>} The time delay settings from storage, or the initial default if not set
  */
 async function CL_getTimeDelayData() {
-  try {
-    const response = await sendMessageWithResponse(KEY_TIME_DELAY);
+	try {
+		const response = await sendMessageWithResponse(KEY_TIME_DELAY);
 
-    return response?.data || initialTimeDelay;
-  } catch (error) {
-    logErrorContent("Error at CL_getTimeDelayData: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy thời gian delay",
-      en: error?.message || "Error when getting delay time",
-    });
-    return initialTimeDelay;
-  }
+		return response?.data || initialTimeDelay;
+	} catch (error) {
+		logErrorContent("Error at CL_getTimeDelayData: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy thời gian delay",
+			en: error?.message || "Error when getting delay time",
+		});
+		return initialTimeDelay;
+	}
 }
 
 /**
@@ -75,33 +75,33 @@ async function CL_getTimeDelayData() {
  * @returns {Promise<boolean>}
  */
 async function CL_getProgressTool() {
-  try {
-    const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
-      key: KEY_IS_IN_PROGRESS,
-    });
-    return response?.data || false;
-  } catch (error) {
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy trạng thái tool",
-      en: error?.message || "Error when getting tool status",
-    });
-    return false;
-  }
+	try {
+		const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
+			key: KEY_IS_IN_PROGRESS,
+		});
+		return response?.data || false;
+	} catch (error) {
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy trạng thái tool",
+			en: error?.message || "Error when getting tool status",
+		});
+		return false;
+	}
 }
 
 async function CL_getStopTool() {
-  try {
-    const response = await sendMessageWithResponse(
-      KEY_STOP_TASK_REQUEST.GET_IS_STOP_TASK,
-    );
-    return response?.data || false;
-  } catch (error) {
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy trạng thái dừng tool",
-      en: error?.message || "Error when getting stop tool status",
-    });
-    return true;
-  }
+	try {
+		const response = await sendMessageWithResponse(
+			KEY_STOP_TASK_REQUEST.GET_IS_STOP_TASK,
+		);
+		return response?.data || false;
+	} catch (error) {
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy trạng thái dừng tool",
+			en: error?.message || "Error when getting stop tool status",
+		});
+		return true;
+	}
 }
 
 /**
@@ -109,37 +109,37 @@ async function CL_getStopTool() {
  * @returns {Promise<Array<object>>}
  */
 async function CL_getAllDataGroupsOfUser() {
-  try {
-    const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
-      key: KEY_ALL_GROUPS,
-    });
+	try {
+		const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
+			key: KEY_ALL_GROUPS,
+		});
 
-    return response?.data || [];
-  } catch (error) {
-    logErrorContent("Error at CL_getAllDataGroupsOfUser: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy danh sách nhóm",
-      en: error?.message || "Error when getting list groups",
-    });
-    return [];
-  }
+		return response?.data || [];
+	} catch (error) {
+		logErrorContent("Error at CL_getAllDataGroupsOfUser: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy danh sách nhóm",
+			en: error?.message || "Error when getting list groups",
+		});
+		return [];
+	}
 }
 
 async function CL_getIsScrollDetectListGroup() {
-  try {
-    const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
-      key: KEY_IS_SCROLL_DETECT_LIST_GROUP,
-    });
-    return response?.data || false;
-  } catch (error) {
-    logErrorContent("Error at CL_getIsScrollDetectListGroup: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy trạng thái scroll detect list group",
-      en:
-        error?.message || "Error when getting scroll detect list group status",
-    });
-    return false;
-  }
+	try {
+		const response = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
+			key: KEY_IS_SCROLL_DETECT_LIST_GROUP,
+		});
+		return response?.data || false;
+	} catch (error) {
+		logErrorContent("Error at CL_getIsScrollDetectListGroup: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy trạng thái scroll detect list group",
+			en:
+				error?.message || "Error when getting scroll detect list group status",
+		});
+		return false;
+	}
 }
 
 /**
@@ -147,35 +147,37 @@ async function CL_getIsScrollDetectListGroup() {
  * @returns {Promise<{
  * contents: string[],
  * is_active: boolean,
- * max_comment_per_post: number
+ * max_comment_per_post: number,
+ * comment_after_post_percent: number
  * }>>}
  */
 async function CL_getMetadataComments() {
-  try {
-    const response = await sendMessageWithResponse(
-      KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST.GET_ALL_METADATA,
-    );
+	try {
+		const response = await sendMessageWithResponse(
+			KEY_COMMENT_WHEN_POST_SUCCESS_REQUEST.GET_ALL_METADATA,
+		);
 
-    if (response?.data) {
-      return response.data;
-    }
-    return {
-      contents: [],
-      max_comment_per_post: 0,
-      is_active: false,
-    };
-  } catch (error) {
-    logErrorContent("Error at CL_getMetadataComments: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy dữ liệu bình luận",
-      en: error?.message || "Error getting comment data",
-    });
-    return {
-      contents: [],
-      is_active: false,
-      max_comment_per_post: 0,
-    };
-  }
+		if (response?.data) {
+			return response.data;
+		}
+		return {
+			contents: [],
+			max_comment_per_post: 0,
+			is_active: false,
+			comment_after_post_percent: 0,
+		};
+	} catch (error) {
+		logErrorContent("Error at CL_getMetadataComments: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy dữ liệu bình luận",
+			en: error?.message || "Error getting comment data",
+		});
+		return {
+			contents: [],
+			is_active: false,
+			max_comment_per_post: 0,
+		};
+	}
 }
 
 /**
@@ -185,34 +187,34 @@ async function CL_getMetadataComments() {
  * }>}
  */
 async function CL_getMetadataInteractBeforePost() {
-  try {
-    const response = await sendMessageWithResponse(
-      KEY_INTERACT_BEFORE_POST_REQUEST.GET_ALL_METADATA,
-    );
-    return response?.data || null;
-  } catch (error) {
-    logErrorContent("Error at CL_getMetadataInteractBeforePost: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy trạng thái interact before post",
-      en: error?.message || "Error when getting interact before post status",
-    });
-    return null;
-  }
+	try {
+		const response = await sendMessageWithResponse(
+			KEY_INTERACT_BEFORE_POST_REQUEST.GET_ALL_METADATA,
+		);
+		return response?.data || null;
+	} catch (error) {
+		logErrorContent("Error at CL_getMetadataInteractBeforePost: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy trạng thái interact before post",
+			en: error?.message || "Error when getting interact before post status",
+		});
+		return null;
+	}
 }
 
 async function CL_setDecidedInteractBeforePost(value) {
-  try {
-    await sendMessageWithResponse(KEY_SET_KEY_SAVED, {
-      key: KEY_INTERACT_BEFORE_POST.DECIDED_INTERACT,
-      value,
-    });
-  } catch (error) {
-    logErrorContent("Error at CL_setDecidedInteractBeforePost: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi set trạng thái interact before post",
-      en: error?.message || "Error when setting interact before post status",
-    });
-  }
+	try {
+		await sendMessageWithResponse(KEY_SET_KEY_SAVED, {
+			key: KEY_INTERACT_BEFORE_POST.DECIDED_INTERACT,
+			value,
+		});
+	} catch (error) {
+		logErrorContent("Error at CL_setDecidedInteractBeforePost: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi set trạng thái interact before post",
+			en: error?.message || "Error when setting interact before post status",
+		});
+	}
 }
 
 /**
@@ -228,125 +230,125 @@ async function CL_setDecidedInteractBeforePost(value) {
  * }>}
  */
 async function CL_getAllMetadataCommentWalk() {
-  try {
-    const res = await sendMessageWithResponse(
-      KEY_GET_ALL_METADATA_COMMENT_WALK,
-    );
-    return res.data;
-  } catch (error) {
-    logErrorContent("Error at CL_getAllMetadataCommentWalk: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy dữ liệu bình luận",
-      en: error?.message || "Error getting comment data",
-    });
-    return null;
-  }
+	try {
+		const res = await sendMessageWithResponse(
+			KEY_GET_ALL_METADATA_COMMENT_WALK,
+		);
+		return res.data;
+	} catch (error) {
+		logErrorContent("Error at CL_getAllMetadataCommentWalk: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy dữ liệu bình luận",
+			en: error?.message || "Error getting comment data",
+		});
+		return null;
+	}
 }
 
 async function CL_setProcessingCommentWalk(isProcessing) {
-  try {
-    await sendMessage(KEY_SET_PROCESSING_COMMENT_WALK, {
-      isProcessing: isProcessing,
-    });
-  } catch (error) {
-    logErrorContent("Error at CL_setProcessingCommentWalk: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi set trạng thái comment walk",
-      en: error?.message || "Error when setting comment walk status",
-    });
-  }
+	try {
+		await sendMessage(KEY_SET_PROCESSING_COMMENT_WALK, {
+			isProcessing: isProcessing,
+		});
+	} catch (error) {
+		logErrorContent("Error at CL_setProcessingCommentWalk: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi set trạng thái comment walk",
+			en: error?.message || "Error when setting comment walk status",
+		});
+	}
 }
 
 async function CL_getCountCommentWalkPostedPerBatch() {
-  try {
-    const countComment = await CL_getValue(
-      KEY_COMMENT_WALK.COUNT_COMMENT_WALK_POSTED_PER_BATCH,
-      0,
-    );
-    return countComment;
-  } catch (error) {
-    logErrorContent("Error at CL_getCountCommentWalkPostedPerBatch: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy số lượng bình luận đã đăng",
-      en: error?.message || "Error when getting number of comments posted",
-    });
-    return 0;
-  }
+	try {
+		const countComment = await CL_getValue(
+			KEY_COMMENT_WALK.COUNT_COMMENT_WALK_POSTED_PER_BATCH,
+			0,
+		);
+		return countComment;
+	} catch (error) {
+		logErrorContent("Error at CL_getCountCommentWalkPostedPerBatch: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy số lượng bình luận đã đăng",
+			en: error?.message || "Error when getting number of comments posted",
+		});
+		return 0;
+	}
 }
 
 async function CL_setCountCommentWalkPostedPerBatch(countComment) {
-  try {
-    await CL_setValue(
-      KEY_COMMENT_WALK.COUNT_COMMENT_WALK_POSTED_PER_BATCH,
-      countComment,
-    );
-  } catch (error) {
-    logErrorContent("Error at CL_setCountCommentWalkPostedPerBatch: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi set số lượng bình luận đã đăng",
-      en: error?.message || "Error when setting number of comments posted",
-    });
-  }
+	try {
+		await CL_setValue(
+			KEY_COMMENT_WALK.COUNT_COMMENT_WALK_POSTED_PER_BATCH,
+			countComment,
+		);
+	} catch (error) {
+		logErrorContent("Error at CL_setCountCommentWalkPostedPerBatch: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi set số lượng bình luận đã đăng",
+			en: error?.message || "Error when setting number of comments posted",
+		});
+	}
 }
 
 async function CL_getCanCommentThisPost(url) {
-  try {
-    const response = await sendMessageWithResponse(
-      KEY_CAN_COMMENT_WALK_THIS_POST,
-      { url },
-    );
-    return response.data.can_comment_walk || false;
-  } catch (error) {
-    logErrorContent("Error at CL_getCanCommentThisPost: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy trạng thái comment walk",
-      en: error?.message || "Error when setting comment walk status",
-    });
-    return false;
-  }
+	try {
+		const response = await sendMessageWithResponse(
+			KEY_CAN_COMMENT_WALK_THIS_POST,
+			{ url },
+		);
+		return response.data.can_comment_walk || false;
+	} catch (error) {
+		logErrorContent("Error at CL_getCanCommentThisPost: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy trạng thái comment walk",
+			en: error?.message || "Error when setting comment walk status",
+		});
+		return false;
+	}
 }
 
 async function CL_addUrlCommented(id, url) {
-  try {
-    await sendMessageWithResponse(KEY_ADD_URL_COMMENTED, { id, url });
-  } catch (error) {
-    logErrorContent("Error at CL_addUrlCommented: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi thêm url bình luận",
-      en: error?.message || "Error when adding url commented",
-    });
-  }
+	try {
+		await sendMessageWithResponse(KEY_ADD_URL_COMMENTED, { id, url });
+	} catch (error) {
+		logErrorContent("Error at CL_addUrlCommented: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi thêm url bình luận",
+			en: error?.message || "Error when adding url commented",
+		});
+	}
 }
 
 async function CL_compeleteCommentWalkThisBatch() {
-  try {
-    await sendMessage(KEY_COMPLETED_COMMENT_WALK_THIS_BATCH);
-  } catch (error) {
-    logErrorContent("Error at CL_compeleteCommentWalkThisBatch: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi hoàn thành bình luận",
-      en: error?.message || "Error when completing comment",
-    });
-  }
+	try {
+		await sendMessage(KEY_COMPLETED_COMMENT_WALK_THIS_BATCH);
+	} catch (error) {
+		logErrorContent("Error at CL_compeleteCommentWalkThisBatch: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi hoàn thành bình luận",
+			en: error?.message || "Error when completing comment",
+		});
+	}
 }
 
 /**
  * @returns {Promise<boolean>}
  */
 async function CL_getIsDevMode() {
-  try {
-    const res = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
-      key: KEY_IS_DEVELOPER_MODE,
-    });
-    return res?.data || false;
-  } catch (error) {
-    logErrorContent("Error at CL_getIsDevMode: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy trạng thái dev mode",
-      en: error?.message || "Error when getting dev mode status",
-    });
-    return false;
-  }
+	try {
+		const res = await sendMessageWithResponse(KEY_GET_KEY_SAVED, {
+			key: KEY_IS_DEVELOPER_MODE,
+		});
+		return res?.data || false;
+	} catch (error) {
+		logErrorContent("Error at CL_getIsDevMode: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy trạng thái dev mode",
+			en: error?.message || "Error when getting dev mode status",
+		});
+		return false;
+	}
 }
 
 /**
@@ -354,60 +356,60 @@ async function CL_getIsDevMode() {
  * @returns {Promise<{can_post: boolean, data: {id_href: string, status: string}}}
  */
 async function CL_getObjectCanPostThisTab() {
-  try {
-    const response = await sendMessageWithResponse(KEY_CAN_POST_THIS_TAB);
-    return response?.data;
-  } catch (error) {
-    logErrorContent("Error at CL_getObjectCanPostThisTab: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy trạng thái đăng bài",
-      en: error?.message || "Error when getting post status",
-      type: "error",
-    });
-    return null;
-  }
+	try {
+		const response = await sendMessageWithResponse(KEY_CAN_POST_THIS_TAB);
+		return response?.data;
+	} catch (error) {
+		logErrorContent("Error at CL_getObjectCanPostThisTab: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy trạng thái đăng bài",
+			en: error?.message || "Error when getting post status",
+			type: "error",
+		});
+		return null;
+	}
 }
 
 async function CL_updateLastTimeCommentWalk(time) {
-  try {
-    await sendMessageWithResponse(
-      KEY_COMMENT_WALK_REQUEST.UPDATE_LAST_TIME_COMMENT,
-      {
-        time,
-      },
-    );
-  } catch (error) {
-    logErrorContent("Error at CL_updateLastTimeCommentWalk: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi cập nhật thời gian bình luận",
-      en: error?.message || "Error when updating comment time",
-      type: "error",
-    });
-  }
+	try {
+		await sendMessageWithResponse(
+			KEY_COMMENT_WALK_REQUEST.UPDATE_LAST_TIME_COMMENT,
+			{
+				time,
+			},
+		);
+	} catch (error) {
+		logErrorContent("Error at CL_updateLastTimeCommentWalk: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi cập nhật thời gian bình luận",
+			en: error?.message || "Error when updating comment time",
+			type: "error",
+		});
+	}
 }
 /**
  *
  * @returns {Promise<CommentWalk | null>}
  */
 async function CL_getCommentWalkNeverCommented(ids, url) {
-  try {
-    const res = await sendMessageWithResponse(
-      KEY_COMMENT_WALK_REQUEST.GET_COMMENT_WALK_NEVER_COMMENTED,
-      {
-        ids,
-        url,
-      },
-    );
-    return res?.data;
-  } catch (error) {
-    logErrorContent("Error at CL_getCommentWalkNeverCommented: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy trạng thái bình luận",
-      en: error?.message || "Error when getting comment status",
-      type: "error",
-    });
-    return null;
-  }
+	try {
+		const res = await sendMessageWithResponse(
+			KEY_COMMENT_WALK_REQUEST.GET_COMMENT_WALK_NEVER_COMMENTED,
+			{
+				ids,
+				url,
+			},
+		);
+		return res?.data;
+	} catch (error) {
+		logErrorContent("Error at CL_getCommentWalkNeverCommented: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy trạng thái bình luận",
+			en: error?.message || "Error when getting comment status",
+			type: "error",
+		});
+		return null;
+	}
 }
 
 /**
@@ -415,91 +417,91 @@ async function CL_getCommentWalkNeverCommented(ids, url) {
  * @returns {Promise<string[]>}
  */
 async function CL_getStrictlyMatchTitleGroup() {
-  try {
-    const response = await sendMessageWithResponse(
-      KEY_REQUEST_TO_BACKGROUND.GET_STRICTLY_MATCH_TITLE_GROUP,
-    );
-    return response.data;
-  } catch (error) {
-    logErrorContent("Error at CL_getStrictlyMatchTitleGroup: ", error);
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy trạng thái match title group",
-      en: error?.message || "Error when getting match title group status",
-      type: "error",
-    });
-    return false;
-  }
+	try {
+		const response = await sendMessageWithResponse(
+			KEY_REQUEST_TO_BACKGROUND.GET_STRICTLY_MATCH_TITLE_GROUP,
+		);
+		return response.data;
+	} catch (error) {
+		logErrorContent("Error at CL_getStrictlyMatchTitleGroup: ", error);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy trạng thái match title group",
+			en: error?.message || "Error when getting match title group status",
+			type: "error",
+		});
+		return false;
+	}
 }
 
 async function CL_checkMatchDataCommentWalkAtSearchPage(
-  dataCommentWalk,
-  contentPost,
-  titlePost,
+	dataCommentWalk,
+	contentPost,
+	titlePost,
 ) {
-  try {
-    const response = await sendMessageWithResponse(
-      KEY_REQUEST_TO_BACKGROUND.CHECK_DATA_COMMENT_WALK_MATCH_AT_SEARCH_PAGE,
-      {
-        dataCommentWalk,
-        contentPost,
-        titlePost,
-      },
-    );
-    return response.data;
-  } catch (error) {
-    logErrorContent(
-      "Error at CL_checkMatchDataCommentWalkAtSearchPage: ",
-      error,
-    );
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi kiểm tra dữ liệu comment walk",
-      en: error?.message || "Error when checking comment walk data",
-      type: "error",
-    });
-    return false;
-  }
+	try {
+		const response = await sendMessageWithResponse(
+			KEY_REQUEST_TO_BACKGROUND.CHECK_DATA_COMMENT_WALK_MATCH_AT_SEARCH_PAGE,
+			{
+				dataCommentWalk,
+				contentPost,
+				titlePost,
+			},
+		);
+		return response.data;
+	} catch (error) {
+		logErrorContent(
+			"Error at CL_checkMatchDataCommentWalkAtSearchPage: ",
+			error,
+		);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi kiểm tra dữ liệu comment walk",
+			en: error?.message || "Error when checking comment walk data",
+			type: "error",
+		});
+		return false;
+	}
 }
 
 async function CL_checkMultiMatchDataCommentWalkAtHomePage(
-  listDataCommentWalk,
-  contentPost,
-  titlePost,
+	listDataCommentWalk,
+	contentPost,
+	titlePost,
 ) {
-  try {
-    const response = await sendMessageWithResponse(
-      KEY_REQUEST_TO_BACKGROUND.CHECK_MULTI_DATA_COMMENT_WALK_AT_HOME_PAGE,
-      {
-        listDataCommentWalk,
-        contentPost,
-        titlePost,
-      },
-    );
-    return response?.data;
-  } catch (error) {
-    logErrorContent(
-      "Error at CL_checkMultiMatchDataCommentWalkAtHomePage: ",
-      error,
-    );
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi kiểm tra dữ liệu comment walk",
-      en: error?.message || "Error when checking comment walk data",
-      type: "error",
-    });
-    throw error;
-  }
+	try {
+		const response = await sendMessageWithResponse(
+			KEY_REQUEST_TO_BACKGROUND.CHECK_MULTI_DATA_COMMENT_WALK_AT_HOME_PAGE,
+			{
+				listDataCommentWalk,
+				contentPost,
+				titlePost,
+			},
+		);
+		return response?.data;
+	} catch (error) {
+		logErrorContent(
+			"Error at CL_checkMultiMatchDataCommentWalkAtHomePage: ",
+			error,
+		);
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi kiểm tra dữ liệu comment walk",
+			en: error?.message || "Error when checking comment walk data",
+			type: "error",
+		});
+		throw error;
+	}
 }
 
 async function CL_getPremium() {
-  try {
-    const res = await sendMessageWithResponse(KEY_GET_PREMIUM);
-    return res?.data;
-  } catch (error) {
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy trạng thái premium",
-      en: error?.message || "Error when getting premium status",
-    });
-    return false;
-  }
+	try {
+		const res = await sendMessageWithResponse(KEY_GET_PREMIUM);
+		return res?.data;
+	} catch (error) {
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy trạng thái premium",
+			en: error?.message || "Error when getting premium status",
+		});
+		return false;
+	}
 }
 
 /**
@@ -507,145 +509,145 @@ async function CL_getPremium() {
  * @returns {Promise<{comment_walk: boolean, post: boolean, get_list_group: boolean}>}
  */
 async function CL_getTaskNeedExecuteByUrl(url) {
-  try {
-    const res = await sendMessageWithResponse(
-      KEY_REQUEST_TO_BACKGROUND.GET_TASK_NEED_EXECUTE_BY_URL,
-      {
-        url,
-      },
-    );
-    return res?.data;
-  } catch (error) {
-    logError("Error at CL_getTaskNeedExecuteByUrl: ", error);
-    return {
-      comment_walk: false,
-      post: false,
-      get_list_group: false,
-    };
-  }
+	try {
+		const res = await sendMessageWithResponse(
+			KEY_REQUEST_TO_BACKGROUND.GET_TASK_NEED_EXECUTE_BY_URL,
+			{
+				url,
+			},
+		);
+		return res?.data;
+	} catch (error) {
+		logError("Error at CL_getTaskNeedExecuteByUrl: ", error);
+		return {
+			comment_walk: false,
+			post: false,
+			get_list_group: false,
+		};
+	}
 }
 
 async function CL_getDataPostThisBatch() {
-  try {
-    const res = await sendMessageWithResponse(
-      KEY_REQUEST_TO_BACKGROUND.GET_DATA_POST_THIS_BATCH,
-    );
-    return res?.data;
-  } catch (error) {
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi lấy dữ liệu post",
-      en: error?.message || "Error when getting post data",
-      type: "error",
-    });
-    return null;
-  }
+	try {
+		const res = await sendMessageWithResponse(
+			KEY_REQUEST_TO_BACKGROUND.GET_DATA_POST_THIS_BATCH,
+		);
+		return res?.data;
+	} catch (error) {
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi lấy dữ liệu post",
+			en: error?.message || "Error when getting post data",
+			type: "error",
+		});
+		return null;
+	}
 }
 
 async function CL_checkCorrectUrlCommentWalk(url) {
-  try {
-    const res = await sendMessageWithResponse(
-      KEY_REQUEST_TO_BACKGROUND.CHECK_CORRECT_URL_COMMENT_WALK,
-      {
-        url,
-      },
-    );
-    return res?.data;
-  } catch (error) {
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi kiểm tra url comment walk",
-      en: error?.message || "Error when checking url comment walk",
-      type: "error",
-    });
-    return false;
-  }
+	try {
+		const res = await sendMessageWithResponse(
+			KEY_REQUEST_TO_BACKGROUND.CHECK_CORRECT_URL_COMMENT_WALK,
+			{
+				url,
+			},
+		);
+		return res?.data;
+	} catch (error) {
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi kiểm tra url comment walk",
+			en: error?.message || "Error when checking url comment walk",
+			type: "error",
+		});
+		return false;
+	}
 }
 
 async function CL_checkCorrectUrlPostCommentWalk(url) {
-  try {
-    const res = await sendMessageWithResponse(
-      KEY_REQUEST_TO_BACKGROUND.CHECK_CORRECT_URL_POST_COMMENT_WALK,
-      {
-        url,
-      },
-    );
-    return res?.data;
-  } catch (error) {
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi kiểm tra url post comment walk",
-      en: error?.message || "Error when checking url post comment walk",
-      type: "error",
-    });
-    return false;
-  }
+	try {
+		const res = await sendMessageWithResponse(
+			KEY_REQUEST_TO_BACKGROUND.CHECK_CORRECT_URL_POST_COMMENT_WALK,
+			{
+				url,
+			},
+		);
+		return res?.data;
+	} catch (error) {
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi kiểm tra url post comment walk",
+			en: error?.message || "Error when checking url post comment walk",
+			type: "error",
+		});
+		return false;
+	}
 }
 
 async function CL_checkCorrectUrlPostInGroup(url) {
-  try {
-    const res = await sendMessageWithResponse(
-      KEY_REQUEST_TO_BACKGROUND.CHECK_CORRECT_URL_POST_IN_GROUP,
-      {
-        url,
-      },
-    );
-    return res?.data;
-  } catch (error) {
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi kiểm tra url post in group",
-      en: error?.message || "Error when checking url post in group",
-      type: "error",
-    });
-    return false;
-  }
+	try {
+		const res = await sendMessageWithResponse(
+			KEY_REQUEST_TO_BACKGROUND.CHECK_CORRECT_URL_POST_IN_GROUP,
+			{
+				url,
+			},
+		);
+		return res?.data;
+	} catch (error) {
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi kiểm tra url post in group",
+			en: error?.message || "Error when checking url post in group",
+			type: "error",
+		});
+		return false;
+	}
 }
 
 async function CL_checkCorrectUrlGetListGroup(url) {
-  try {
-    const res = await sendMessageWithResponse(
-      KEY_REQUEST_TO_BACKGROUND.CHECK_CORRECT_URL_GET_LIST_GROUP,
-      {
-        url,
-      },
-    );
-    return res?.data;
-  } catch (error) {
-    CL_addLogRequest({
-      vi: error?.message || "Lỗi khi kiểm tra url get list group",
-      en: error?.message || "Error when checking url get list group",
-      type: "error",
-    });
-    return false;
-  }
+	try {
+		const res = await sendMessageWithResponse(
+			KEY_REQUEST_TO_BACKGROUND.CHECK_CORRECT_URL_GET_LIST_GROUP,
+			{
+				url,
+			},
+		);
+		return res?.data;
+	} catch (error) {
+		CL_addLogRequest({
+			vi: error?.message || "Lỗi khi kiểm tra url get list group",
+			en: error?.message || "Error when checking url get list group",
+			type: "error",
+		});
+		return false;
+	}
 }
 
 export {
-  CL_getIsTest,
-  CL_getTimeDelayData,
-  CL_getProgressTool,
-  CL_getStopTool,
-  CL_getAllDataGroupsOfUser,
-  CL_getIsScrollDetectListGroup,
-  CL_getMetadataComments,
-  CL_getMetadataInteractBeforePost,
-  CL_setDecidedInteractBeforePost,
-  CL_getAllMetadataCommentWalk,
-  CL_setProcessingCommentWalk,
-  CL_getCountCommentWalkPostedPerBatch,
-  CL_setCountCommentWalkPostedPerBatch,
-  CL_getCanCommentThisPost,
-  CL_addUrlCommented,
-  CL_compeleteCommentWalkThisBatch,
-  CL_getIsDevMode,
-  CL_getObjectCanPostThisTab,
-  CL_updateLastTimeCommentWalk,
-  CL_getCommentWalkNeverCommented,
-  CL_getStrictlyMatchTitleGroup,
-  CL_checkMatchDataCommentWalkAtSearchPage,
-  CL_checkMultiMatchDataCommentWalkAtHomePage,
-  CL_getPremium,
-  CL_getTaskNeedExecuteByUrl,
-  CL_getDataPostThisBatch,
-  CL_checkCorrectUrlCommentWalk,
-  CL_checkCorrectUrlPostCommentWalk,
-  CL_checkCorrectUrlPostInGroup,
-  CL_checkCorrectUrlGetListGroup,
+	CL_getIsTest,
+	CL_getTimeDelayData,
+	CL_getProgressTool,
+	CL_getStopTool,
+	CL_getAllDataGroupsOfUser,
+	CL_getIsScrollDetectListGroup,
+	CL_getMetadataComments,
+	CL_getMetadataInteractBeforePost,
+	CL_setDecidedInteractBeforePost,
+	CL_getAllMetadataCommentWalk,
+	CL_setProcessingCommentWalk,
+	CL_getCountCommentWalkPostedPerBatch,
+	CL_setCountCommentWalkPostedPerBatch,
+	CL_getCanCommentThisPost,
+	CL_addUrlCommented,
+	CL_compeleteCommentWalkThisBatch,
+	CL_getIsDevMode,
+	CL_getObjectCanPostThisTab,
+	CL_updateLastTimeCommentWalk,
+	CL_getCommentWalkNeverCommented,
+	CL_getStrictlyMatchTitleGroup,
+	CL_checkMatchDataCommentWalkAtSearchPage,
+	CL_checkMultiMatchDataCommentWalkAtHomePage,
+	CL_getPremium,
+	CL_getTaskNeedExecuteByUrl,
+	CL_getDataPostThisBatch,
+	CL_checkCorrectUrlCommentWalk,
+	CL_checkCorrectUrlPostCommentWalk,
+	CL_checkCorrectUrlPostInGroup,
+	CL_checkCorrectUrlGetListGroup,
 };

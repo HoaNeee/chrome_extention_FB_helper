@@ -17,21 +17,21 @@ import { logError } from "./utils.js";
  */
 
 async function getCachedRequest(key) {
-  try {
-    const res = await DB_getValue(key);
-    return res;
-  } catch (error) {
-    logError(error);
-    return null;
-  }
+	try {
+		const res = await DB_getValue(key);
+		return res;
+	} catch (error) {
+		logError(error);
+		return null;
+	}
 }
 
 async function setCachedRequest(key, value) {
-  try {
-    await DB_setValue(key, value);
-  } catch (error) {
-    logError(error);
-  }
+	try {
+		await DB_setValue(key, value);
+	} catch (error) {
+		logError(error);
+	}
 }
 
 /**
@@ -42,53 +42,53 @@ async function setCachedRequest(key, value) {
  * @returns {Promise<ApiResponse>}
  */
 async function get(params, cached = false, timeCached = 10) {
-  try {
-    const domain =
-      (await systemSettingService.getBaseServerDomain()) + "/api/v1";
+	try {
+		const domain =
+			(await systemSettingService.getBaseServerDomain()) + "/api/v1";
 
-    const api = domain + params;
+		const api = domain + params;
 
-    const oneMinutes = 1000 * 60;
-    if (cached) {
-      const cachedRequest = await getCachedRequest(api);
-      const now = Date.now();
-      if (cachedRequest && Number(cachedRequest.time) > now) {
-        console.log(
-          "cached response for " +
-            params +
-            `: (expired at ${new Date(cachedRequest.time).toLocaleString()})`,
-          cachedRequest.value,
-        );
-        return cachedRequest.value;
-      }
-    }
+		const oneMinutes = 1000 * 60;
+		if (cached) {
+			const cachedRequest = await getCachedRequest(api);
+			const now = Date.now();
+			if (cachedRequest && Number(cachedRequest.time) > now) {
+				console.log(
+					"cached response for " +
+						params +
+						`: (expired at ${new Date(cachedRequest.time).toLocaleString()})`,
+					cachedRequest.value,
+				);
+				return cachedRequest.value;
+			}
+		}
 
-    const header = await getHeader();
+		const header = await getHeader();
 
-    const response = await fetch(api, {
-      method: "GET",
-      headers: header,
-    });
+		const response = await fetch(api, {
+			method: "GET",
+			headers: header,
+		});
 
-    const res = await response.json();
+		const res = await response.json();
 
-    console.log("get response for " + params + ":", res);
+		console.log("get response for " + params + ":", res);
 
-    if (!res?.success) {
-      throw new CustomError(res?.code, res?.message);
-    }
+		if (!res?.success) {
+			throw new CustomError(res?.code, res?.message);
+		}
 
-    if (cached) {
-      setCachedRequest(api, {
-        value: res,
-        time: Date.now() + Number(timeCached) * oneMinutes,
-      });
-    }
+		if (cached) {
+			setCachedRequest(api, {
+				value: res,
+				time: Date.now() + Number(timeCached) * oneMinutes,
+			});
+		}
 
-    return res;
-  } catch (error) {
-    throw error;
-  }
+		return res;
+	} catch (error) {
+		throw error;
+	}
 }
 
 /**
@@ -96,39 +96,39 @@ async function get(params, cached = false, timeCached = 10) {
  * @returns {Promise<ApiResponse>}
  */
 async function post(params, options) {
-  try {
-    const header = await getHeader();
+	try {
+		const header = await getHeader();
 
-    const domain =
-      (await systemSettingService.getBaseServerDomain()) + "/api/v1";
+		const domain =
+			(await systemSettingService.getBaseServerDomain()) + "/api/v1";
 
-    const response = await fetch(domain + params, {
-      method: "POST",
-      headers: header,
-      body: JSON.stringify(options),
-    });
+		const response = await fetch(domain + params, {
+			method: "POST",
+			headers: header,
+			body: JSON.stringify(options),
+		});
 
-    const res = await response.json();
+		const res = await response.json();
 
-    if (response.ok && response.status === 204) {
-      const dataTemp = {
-        status: 204,
-        data: null,
-        message: "ok",
-      };
-      console.log("post response for " + params + ": No content", dataTemp);
-      return dataTemp;
-    }
+		if (response.ok && response.status === 204) {
+			const dataTemp = {
+				status: 204,
+				data: null,
+				message: "ok",
+			};
+			console.log("post response for " + params + ": No content", dataTemp);
+			return dataTemp;
+		}
 
-    console.log("post response for " + params + ":", res);
+		console.log("post response for " + params + ":", res);
 
-    if (!res?.success) {
-      throw new CustomError(res?.code, res?.message);
-    }
-    return res;
-  } catch (error) {
-    throw error;
-  }
+		if (!res?.success) {
+			throw new CustomError(res?.code, res?.message);
+		}
+		return res;
+	} catch (error) {
+		throw error;
+	}
 }
 
 /**
@@ -136,39 +136,39 @@ async function post(params, options) {
  * @returns {Promise<ApiResponse>}
  */
 async function patch(params, options) {
-  try {
-    const header = await getHeader();
+	try {
+		const header = await getHeader();
 
-    const domain =
-      (await systemSettingService.getBaseServerDomain()) + "/api/v1";
+		const domain =
+			(await systemSettingService.getBaseServerDomain()) + "/api/v1";
 
-    const response = await fetch(domain + params, {
-      method: "PATCH",
-      headers: header,
-      body: JSON.stringify(options),
-    });
+		const response = await fetch(domain + params, {
+			method: "PATCH",
+			headers: header,
+			body: JSON.stringify(options),
+		});
 
-    if (response.ok && response.status === 204) {
-      const dataTemp = {
-        status: 204,
-        data: null,
-        message: "ok",
-      };
-      console.log("patch response for " + params + ": No content", dataTemp);
-      return dataTemp;
-    }
+		if (response.ok && response.status === 204) {
+			const dataTemp = {
+				status: 204,
+				data: null,
+				message: "ok",
+			};
+			console.log("patch response for " + params + ": No content", dataTemp);
+			return dataTemp;
+		}
 
-    const res = await response.json();
+		const res = await response.json();
 
-    console.log("patch response for " + params + ":", res);
+		console.log("patch response for " + params + ":", res);
 
-    if (!res?.success) {
-      throw new CustomError(res?.code, res?.message);
-    }
-    return res;
-  } catch (error) {
-    throw error;
-  }
+		if (!res?.success) {
+			throw new CustomError(res?.code, res?.message);
+		}
+		return res;
+	} catch (error) {
+		throw error;
+	}
 }
 
 /**
@@ -176,38 +176,38 @@ async function patch(params, options) {
  * @returns {Promise<ApiResponse>}
  */
 async function del(params) {
-  try {
-    const header = await getHeader();
+	try {
+		const header = await getHeader();
 
-    const domain =
-      (await systemSettingService.getBaseServerDomain()) + "/api/v1";
+		const domain =
+			(await systemSettingService.getBaseServerDomain()) + "/api/v1";
 
-    const response = await fetch(domain + params, {
-      method: "DELETE",
-      headers: header,
-    });
+		const response = await fetch(domain + params, {
+			method: "DELETE",
+			headers: header,
+		});
 
-    if (response.ok && response.status === 204) {
-      const dataTemp = {
-        status: 204,
-        data: null,
-        message: "ok",
-      };
-      console.log("del response for " + params + ": No content", dataTemp);
-      return dataTemp;
-    }
+		if (response.ok && response.status === 204) {
+			const dataTemp = {
+				status: 204,
+				data: null,
+				message: "ok",
+			};
+			console.log("del response for " + params + ": No content", dataTemp);
+			return dataTemp;
+		}
 
-    const res = await response.json();
+		const res = await response.json();
 
-    console.log("del response for " + params + ":", res);
+		console.log("del response for " + params + ":", res);
 
-    if (!res?.success) {
-      throw new CustomError(res?.code, res?.message);
-    }
-    return res;
-  } catch (error) {
-    throw error;
-  }
+		if (!res?.success) {
+			throw new CustomError(res?.code, res?.message);
+		}
+		return res;
+	} catch (error) {
+		throw error;
+	}
 }
 
 /**
@@ -217,57 +217,58 @@ async function del(params) {
  * @returns {Promise<ApiResponse>}
  */
 async function postImage({ params, files, isMultiple = false }) {
-  try {
-    const formData = new FormData();
+	try {
+		const formData = new FormData();
 
-    if (isMultiple) {
-      files.forEach((file) => {
-        formData.append("files", file);
-      });
-    } else {
-      formData.append("file", files);
-    }
+		if (isMultiple) {
+			files.forEach((file) => {
+				formData.append("files", file);
+			});
+		} else {
+			formData.append("file", files);
+		}
 
-    const header = await getHeader();
+		const header = await getHeader();
+		delete header["Content-Type"];
 
-    const domain =
-      (await systemSettingService.getBaseServerDomain()) + "/api/v1";
+		const domain =
+			(await systemSettingService.getBaseServerDomain()) + "/api/v1";
 
-    const response = await fetch(domain + params, {
-      method: "POST",
-      headers: header,
-      body: formData,
-    });
+		const response = await fetch(domain + params, {
+			method: "POST",
+			headers: header,
+			body: formData,
+		});
 
-    const res = await response.json();
+		const res = await response.json();
 
-    if (!res?.success) {
-      throw new CustomError(res?.code, res?.message);
-    }
-    return res;
-  } catch (error) {
-    throw error;
-  }
+		if (!res?.success) {
+			throw new CustomError(res?.code, res?.message);
+		}
+		return res;
+	} catch (error) {
+		throw error;
+	}
 }
 
 async function getHeader() {
-  let header = {
-    "Content-Type": "application/json",
-    "X-Request-Platform": KEY_PLATFORM,
-  };
+	let header = {
+		"Content-Type": "application/json",
+		"X-Request-Platform": KEY_PLATFORM,
+	};
 
-  const auth = await getAuthFromStorage();
+	const auth = await getAuthFromStorage();
 
-  if (auth) {
-    header["Authorization"] = `Bearer ${auth?.token}`;
-  }
+	if (auth) {
+		header["Authorization"] = `Bearer ${auth?.token}`;
+	}
 
-  const deviceId = await getDeviceId();
-  if (deviceId) {
-    header["X-Device-Id"] = deviceId;
-  }
+	const deviceId = await getDeviceId();
+	if (deviceId) {
+		header["X-Device-Id"] = deviceId;
+	}
 
-  return header;
+	return header;
 }
 
 export { get, post, patch, del, postImage };

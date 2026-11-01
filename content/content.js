@@ -754,6 +754,7 @@
     ],
     btnsWriteCommentInFeed: [
       `div[aria-label="Write a comment"][role="button"]`,
+      `div[aria-label*="Comment on"][role="button"]`,
       `.//div[contains(@aria-label, 'Comment on') and @role="button"]`
     ],
     btnsExitPage: [
@@ -805,7 +806,8 @@
     ],
     btnsWriteCommentInFeed: [
       `div[aria-label="Vi\u1EBFt b\xECnh lu\u1EADn"][role="button"]`,
-      `.//div[contains(@aria-label, 'B\xECnh lu\u1EADn') and @role="button"]`
+      `.//div[contains(@aria-label, 'B\xECnh lu\u1EADn') and @role="button"]`,
+      `div[aria-label*="Comment on"][role="button"]`
     ],
     btnsExitPage: [
       `.//div[contains(@aria-label, "R\u1EDDi kh\u1ECFi trang") and @role="button" and not(@aria-hidden)]`,
@@ -827,7 +829,8 @@
     ],
     feed: [`div[role="feed"]`],
     itemFeedContents: [`div[data-ad-rendering-role="story_message"]`],
-    itemFeedSearchResultPreviewContents: [`div[data-ad-comet-preview="message"]`]
+    itemFeedSearchResultPreviewContents: [`div[data-ad-comet-preview="message"]`],
+    btnsWriteCommentInFeed: [`div[data-ad-rendering-role="comment_button"]`]
   };
 
   // content/utils/storage.js
@@ -928,7 +931,8 @@
       return {
         contents: [],
         max_comment_per_post: 0,
-        is_active: false
+        is_active: false,
+        comment_after_post_percent: 0
       };
     } catch (error) {
       logErrorContent("Error at CL_getMetadataComments: ", error);
@@ -1896,7 +1900,7 @@
       if (!data.is_active) {
         return;
       }
-      if (!randomRateBoolean(28)) {
+      if (!randomRateBoolean(data.comment_after_post_percent)) {
         CL_addLogRequest({
           vi: "\u0110\xE3 quy\u1EBFt \u0111\u1ECBnh s\u1EBD b\u1ECF qua b\xECnh lu\u1EADn, chuy\u1EC3n sang c\xF4ng vi\u1EC7c ti\u1EBFp theo",
           en: "Decided to skip comment, switch to next task."
@@ -2072,6 +2076,15 @@
         const btn = findElement(selector, divItemContainer);
         if (btn) return btn;
       }
+      const selectorRaw = SELECTOR_RAW.btnsWriteCommentInFeed;
+      for (const selector of selectorRaw) {
+        const btn = findElement(selector, divItemContainer);
+        if (btn) {
+          if (!btn.innerHTML.trim()) {
+            return btn;
+          }
+        }
+      }
       return null;
     } catch (error) {
       logErrorContent("error in findButtonToPost", error);
@@ -2137,6 +2150,25 @@
       logErrorContent("error in findDivReloadPage", error);
       return null;
     }
+  }
+  function findBtnReact(divItemFeed) {
+    const selectors = [
+      `div[aria-label="Th\xEDch"][role="button"]`,
+      `div[aria-label="Like"][role="button"]`,
+      `div[aria-label*="B\xE0y t\u1ECF c\u1EA3m x\xFAc Th\xEDch v\u1EC1"][role="button"]`,
+      `div[aria-label*="React with Like to"][role="button"]`,
+      `div[data-ad-rendering-role="like_button"]`
+    ];
+    for (const selector of selectors) {
+      const btnReact = findElement(selector, divItemFeed);
+      if (btnReact) {
+        if (!btnReact.innerHTML.trim()) {
+          return btnReact.parentElement;
+        }
+        return btnReact;
+      }
+    }
+    return null;
   }
   async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
     try {
@@ -2344,6 +2376,7 @@
       async function autoWalk(childs2, reloaded = false) {
         try {
           for await (const child of childs2) {
+            console.log(child);
             const existedDialog = findExistDialog();
             if (existedDialog) {
               await closeDialog();
@@ -2958,16 +2991,18 @@
           en: "Decided to interact."
         })
       );
-      const lang = getLanguage();
-      const label = lang === "vi" ? "Th\xEDch" : "Like";
-      const btnReact = findElement(
-        `div[aria-label="${label}"][role="button"]`,
-        divItemFeed
-      );
+      const btnReact = findBtnReact(divItemFeed);
       if (btnReact) {
         await sleep(random(3e3, 5e3));
         btnReact.click();
         await sleep(random(1500, 3e3));
+      } else {
+        logContent(
+          getTextLanguageContent({
+            vi: "Kh\xF4ng t\xECm th\u1EA5y n\xFAt t\u01B0\u01A1ng t\xE1c",
+            en: "Not found button react"
+          })
+        );
       }
     } catch (error) {
       logErrorContent("error in interactBeforeComment", error);

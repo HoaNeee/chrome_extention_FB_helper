@@ -128,6 +128,8 @@
  * @property {string} replace_image_value
  * @property {string[]} url_get_list_groups
  * @property {string[]} pattern_url_post_in_groups
+ * @property {number} comment_after_post_percent
+ * @property {number} interact_before_post_percent
  *
  */
 
