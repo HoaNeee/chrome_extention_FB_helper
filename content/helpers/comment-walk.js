@@ -175,18 +175,6 @@ function findButtonToPost(divItemContainer) {
 			const btn = findElement(selector, divItemContainer);
 			if (btn) return btn;
 		}
-
-		const selectorRaw = SELECTOR_RAW.btnsWriteCommentInFeed;
-
-		for (const selector of selectorRaw) {
-			const btn = findElement(selector, divItemContainer);
-			if (btn) {
-				if (!btn.innerHTML.trim()) {
-					return btn;
-				}
-			}
-		}
-
 		return null;
 	} catch (error) {
 		logErrorContent("error in findButtonToPost", error);
@@ -261,28 +249,6 @@ function findDivReloadPage() {
 	}
 }
 
-function findBtnReact(divItemFeed) {
-	const selectors = [
-		`div[aria-label="Thích"][role="button"]`,
-		`div[aria-label="Like"][role="button"]`,
-		`div[aria-label*="Bày tỏ cảm xúc Thích về"][role="button"]`,
-		`div[aria-label*="React with Like to"][role="button"]`,
-		`div[data-ad-rendering-role="like_button"]`,
-	];
-
-	for (const selector of selectors) {
-		const btnReact = findElement(selector, divItemFeed);
-		if (btnReact) {
-			if (!btnReact.innerHTML.trim()) {
-				return btnReact.parentElement;
-			}
-			return btnReact;
-		}
-	}
-
-	return null;
-}
-
 /**
  * @param {CommentWalkConfig} setting
  * @param {CommentWalk} commentWalk
@@ -323,7 +289,7 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 		const area = setting?.comment_walk_area;
 		const keywords_certain_choice_common =
 			setting?.keywords_certain_choice_comment_walk || [];
-		const isSkipPostNotInGroup = setting?.is_skip_posts_not_in_group || false;
+		const isSkipPostNotInGroup = setting?.is_skip_post_not_in_group || false;
 		const isCombineStrictlyTitleGroup =
 			setting?.is_combine_strictly_title_group || false;
 		const speed = setting?.comment_walk_speed;
@@ -602,8 +568,6 @@ async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
 		async function autoWalk(childs, reloaded = false) {
 			try {
 				for await (const child of childs) {
-					console.log(child);
-
 					const existedDialog = findExistDialog();
 
 					if (existedDialog) {
@@ -1354,19 +1318,19 @@ async function interactBeforeComment(divItemFeed) {
 			}),
 		);
 
-		const btnReact = findBtnReact(divItemFeed);
+		const lang = getLanguage();
+
+		const label = lang === "vi" ? "Thích" : "Like";
+
+		const btnReact = findElement(
+			`div[aria-label="${label}"][role="button"]`,
+			divItemFeed,
+		);
 
 		if (btnReact) {
 			await sleep(random(3000, 5000));
 			btnReact.click();
 			await sleep(random(1500, 3000));
-		} else {
-			logContent(
-				getTextLanguageContent({
-					vi: "Không tìm thấy nút tương tác",
-					en: "Not found button react",
-				}),
-			);
 		}
 	} catch (error) {
 		logErrorContent("error in interactBeforeComment", error);

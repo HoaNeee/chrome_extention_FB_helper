@@ -2076,15 +2076,6 @@
         const btn = findElement(selector, divItemContainer);
         if (btn) return btn;
       }
-      const selectorRaw = SELECTOR_RAW.btnsWriteCommentInFeed;
-      for (const selector of selectorRaw) {
-        const btn = findElement(selector, divItemContainer);
-        if (btn) {
-          if (!btn.innerHTML.trim()) {
-            return btn;
-          }
-        }
-      }
       return null;
     } catch (error) {
       logErrorContent("error in findButtonToPost", error);
@@ -2150,25 +2141,6 @@
       logErrorContent("error in findDivReloadPage", error);
       return null;
     }
-  }
-  function findBtnReact(divItemFeed) {
-    const selectors = [
-      `div[aria-label="Th\xEDch"][role="button"]`,
-      `div[aria-label="Like"][role="button"]`,
-      `div[aria-label*="B\xE0y t\u1ECF c\u1EA3m x\xFAc Th\xEDch v\u1EC1"][role="button"]`,
-      `div[aria-label*="React with Like to"][role="button"]`,
-      `div[data-ad-rendering-role="like_button"]`
-    ];
-    for (const selector of selectors) {
-      const btnReact = findElement(selector, divItemFeed);
-      if (btnReact) {
-        if (!btnReact.innerHTML.trim()) {
-          return btnReact.parentElement;
-        }
-        return btnReact;
-      }
-    }
-    return null;
   }
   async function CL_commentWalkHelper(setting, commentWalk, listCommentWalk) {
     try {
@@ -2270,7 +2242,7 @@
       const max_rate_common = setting?.match_rate_value_content_query_includes_common_comment_walk || 0;
       const area = setting?.comment_walk_area;
       const keywords_certain_choice_common = setting?.keywords_certain_choice_comment_walk || [];
-      const isSkipPostNotInGroup = setting?.is_skip_posts_not_in_group || false;
+      const isSkipPostNotInGroup = setting?.is_skip_post_not_in_group || false;
       const isCombineStrictlyTitleGroup = setting?.is_combine_strictly_title_group || false;
       const speed = setting?.comment_walk_speed;
       const isInteractBeforeCommentWalk = setting?.is_interact_before_comment_walk || false;
@@ -2376,7 +2348,6 @@
       async function autoWalk(childs2, reloaded = false) {
         try {
           for await (const child of childs2) {
-            console.log(child);
             const existedDialog = findExistDialog();
             if (existedDialog) {
               await closeDialog();
@@ -2991,18 +2962,16 @@
           en: "Decided to interact."
         })
       );
-      const btnReact = findBtnReact(divItemFeed);
+      const lang = getLanguage();
+      const label = lang === "vi" ? "Th\xEDch" : "Like";
+      const btnReact = findElement(
+        `div[aria-label="${label}"][role="button"]`,
+        divItemFeed
+      );
       if (btnReact) {
         await sleep(random(3e3, 5e3));
         btnReact.click();
         await sleep(random(1500, 3e3));
-      } else {
-        logContent(
-          getTextLanguageContent({
-            vi: "Kh\xF4ng t\xECm th\u1EA5y n\xFAt t\u01B0\u01A1ng t\xE1c",
-            en: "Not found button react"
-          })
-        );
       }
     } catch (error) {
       logErrorContent("error in interactBeforeComment", error);
