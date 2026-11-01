@@ -229,6 +229,7 @@ async function postImage({ params, files, isMultiple = false }) {
 		}
 
 		const header = await getHeader();
+		delete header["Content-Type"];
 
 		const domain =
 			(await systemSettingService.getBaseServerDomain()) + "/api/v1";
