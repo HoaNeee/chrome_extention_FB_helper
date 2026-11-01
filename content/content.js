@@ -247,7 +247,12 @@
     return Math.random().toString(36).substring(2, length + 2);
   }
   function logError(...args) {
-    console.log(...args);
+    console.trace(
+      `%c[ERROR] \u274C %c`,
+      "color: #f44336; font-weight: bold;",
+      "color: #ef5350;",
+      ...args
+    );
   }
   function shuffleArray(array = []) {
     const shuffled = [...array];

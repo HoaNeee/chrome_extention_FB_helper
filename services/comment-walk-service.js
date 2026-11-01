@@ -4,10 +4,7 @@ import {
 	KEY_COMMENT_WALK_AREA,
 	KEY_IMPORT_EXPORT_TYPE,
 } from "../contants/constant-extention.js";
-import {
-	DEFAULT_COMMENT_WALK_SETTING,
-	KEY_COMMENT_WALK,
-} from "../contants/contants.js";
+import { KEY_COMMENT_WALK } from "../contants/contants.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import { DataCommentWalkDB } from "../utils/data-comment-walk-db.js";
 import { CustomError } from "../utils/exception.js";
@@ -17,6 +14,7 @@ import {
 	getTextWithLanguage,
 	logError,
 	parseBase64ToFile,
+	parseFileToObjectBase64,
 	random,
 } from "../utils/utils.js";
 import { getDeviceId } from "./device-service.js";
@@ -100,10 +98,18 @@ const commentWalkService = {
 			}
 
 			if (Array.isArray(data.files) && data.files.length) {
+				const parseFiles = await Promise.all(
+					data.files.map(async (f) => {
+						const parse = await parseFileToObjectBase64(f);
+						parse.name = "cw_" + parse.name;
+						return parseBase64ToFile(parse);
+					}),
+				);
+
 				const response = await postImage({
 					params: "/files/uploads",
 					isMultiple: true,
-					files: data.files,
+					files: parseFiles,
 				});
 				if (response.data) {
 					data.files = response.data;
@@ -535,7 +541,10 @@ const commentWalkService = {
 					if (object.files) {
 						try {
 							console.log(object.files);
-							const files = object.files.map((obj) => parseBase64ToFile(obj));
+							const files = object.files.map((obj) => {
+								obj.name = "cw_" + obj.name;
+								return parseBase64ToFile(obj);
+							});
 							const responseUrls = await postImage({
 								params: "/files/uploads",
 								isMultiple: true,
@@ -553,7 +562,10 @@ const commentWalkService = {
 			payload = data;
 		} else {
 			if (data.files) {
-				const files = data.files.map((obj) => parseBase64ToFile(obj));
+				const files = data.files.map((obj) => {
+					obj.name = "cw_" + obj.name;
+					return parseBase64ToFile(obj);
+				});
 				const responseUrls = await postImage({
 					params: "/files/uploads",
 					isMultiple: true,

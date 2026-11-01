@@ -299,12 +299,16 @@ async function logActions(...args) {
 	const isDevMode = await getIsDeveloperModeInStorage();
 	if (isDevMode) {
 		console.log(...args);
-		// console.trace();
 	}
 }
 
 function logError(...args) {
-	console.warn(...args);
+	console.trace(
+		`%c[ERROR] ❌ %c`,
+		"color: #f44336; font-weight: bold;",
+		"color: #ef5350;",
+		...args,
+	);
 }
 
 function shuffleArray(array = []) {
