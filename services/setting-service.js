@@ -578,7 +578,9 @@ async function getMaxGroupPerTimeData() {
 		}
 
 		const deviceSetting = await getDeviceSettingTemp();
-		console.log(deviceSetting);
+
+		// console.log("Device setting", deviceSetting);
+
 		if (deviceSetting && deviceSetting?.post_config) {
 			return deviceSetting?.post_config?.max_group_per_batch;
 		}

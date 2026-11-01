@@ -1990,7 +1990,6 @@ async function createPanelSetting(anchorElem = document.body) {
 						async (e) => {
 							const isInteractBeforeCommentWalk = e.target.checked;
 							try {
-								console.log("OK");
 								await commentWalkService.setIsInteractBeforeCommentWalk(
 									isInteractBeforeCommentWalk,
 								);

@@ -12,6 +12,10 @@ import { get } from "../utils/request.js";
 import { logActions, logError } from "../utils/utils.js";
 import { googleFirebaseService } from "./firebase-service.js";
 
+function logAtFile(...args) {
+	logActions("system-setting-service.js", ...args);
+}
+
 /**
  * @typedef {import('../types/types.js').SystemSetting} SystemSetting
  * @typedef {import('../types/types.js').SystemToolSetting} SystemToolSetting
@@ -167,9 +171,9 @@ export const systemSettingService = {
 			const domain = await this.getBaseDomainFromFirebase();
 			await fetch(`${domain}/api/v1/system-setting`);
 			await this.setUseServerName(SERVER_NAME.MAIN);
-			logActions("Use server main");
+			logAtFile("Use server main");
 		} catch {
-			logActions("Use server firebase");
+			logAtFile("Use server firebase");
 			await this.setUseServerName(SERVER_NAME.FIREBASE);
 		}
 	},

@@ -4,7 +4,7 @@ import { getDeviceId } from "../services/device-service.js";
 import { systemSettingService } from "../services/system-setting-service.js";
 import { DB_getValue, DB_setValue } from "./api-helper.js";
 import { CustomError } from "./exception.js";
-import { logError } from "./utils.js";
+import { logActions, logError } from "./utils.js";
 
 /**
  * @typedef {Object} ApiResponse
@@ -53,7 +53,7 @@ async function get(params, cached = false, timeCached = 10) {
 			const cachedRequest = await getCachedRequest(api);
 			const now = Date.now();
 			if (cachedRequest && Number(cachedRequest.time) > now) {
-				console.log(
+				logActions(
 					"cached response for " +
 						params +
 						`: (expired at ${new Date(cachedRequest.time).toLocaleString()})`,
@@ -72,7 +72,7 @@ async function get(params, cached = false, timeCached = 10) {
 
 		const res = await response.json();
 
-		console.log("get response for " + params + ":", res);
+		logActions("get response for " + params + ":", res);
 
 		if (!res?.success) {
 			throw new CustomError(res?.code, res?.message);
@@ -116,11 +116,11 @@ async function post(params, options) {
 				data: null,
 				message: "ok",
 			};
-			console.log("post response for " + params + ": No content", dataTemp);
+			logActions("post response for " + params + ": No content", dataTemp);
 			return dataTemp;
 		}
 
-		console.log("post response for " + params + ":", res);
+		logActions("post response for " + params + ":", res);
 
 		if (!res?.success) {
 			throw new CustomError(res?.code, res?.message);
@@ -154,13 +154,13 @@ async function patch(params, options) {
 				data: null,
 				message: "ok",
 			};
-			console.log("patch response for " + params + ": No content", dataTemp);
+			logActions("patch response for " + params + ": No content", dataTemp);
 			return dataTemp;
 		}
 
 		const res = await response.json();
 
-		console.log("patch response for " + params + ":", res);
+		logActions("patch response for " + params + ":", res);
 
 		if (!res?.success) {
 			throw new CustomError(res?.code, res?.message);
@@ -193,13 +193,13 @@ async function del(params) {
 				data: null,
 				message: "ok",
 			};
-			console.log("del response for " + params + ": No content", dataTemp);
+			logActions("del response for " + params + ": No content", dataTemp);
 			return dataTemp;
 		}
 
 		const res = await response.json();
 
-		console.log("del response for " + params + ":", res);
+		logActions("del response for " + params + ":", res);
 
 		if (!res?.success) {
 			throw new CustomError(res?.code, res?.message);
@@ -229,7 +229,6 @@ async function postImage({ params, files, isMultiple = false }) {
 		}
 
 		const header = await getHeader();
-		delete header["Content-Type"];
 
 		const domain =
 			(await systemSettingService.getBaseServerDomain()) + "/api/v1";
