@@ -373,7 +373,7 @@ const commentWalkService = {
 			setting.comment_walk_area = area;
 			setting.keywords_certain_choice_comment_walk =
 				keywords_certain_choice_comment_walk;
-			setting.is_skip_posts_not_in_group = isSkipPostNotInGroup;
+			setting.is_skip_post_not_in_group = isSkipPostNotInGroup;
 			setting.is_combine_strictly_title_group = isCombineStrictlyTitleGroup;
 			setting.strictly_match_title_group = strictlyMatchTitleGroup;
 			setting.comment_walk_speed = commentWalkSpeed;
