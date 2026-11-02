@@ -9,11 +9,11 @@ import {
 } from "../contants/contants.js";
 import { DB_getValue, DB_setValue } from "../utils/api-helper.js";
 import { get } from "../utils/request.js";
-import { logActions, logError } from "../utils/utils.js";
+import { logError } from "../utils/utils.js";
 import { googleFirebaseService } from "./firebase-service.js";
 
 function logAtFile(...args) {
-	logActions("system-setting-service.js", ...args);
+	console.log(...args);
 }
 
 /**
@@ -172,7 +172,7 @@ export const systemSettingService = {
 			await fetch(`${domain}/api/v1/system-setting`);
 			await this.setUseServerName(SERVER_NAME.MAIN);
 			logAtFile("Use server main");
-		} catch {
+		} catch (err) {
 			logAtFile("Use server firebase");
 			await this.setUseServerName(SERVER_NAME.FIREBASE);
 		}

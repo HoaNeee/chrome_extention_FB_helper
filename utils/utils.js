@@ -4,6 +4,7 @@ import {
 } from "../contants/constant-extention.js";
 import {
 	getIsDeveloperModeInStorage,
+	getIsLogConsoleInStorage,
 	getLanguageInStorage,
 } from "../services/storage-service.js";
 
@@ -297,7 +298,8 @@ function genIDNumber(length = 8) {
 
 async function logActions(...args) {
 	const isDevMode = await getIsDeveloperModeInStorage();
-	if (isDevMode) {
+	const isLogConsole = await getIsLogConsoleInStorage();
+	if (isDevMode || isLogConsole) {
 		console.log(...args);
 	}
 }

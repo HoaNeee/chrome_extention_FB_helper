@@ -92,7 +92,6 @@ async function createPanelSetting(anchorElem = document.body) {
 		const rootSetting = document.createElement("div");
 		rootSetting.className = "tm_tab-setting";
 		rootSetting.setAttribute("data-tab-value", "settings");
-
 		const toolSetting = `
       <div class="${prefix}section">
         <h2 class="${prefix}title-section">${getTextWithLanguage({ vi: "Cài đặt tiện ích", en: "Tool Setting" })}</h2>
