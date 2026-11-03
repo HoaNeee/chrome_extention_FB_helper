@@ -41,7 +41,7 @@ async function getSpecialFrameHoursService() {
 
     const deviceId = await getDeviceId();
 
-    const res = await get("/special-frame-hours/" + deviceId);
+    const res = await get("/special-frame-hours/" + deviceId, true, 3);
     return res?.data || [];
   } catch (error) {
     logError("Error getSpecialFrameHoursService:", error);

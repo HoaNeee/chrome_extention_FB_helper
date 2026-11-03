@@ -15,12 +15,12 @@ import { setTheme } from "../../../services/storage-global-service.js";
 import { DB_getValue, DB_setValue } from "../../../utils/api-helper.js";
 import { handleErrorHelper } from "../../../utils/exception.js";
 import { getTextWithLanguage, logError, sleep } from "../../../utils/utils.js";
-import { updateDataSavedInfo } from "../draw_element/dataSavedInfo.js";
 import {
   closeDialogLoading,
   createDialog,
   showDialogLoading,
 } from "../draw_element/dialog.js";
+import { updateStatusToolUI } from "../draw_element/draw-general.js";
 import { createDialogLogin } from "../draw_element/login.js";
 import { showNotify } from "../draw_element/notify.js";
 import { createDialogInfoUser } from "../draw_element/user.js";
@@ -136,6 +136,7 @@ async function addEvtHeader() {
       switchStatusTool.addEventListener("change", async (e) => {
         const checked = e.target.checked;
         await setIsStopTaskData(!checked);
+        await updateStatusToolUI(checked);
       });
     }
 

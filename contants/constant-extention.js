@@ -170,6 +170,7 @@ const KEY_REQUEST_TO_BACKGROUND = {
   CHECK_CORRECT_URL_POST_COMMENT_WALK: "check_correct_url_post_comment_walk",
   CHECK_CORRECT_URL_POST_IN_GROUP: "check_correct_url_post_in_group",
   CHECK_CORRECT_URL_GET_LIST_GROUP: "check_correct_url_get_list_group",
+  CHECK_IS_SPAMMED_POST: "check_is_spammed_post",
 };
 
 const KEY_GOOGLE_API = {

@@ -144,9 +144,9 @@ async function main() {
 
         const timeDelay = await CL_getTimeDelayData();
         const timeDelayNext =
-          timeDelay.openNewTab % 2 === 0
-            ? timeDelay.openNewTab / 2
-            : (timeDelay.openNewTab + 1) / 2;
+          timeDelay.time_delay_open_new_tab % 2 === 0
+            ? timeDelay.time_delay_open_new_tab / 2
+            : (timeDelay.time_delay_open_new_tab + 1) / 2;
 
         await sleep(timeDelayNext * 1000 + random(500, 2000));
         sendMessage(KEY_NEXT_POST_GROUP, {});

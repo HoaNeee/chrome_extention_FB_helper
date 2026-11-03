@@ -60,7 +60,8 @@
     CHECK_CORRECT_URL_COMMENT_WALK: "check_correct_url_comment_walk",
     CHECK_CORRECT_URL_POST_COMMENT_WALK: "check_correct_url_post_comment_walk",
     CHECK_CORRECT_URL_POST_IN_GROUP: "check_correct_url_post_in_group",
-    CHECK_CORRECT_URL_GET_LIST_GROUP: "check_correct_url_get_list_group"
+    CHECK_CORRECT_URL_GET_LIST_GROUP: "check_correct_url_get_list_group",
+    CHECK_IS_SPAMMED_POST: "check_is_spammed_post"
   };
   var KEY_FEATURE_FLAG = {
     FIELD: {
@@ -1274,6 +1275,21 @@
       return false;
     }
   }
+  async function CL_checkIsSpammedPost() {
+    try {
+      const res = await sendMessageWithResponse(
+        KEY_REQUEST_TO_BACKGROUND.CHECK_IS_SPAMMED_POST
+      );
+      return res?.data || false;
+    } catch (error) {
+      CL_addLogRequest({
+        vi: error?.message || "L\u1ED7i khi ki\u1EC3m tra url get list group",
+        en: error?.message || "Error when checking url get list group",
+        type: "error"
+      });
+      return false;
+    }
+  }
 
   // content/helpers/dom.js
   function checkIsUseEvaluate(selector = "") {
@@ -1703,6 +1719,14 @@
       };
       const s = 1e3;
       const isTest = await CL_getIsTest();
+      if (isTest) {
+        logContent(
+          getTextLanguageContent({
+            vi: "\u0110ang trong ch\u1EBF \u0111\u1ED9 ki\u1EC3m th\u1EED...",
+            en: "Test mode is enabled..."
+          })
+        );
+      }
       const timeDelay = await CL_getTimeDelayData();
       const timeClickToPost = timeDelay?.time_delay_click_to_post || initialTimeDelay.clickToPost;
       const timeFillContent = timeDelay?.time_delay_fill_content || initialTimeDelay.fillContent;
@@ -1725,7 +1749,7 @@
       const div = await findDivToPost();
       if (div) {
         await eventClickElement(div);
-        await sleep(500);
+        await sleep(random(500, 700));
         let retryTime = 1;
         while (retryTime < 2 && !getIsExistDialog()) {
           CL_addLogRequest({
@@ -1805,6 +1829,15 @@
                   })
                 );
               }
+              const isSpammed = await CL_checkIsSpammedPost();
+              if (isSpammed) {
+                const text2 = getTextLanguageContent({
+                  vi: "Thi\u1EBFt b\u1ECB \u0111\xE3 b\u1ECB \u0111\xE1nh d\u1EA5u l\xE0 spam, kh\xF4ng th\u1EC3 \u0111\u0103ng b\xE0i",
+                  en: "Device is spammed, can't post"
+                });
+                logContent(text2);
+                throw new Error(text2);
+              }
               await findButtonPostAndClick();
               await updateLastTimePost(now());
             }
@@ -1815,6 +1848,13 @@
             });
             throw new Error(text2);
           }
+        } else {
+          logContent(
+            getTextLanguageContent({
+              vi: "\u0110ang trong ch\u1EBF \u0111\u1ED9 ki\u1EC3m th\u1EED, b\u1ECF qua \u0111\u0103ng b\xE0i...",
+              en: "Currently is test mode, skipping post..."
+            })
+          );
         }
         task.status = STATUS_TASK.DONE;
         sendMessage(KEY_UPDATE_STATUS_TASK, { status: task.status });
@@ -3451,7 +3491,7 @@
             await commentToJustPostedHelper();
           }
           const timeDelay = await CL_getTimeDelayData();
-          const timeDelayNext = timeDelay.openNewTab % 2 === 0 ? timeDelay.openNewTab / 2 : (timeDelay.openNewTab + 1) / 2;
+          const timeDelayNext = timeDelay.time_delay_open_new_tab % 2 === 0 ? timeDelay.time_delay_open_new_tab / 2 : (timeDelay.time_delay_open_new_tab + 1) / 2;
           await sleep(timeDelayNext * 1e3 + random(500, 2e3));
           sendMessage(KEY_NEXT_POST_GROUP, {});
           const isTest = await CL_getValue(KEY_IS_TEST, false);
