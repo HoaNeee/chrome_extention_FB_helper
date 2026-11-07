@@ -1,7 +1,7 @@
 {
 	"manifest_version": 3,
 	"name": "FB Tools Helper",
-	"version": "3.0.0.10",
+	"version": "3.0.0.11",
 	"description": "Help you some tasks on facebook",
 	"icons": {
 		"16": "icons/icon-16.png",
@@ -29,7 +29,8 @@
 		"https://generativelanguage.googleapis.com/*",
 		"https://cdn.jsdelivr.net/*",
 		"https://firebasestorage.googleapis.com/*",
-		"https://api.ipify.org/*"
+		"https://api.ipify.org/*",
+		"https://api.corehelper.site/*"
 	],
 	"content_scripts": [
 		{
