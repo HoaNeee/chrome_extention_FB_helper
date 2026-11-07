@@ -1,14 +1,9 @@
 import {
-  loginService,
-  setAuthInStorage,
+	loginService,
+	setAuthInStorage,
 } from "../../../services/auth-service.js";
-import {
-  createNewDeviceRequest,
-  getDeviceFromStorage,
-  getUsedToLoginedThisDevice,
-  setUsedToLoginedThisDevice,
-} from "../../../services/device-service.js";
 import { setIsUseLocalStorage } from "../../../services/storage-global-service.js";
+import { getLanguageInStorage } from "../../../services/storage-service.js";
 import { getTextWithLanguage, logError } from "../../../utils/utils.js";
 import { closeDialogLoading, showDialogLoading } from "./dialog.js";
 import { createFieldElement } from "./field.js";
@@ -19,148 +14,167 @@ import { showNotify } from "./notify.js";
  * @returns {Promise<HTMLFormElement>}
  */
 function createDialogLogin({ onLoginSuccess = () => {} }) {
-  try {
-    const form = document.createElement("form");
-    form.style.width = "100%";
-    form.name = "login-form";
+	try {
+		const form = document.createElement("form");
+		form.style.width = "100%";
+		form.name = "login-form";
 
-    const divContainer = document.createElement("div");
-    divContainer.style.width = "100%";
-    divContainer.style.padding = "30px 0";
+		const divContainer = document.createElement("div");
+		divContainer.style.width = "100%";
+		divContainer.style.padding = "30px 0";
 
-    const { fieldElement: fieldUsername, inputElement: inputUserName } =
-      createFieldElement({
-        label: getTextWithLanguage({
-          vi: "Tên đăng nhập",
-          en: "Username",
-        }),
-        placeholder: getTextWithLanguage({
-          vi: "Nhập tên đăng nhập",
-          en: "Enter username",
-        }),
-        id: "username",
-      });
+		const { fieldElement: fieldUsername, inputElement: inputUserName } =
+			createFieldElement({
+				label: getTextWithLanguage({
+					vi: "Tên đăng nhập",
+					en: "Username",
+				}),
+				placeholder: getTextWithLanguage({
+					vi: "Nhập tên đăng nhập",
+					en: "Enter username",
+				}),
+				id: "username",
+			});
 
-    const { fieldElement: fieldPassword, inputElement: inputPassword } =
-      createFieldElement({
-        typeInput: "password",
-        label: getTextWithLanguage({
-          vi: "Mật khẩu",
-          en: "Password",
-        }),
-        placeholder: getTextWithLanguage({
-          vi: "Nhập mật khẩu",
-          en: "Enter password",
-        }),
-        id: "password",
-      });
+		const { fieldElement: fieldPassword, inputElement: inputPassword } =
+			createFieldElement({
+				typeInput: "password",
+				label: getTextWithLanguage({
+					vi: "Mật khẩu",
+					en: "Password",
+				}),
+				placeholder: getTextWithLanguage({
+					vi: "Nhập mật khẩu",
+					en: "Enter password",
+				}),
+				id: "password",
+			});
 
-    const pError = document.createElement("p");
-    pError.style.color = "red";
-    pError.style.fontSize = "12px";
-    pError.style.textAlign = "left";
-    pError.style.display = "none";
-    pError.style.padding = "6px 0";
-    pError.style.marginLeft = "12px";
+		const pError = document.createElement("p");
+		pError.style.color = "red";
+		pError.style.fontSize = "12px";
+		pError.style.textAlign = "left";
+		pError.style.display = "none";
+		pError.style.padding = "6px 0";
+		pError.style.marginLeft = "12px";
 
-    const btnLogin = document.createElement("button");
-    btnLogin.innerText = getTextWithLanguage({
-      vi: "Đăng nhập",
-      en: "Login",
-    });
+		const btnLogin = document.createElement("button");
+		btnLogin.innerText = getTextWithLanguage({
+			vi: "Đăng nhập",
+			en: "Login",
+		});
 
-    btnLogin.style.width = "100%";
-    btnLogin.style.marginTop = "12px";
-    btnLogin.style.padding = "8px";
-    btnLogin.style.fontSize = "16px";
-    btnLogin.style.textAlign = "center";
+		btnLogin.style.width = "100%";
+		btnLogin.style.marginTop = "12px";
+		btnLogin.style.padding = "8px";
+		btnLogin.style.fontSize = "16px";
+		btnLogin.style.textAlign = "center";
 
-    function handleError(msg) {
-      if (!msg || !msg?.trim()) {
-        pError.style.display = "none";
-        pError.textContent = "";
-      } else {
-        pError.style.display = "block";
-        pError.textContent = msg;
-      }
-    }
+		const divRegister = document.createElement("div");
 
-    function validateForm() {
-      const username = inputUserName.value.trim();
-      const password = inputPassword.value.trim();
+		const linkRegister = document.createElement("a");
+		linkRegister.textContent = getTextWithLanguage({
+			vi: "Đăng ký",
+			en: "Register",
+		});
+		linkRegister.href =
+			"https://app.corehelper.site/register?lang=" +
+			getTextWithLanguage({ vi: "vi", en: "en" });
+		linkRegister.target = "_blank";
+		linkRegister.style.color = "blue";
 
-      if (username === "" || password === "") {
-        return false;
-      }
+		divRegister.style.textAlign = "center";
+		divRegister.style.marginTop = "12px";
+		divRegister.appendChild(linkRegister);
 
-      return true;
-    }
+		function handleError(msg) {
+			if (!msg || !msg?.trim()) {
+				pError.style.display = "none";
+				pError.textContent = "";
+			} else {
+				pError.style.display = "block";
+				pError.textContent = msg;
+			}
+		}
 
-    divContainer.appendChild(fieldUsername);
-    divContainer.appendChild(fieldPassword);
-    divContainer.appendChild(pError);
-    divContainer.appendChild(btnLogin);
+		function validateForm() {
+			const username = inputUserName.value.trim();
+			const password = inputPassword.value.trim();
 
-    form.appendChild(divContainer);
+			if (username === "" || password === "") {
+				return false;
+			}
 
-    form.addEventListener("input", (e) => {
-      handleError();
-    });
+			return true;
+		}
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
+		divContainer.appendChild(fieldUsername);
+		divContainer.appendChild(fieldPassword);
+		divContainer.appendChild(pError);
+		divContainer.appendChild(btnLogin);
 
-      if (!validateForm()) {
-        handleError("Please enter username and password");
-        return;
-      }
+		divContainer.appendChild(divRegister);
 
-      const data = {
-        username: inputUserName.value.trim(),
-        password: inputPassword.value.trim(),
-      };
+		form.appendChild(divContainer);
 
-      try {
-        showDialogLoading();
-        // await sleep(5000);
-        const auth = await loginService(data.username, data.password);
-        if (auth) {
-          await setAuthInStorage(auth);
-          await setIsUseLocalStorage(false);
+		form.addEventListener("input", (e) => {
+			handleError();
+		});
 
-          // const isUsedToLogined = await getUsedToLoginedThisDevice();
-          // if (!isUsedToLogined) {
-          //   await setUsedToLoginedThisDevice(true);
-          // }
+		form.addEventListener("submit", async (e) => {
+			e.preventDefault();
 
-          showNotify({
-            message: getTextWithLanguage({
-              vi: "Đăng nhập thành công",
-              en: "Login success",
-            }),
-            type: "success",
-          });
+			if (!validateForm()) {
+				handleError("Please enter username and password");
+				return;
+			}
 
-          onLoginSuccess?.();
-        }
-      } catch (error) {
-        handleError(error.message);
-        showNotify({
-          message: getTextWithLanguage({
-            vi: "Đăng nhập thất bại",
-            en: "Login failed",
-          }),
-          type: "error",
-        });
-      } finally {
-        closeDialogLoading();
-      }
-    });
+			const data = {
+				username: inputUserName.value.trim(),
+				password: inputPassword.value.trim(),
+			};
 
-    return form;
-  } catch (error) {
-    logError("Error at createDialogLogin: ", error);
-  }
+			try {
+				showDialogLoading();
+				// await sleep(5000);
+				const auth = await loginService(data.username, data.password);
+				if (auth) {
+					await setAuthInStorage(auth);
+					await setIsUseLocalStorage(false);
+
+					// const isUsedToLogined = await getUsedToLoginedThisDevice();
+					// if (!isUsedToLogined) {
+					//   await setUsedToLoginedThisDevice(true);
+					// }
+
+					showNotify({
+						message: getTextWithLanguage({
+							vi: "Đăng nhập thành công",
+							en: "Login success",
+						}),
+						type: "success",
+					});
+
+					onLoginSuccess?.();
+				}
+			} catch (error) {
+				handleError(error.message);
+				showNotify({
+					message: getTextWithLanguage({
+						vi: "Đăng nhập thất bại",
+						en: "Login failed",
+					}),
+					type: "error",
+				});
+			} finally {
+				closeDialogLoading();
+			}
+		});
+
+		return form;
+	} catch (error) {
+		logError("Error at createDialogLogin: ", error);
+	}
 }
 
 export { createDialogLogin };
