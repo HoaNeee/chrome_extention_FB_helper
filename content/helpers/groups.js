@@ -25,40 +25,34 @@ import { getTextLanguageContent } from "../utils/global";
 async function getListElementContainer() {
   try {
     const lang = getLanguage();
-
-    let divContainerList = null;
-
-    const selectorsContainerList =
+    const selectors =
       lang === "vi"
         ? SELECTOR_VI.listElementContainers
         : SELECTOR.listElementContainers;
 
-    for (const selector of selectorsContainerList) {
-      divContainerList = await waitForElement(selector);
-      if (divContainerList) break;
+    for (const selector of selectors) {
+      const elem = await waitForElement(selector);
+      if (elem) {
+        return elem;
+      }
     }
-
-    let selectorGroupWaitingTexts = SELECTOR_VI.allGroupsJoinTexts;
-    let spanExistGroupWaiting = null;
-    //check have group waiting
-    for (const selector of selectorGroupWaitingTexts) {
-      spanExistGroupWaiting = findElement(selector);
-      if (spanExistGroupWaiting) break;
-    }
-
-    const listItem = await waitForElement(`div[role="listitem"]:last-child`);
-    let listElement = null;
-
-    if (spanExistGroupWaiting) {
-      const parentEl = listItem?.parentElement?.parentElement?.parentElement;
-      listElement =
-        parentEl?.children?.[1] || parentEl?.children?.[0] || parentEl;
-    } else {
-      listElement = listItem?.parentElement;
-    }
-    return listElement;
   } catch (error) {
-    throw new Error("Error get list element container: " + error);
+    logError("Error get list element container: ", error);
+    throw error;
+  }
+}
+
+function getListElement(container) {
+  try {
+    const selectors = SELECTOR_RAW.listInlcudeListItem;
+    for (const selector of selectors) {
+      const elem = findElement(selector, container);
+      if (elem) return elem;
+    }
+    return container;
+  } catch (error) {
+    logError("Error get list element: ", error);
+    throw error;
   }
 }
 
@@ -95,15 +89,17 @@ function getAllListItemElement(list) {
  */
 async function getListGroups() {
   try {
-    const listElement = await getListElementContainer();
+    const listElementContainer = await getListElementContainer();
 
     const isScroll = await CL_getIsScrollDetectListGroup();
     if (isScroll) {
-      await scrollDetectListGroups(listElement);
+      await scrollDetectListGroups(listElementContainer);
     } else {
       const allGroup = await CL_getAllDataGroupsOfUser();
       return allGroup || [];
     }
+
+    const listElement = getListElement(listElementContainer);
 
     const childs = getAllListItemElement(listElement);
     const list = [];
@@ -133,40 +129,33 @@ async function getListGroups() {
       en: `Error when getting list groups of user, ${e?.message || e}`,
       type: "error",
     });
-    throw new Error("Error get list group: " + e);
+    logError("Error get list group: ", e);
+    throw e;
   }
 }
 
 async function scrollDetectListGroups(listContainer) {
   try {
     const lang = getLanguage();
-    const selectorsContainerList =
-      lang === "vi"
-        ? SELECTOR_VI.listElementContainers
-        : SELECTOR.listElementContainers;
 
-    let listElement = null;
-    for (const selector of selectorsContainerList) {
-      listElement = await waitForElement(selector);
-      if (listElement) break;
-    }
+    let listElement = getListElement(listContainer);
 
-    let selectorGroupWaitingTexts =
+    let selectorsAllGroupJoin =
       lang === "vi"
         ? SELECTOR_VI.allGroupsJoinTexts
         : SELECTOR.allGroupsJoinTexts;
 
-    let h2ExistGroupWaiting = null;
+    let h2LabelAllGroupJoined = null;
     //check have group waiting
-    for (const selector of selectorGroupWaitingTexts) {
-      h2ExistGroupWaiting = findElement(selector, listElement);
-      if (h2ExistGroupWaiting) break;
+    for (const selector of selectorsAllGroupJoin) {
+      h2LabelAllGroupJoined = findElement(selector);
+      if (h2LabelAllGroupJoined) break;
     }
 
     let maxGroup = 50;
 
-    if (h2ExistGroupWaiting) {
-      const text = h2ExistGroupWaiting.textContent;
+    if (h2LabelAllGroupJoined) {
+      const text = h2LabelAllGroupJoined.textContent;
       const pt = new RegExp(`\\d+`, "i");
       const match = text.match(pt);
       if (match) {
@@ -196,7 +185,7 @@ async function scrollDetectListGroups(listContainer) {
         lastItem.scrollIntoView({ behavior: "smooth", block: "end" });
       }
       lastCountGroup = currentGroup;
-      currentGroup = getAllListItemElement(listContainer)?.length || 0;
+      currentGroup = getAllListItemElement(listElement)?.length || 0;
       if (lastCountGroup !== currentGroup) {
         i = 0;
       }
@@ -214,7 +203,8 @@ async function scrollDetectListGroups(listContainer) {
       ++i;
     }
   } catch (error) {
-    throw new Error("Error scroll detect list groups: " + error);
+    logError("Error scroll detect list groups: ", error);
+    throw error;
   }
 }
 

@@ -415,12 +415,14 @@ async function importDataGroupPosts(data) {
 
   const deviceId = await getDeviceId();
 
-  const res = await post("/data-group-posts/import-data", {
+  await post("/data-group-posts/import-data", {
     list_data_group_post: payload,
     device_id: deviceId,
   });
 
-  return res.data;
+  const newList = await getListDataGroupPost();
+
+  return newList;
 }
 
 /**
@@ -513,7 +515,7 @@ async function getMaxPriority() {
     return list.length;
   }
   const res = await get("/data-group-posts/get-max-priority");
-  return res.data;
+  return Number(res.data || 1);
 }
 
 async function clearDataGroupPost() {
