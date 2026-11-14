@@ -2533,9 +2533,6 @@
               logErrorContent("Not found div feed content, skip post");
               continue;
             }
-            if (isInteractBeforeCommentWalk) {
-              await interactBeforeComment(child);
-            }
             const matchContentExcludesNotShowMore = matchQueryKeywords(
               content_query_excludes_common,
               divFeedContent.textContent
@@ -2765,6 +2762,9 @@
               if (areaComment.isSearch) {
                 countScroll = 0;
               }
+            }
+            if (isInteractBeforeCommentWalk) {
+              await interactBeforeComment(child);
             }
             await calculateValueSleep(speed);
             divButtonToPost.click();
@@ -3001,7 +3001,7 @@
           en: "Interact before comment is enabled, calculating whether to interact or not..."
         })
       );
-      const rd = randomRateBoolean(30);
+      const rd = randomRateBoolean(25);
       if (!rd) {
         logContent(
           getTextLanguageContent({
@@ -3026,7 +3026,7 @@
       if (btnReact) {
         await sleep(random(3e3, 5e3));
         btnReact.click();
-        await sleep(random(1500, 3e3));
+        await sleep(random(1500, 5e3));
       }
     } catch (error) {
       logErrorContent("error in interactBeforeComment", error);
